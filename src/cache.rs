@@ -159,6 +159,9 @@ impl PathCache {
     }
 
     pub(crate) fn flatten_paths(&mut self, commands: &[Command], dist_tol: f32, tess_tol: f32) {
+        if self.paths.len() != 0 {
+            return;
+        }
         for cmd in commands {
             match cmd {
                 Command::MoveTo(pt) => {
