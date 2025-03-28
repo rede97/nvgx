@@ -487,7 +487,7 @@ impl<R: Renderer> Context<R> {
     fn set_device_pixel_ratio(&mut self, ratio: f32) {
         self.tess_tol = 0.25 / ratio;
         self.dist_tol = 0.01 / ratio;
-        self.fringe_width = 1.0 / ratio;
+        self.fringe_width = 1.0 * ratio;
         self.device_pixel_ratio = ratio;
     }
 

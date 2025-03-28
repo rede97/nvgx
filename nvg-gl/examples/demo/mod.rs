@@ -55,7 +55,7 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(
                 WindowEvent::CursorMoved {position, ..} =>
                     demo.cursor_moved(position.x as f32, position.y as f32),
                 _ => ()
-            }
+                }
             Event::RedrawRequested(_) => {
                 unsafe {
                     gl::Viewport(
@@ -72,11 +72,11 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(
                     );
                 }
                 context.begin_frame(
-                    nvg::Extent {
-                        width: window_size.width as f32,
+                        nvg::Extent {
+                            width: window_size.width as f32,
                         height: window_size.height as f32
-                    },
-                    scale_factor as f32
+                        },
+                        scale_factor as f32
                 ).unwrap();
 
                 context.save();
@@ -89,10 +89,8 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(
 
                 context.save();
                 total_frames += 1;
-                let fps =
-                    (total_frames as f32) /
-                    (Instant::now() -
-                     start_time).as_secs_f32();
+                let fps = (total_frames as f32) / (Instant::now() - start_time).as_secs_f32();
+                context.begin_path();
                 context.fill_paint(Color::rgb(1.0, 0.0, 0.0));
                 context.font("roboto");
                 context.font_size(20.0);
@@ -103,7 +101,7 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(
                 context.end_frame().unwrap();
                 windowed_context.swap_buffers().unwrap();
             }
-            _ => ()
+            _ => (),
         }
     });
 }

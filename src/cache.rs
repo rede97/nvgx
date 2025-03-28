@@ -490,7 +490,7 @@ impl PathCache {
                                 u1,
                             );
                         }
-                        LineCap::Round => {
+                        LineCap::Square => {
                             dst = butt_cap_end(
                                 dst,
                                 p1.as_mut().unwrap(),
@@ -503,7 +503,7 @@ impl PathCache {
                                 u1,
                             );
                         }
-                        LineCap::Square => {
+                        LineCap::Round => {
                             dst = round_cap_end(
                                 dst,
                                 p1.as_mut().unwrap(),

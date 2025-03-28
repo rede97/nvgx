@@ -40,7 +40,7 @@ impl<R: Renderer> demo::Demo<R> for DemoClock {
         let silver: Color = Color::rgb_i(196, 199, 206);
         let darksilver: Color = Color::rgb_i(148, 152, 161);
         let darkgray: Color = Color::rgb_i(169, 169, 169);
-        let dial_color = Color::rgba(0.2, 0.0, 0.8, 1.0);
+        let dial_color = Color::rgba(0.4, 0.3, 0.8, 1.0);
 
         let sigils: Vec<String> = (0..13).map(|n| format!("{}", n)).collect();
         for h in 1..13 {
@@ -78,8 +78,8 @@ impl<R: Renderer> demo::Demo<R> for DemoClock {
 
         ctx.fill_paint(silver);
 
-        ctx.text_align(Align::CENTER | Align::BASELINE);
         ctx.reset_transform();
+        ctx.text_align(Align::CENTER | Align::BASELINE);
         ctx.text(
             (dial_center.0, dial_center.1 + dial_radius * 0.7 - font_size),
             &format!(
@@ -114,13 +114,13 @@ impl<R: Renderer> demo::Demo<R> for DemoClock {
             ctx.move_to(origin);
             ctx.line_to((0.0, -length));
             ctx.stroke_paint(white);
+            ctx.line_cap(LineCap::Round);
             ctx.stroke()
         };
 
         let hour_angle = (((hour * 60.0 + minute) / 60.0) / 12.0) * two_pi;
         let minute_angle = minute * radians_per_sec;
         let second_angle = second * radians_per_sec;
-
         draw_hand(second_angle, second_hand_len, 1.0)?;
         draw_hand(minute_angle, minute_hand_len, 3.0)?;
         draw_hand(hour_angle, hour_hand_len, 5.0)?;
