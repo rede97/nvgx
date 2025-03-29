@@ -52,5 +52,5 @@ impl<R: Renderer> demo::Demo<R> for DemoText {
 }
 
 fn main() {
-    demo::run(DemoText).unwrap();
+    demo::run(DemoText, "text");
 }

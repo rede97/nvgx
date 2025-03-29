@@ -28,7 +28,7 @@ fn main() {
             }
             Event::RedrawRequested(_) => {
                 let size = wc.window().inner_size();
-                let sf = wc.window().scale_factor();
+                let sf = wc.window().scale_factor() as f32;
                 unsafe {
                     gl::Viewport(0, 0, size.width as i32, size.height as i32);
                     gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -43,16 +43,23 @@ fn main() {
                         width: size.width as f32,
                         height: size.height as f32
                     },
-                    sf as f32
+                    sf
                 ).unwrap();
-                nvg_ctx.save();
                 nvg_ctx.fill_paint(nvg::Color::rgb(1.0, 0.0, 0.0));
+                nvg_ctx.begin_path();
                 nvg_ctx.rect(nvg::Rect::new(
                     nvg::Point::new(10.0, 10.0),
                     nvg::Extent::new(40.0, 40.0)
                 ));
                 nvg_ctx.fill().unwrap();
-                nvg_ctx.restore();
+
+                nvg_ctx.begin_path();
+                nvg_ctx.stroke_paint(nvg::Color::rgb(0.0, 1.0, 0.0));
+                nvg_ctx.stroke_width(1.0 / sf);
+                nvg_ctx.move_to((100.0, 10.0));
+                nvg_ctx.line_to((400.0, 500.0));
+                nvg_ctx.stroke().unwrap();
+
                 nvg_ctx.end_frame().unwrap();
                 wc.swap_buffers().unwrap();
             }
