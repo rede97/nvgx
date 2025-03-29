@@ -183,7 +183,7 @@ fn render_cutout<R: Renderer>(
     ctx.begin_path();
     ctx.rect((x, y, w, h));
     ctx.circle((mx, my), base_circle_size);
-    ctx.path_solidity(Solidity::Hole);
+    ctx.path_winding(PathDir::CW);
     ctx.close_path();
     ctx.fill_paint(Color::rgb(1.0, 1.0, 1.0));
     ctx.fill().unwrap();
@@ -192,7 +192,7 @@ fn render_cutout<R: Renderer>(
     ctx.move_to((0, 0));
     ctx.circle((mx, my), base_circle_size + circle_thickness);
     ctx.circle((mx, my), base_circle_size);
-    ctx.path_solidity(Solidity::Hole);
+    ctx.path_winding(PathDir::CW);
     ctx.close_path();
     ctx.fill_paint(Color::rgba_i(90, 94, 100, 25));
     ctx.fill().unwrap();
@@ -201,7 +201,7 @@ fn render_cutout<R: Renderer>(
     ctx.move_to((0, 0));
     ctx.circle((mx, my), base_circle_size);
     ctx.circle((mx, my), base_circle_size - circle_thickness);
-    ctx.path_solidity(Solidity::Hole);
+    ctx.path_winding(PathDir::CW);
     ctx.close_path();
     ctx.fill_paint(Color::rgba_i(0, 0, 0, 25));
     ctx.fill().unwrap();
