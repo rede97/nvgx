@@ -11,7 +11,7 @@ pub mod renderer;
 pub use color::*;
 pub use context::{
     Align, BasicCompositeOperation, BlendFactor, CompositeOperation, Context, Gradient, ImageFlags,
-    ImageId, ImagePattern, LineCap, LineJoin, Paint, Solidity, TextMetrics,
+    ImageId, ImagePattern, LineCap, LineJoin, Paint, PathDir, WindingSolidity, TextMetrics, FillType
 };
 pub use fonts::FontId;
 pub use math::*;

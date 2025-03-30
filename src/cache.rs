@@ -1,5 +1,5 @@
 use crate::context::{Command, Path, Vertex};
-use crate::{Bounds, LineCap, LineJoin, Point, Solidity};
+use crate::{Bounds, LineCap, LineJoin, Point, PathDir};
 use clamped::Clamp;
 use rawpointer::ptrdistance;
 use std::f32::consts::PI;
@@ -43,7 +43,7 @@ impl PathCache {
             count: 0,
             closed: false,
             num_bevel: 0,
-            solidity: Solidity::Solid,
+            windding: PathDir::CCW,
             fill: std::ptr::null_mut(),
             num_fill: 0,
             stroke: std::ptr::null_mut(),
@@ -81,9 +81,9 @@ impl PathCache {
         }
     }
 
-    fn path_solidity(&mut self, solidity: Solidity) {
+    fn path_solidity(&mut self, windding: PathDir) {
         if let Some(path) = self.paths.last_mut() {
-            path.solidity = solidity;
+            path.windding = windding;
         }
     }
 
@@ -185,7 +185,7 @@ impl PathCache {
                     }
                 }
                 Command::Close => self.close_path(),
-                Command::Solidity(solidity) => self.path_solidity(*solidity),
+                Command::Winding(solidity) => self.path_solidity(*solidity),
             }
         }
 
@@ -209,10 +209,10 @@ impl PathCache {
 
                 if path.count > 2 {
                     let area = poly_area(std::slice::from_raw_parts(pts, path.count));
-                    if path.solidity == Solidity::Solid && area < 0.0 {
+                    if path.windding == PathDir::CCW && area < 0.0 {
                         poly_reverse(std::slice::from_raw_parts_mut(pts, path.count));
                     }
-                    if path.solidity == Solidity::Hole && area > 0.0 {
+                    if path.windding == PathDir::CW && area > 0.0 {
                         poly_reverse(std::slice::from_raw_parts_mut(pts, path.count));
                     }
                 }
@@ -556,7 +556,7 @@ impl PathCache {
             for i in 0..self.paths.len() {
                 let path = &mut self.paths[i];
                 let pts = &mut self.points[path.first] as *mut VPoint;
-                let woff = 0.5 * aa;
+                let woff = if path.windding == PathDir::CW { 0.5 } else { 0.5 * aa };
                 let mut dst = vertexes;
 
                 path.fill = dst;

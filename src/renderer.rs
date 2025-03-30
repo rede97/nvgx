@@ -49,6 +49,7 @@ pub trait Renderer {
         &mut self,
         paint: &Paint,
         composite_operation: CompositeOperationState,
+        fill_type: FillType,
         scissor: &Scissor,
         fringe: f32,
         bounds: Bounds,

@@ -172,9 +172,32 @@ impl<T: Into<Color> + Clone> From<T> for Paint {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Solidity {
+pub enum PathDir {
+    CCW,
+    CW,
+}
+
+
+#[allow(unused)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum FillType {
+    Winding,
+    EvenOdd,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum WindingSolidity {
     Solid,
     Hole,
+}
+
+impl Into<PathDir> for WindingSolidity {
+    fn into(self) -> PathDir {
+        match self {
+            WindingSolidity::Solid => PathDir::CCW,
+            WindingSolidity::Hole => PathDir::CW,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -347,7 +370,7 @@ pub struct Path {
     pub(crate) count: usize,
     pub(crate) closed: bool,
     pub(crate) num_bevel: usize,
-    pub(crate) solidity: Solidity,
+    pub(crate) windding: PathDir,
     pub(crate) fill: *mut Vertex,
     pub(crate) num_fill: usize,
     pub(crate) stroke: *mut Vertex,
@@ -391,6 +414,7 @@ struct State {
     composite_operation: CompositeOperationState,
     shape_antialias: bool,
     fill: Paint,
+    fill_type: FillType,
     stroke: Paint,
     stroke_width: f32,
     miter_limit: f32,
@@ -412,6 +436,7 @@ impl Default for State {
             composite_operation: CompositeOperation::Basic(BasicCompositeOperation::SrcOver).into(),
             shape_antialias: true,
             fill: Color::rgb(1.0, 1.0, 1.0).into(),
+            fill_type: FillType::Winding,
             stroke: Color::rgb(0.0, 0.0, 0.0).into(),
             stroke_width: 1.0,
             miter_limit: 10.0,
@@ -441,7 +466,7 @@ pub(crate) enum Command {
     LineTo(Point),
     BezierTo(Point, Point, Point),
     Close,
-    Solidity(Solidity),
+    Winding(PathDir),
 }
 
 pub struct Context<R: Renderer> {
@@ -611,6 +636,10 @@ impl<R: Renderer> Context<R> {
         let mut paint = paint.into();
         paint.xform *= self.state().xform;
         self.state_mut().fill = paint;
+    }
+    
+    pub fn fill_type(&mut self, fill_type: FillType) {
+        self.state_mut().fill_type= fill_type;
     }
 
     pub fn create_image<D: AsRef<[u8]>>(
@@ -801,7 +830,7 @@ impl<R: Renderer> Context<R> {
                 pt1.y + d0.y * d + -d0.x * radius,
                 d0.x.atan2(-d0.y),
                 -d1.x.atan2(d1.y),
-                Solidity::Hole,
+                PathDir::CW,
             )
         } else {
             (
@@ -809,7 +838,7 @@ impl<R: Renderer> Context<R> {
                 pt1.y + d0.y * d + d0.x * radius,
                 -d0.x.atan2(d0.y),
                 d1.x.atan2(-d1.y),
-                Solidity::Solid,
+                PathDir::CCW,
             )
         };
 
@@ -820,16 +849,16 @@ impl<R: Renderer> Context<R> {
         self.commands.push(Command::Close);
     }
 
-    pub fn path_solidity(&mut self, dir: Solidity) {
-        self.commands.push(Command::Solidity(dir));
+    pub fn path_winding<D: Into<PathDir>>(&mut self, dir: D) {
+        self.commands.push(Command::Winding(dir.into()));
     }
 
-    pub fn arc<P: Into<Point>>(&mut self, cp: P, radius: f32, a0: f32, a1: f32, dir: Solidity) {
+    pub fn arc<P: Into<Point>>(&mut self, cp: P, radius: f32, a0: f32, a1: f32, dir: PathDir) {
         let cp = cp.into();
         let move_ = self.commands.is_empty();
 
         let mut da = a1 - a0;
-        if dir == Solidity::Hole {
+        if dir == PathDir::CW {
             if da.abs() >= PI * 2.0 {
                 da = PI * 2.0;
             } else {
@@ -851,7 +880,7 @@ impl<R: Renderer> Context<R> {
         let hda = (da / (ndivs as f32)) / 2.0;
         let mut kappa = (4.0 / 3.0 * (1.0 - hda.cos()) / hda.sin()).abs();
 
-        if dir == Solidity::Solid {
+        if dir == PathDir::CCW {
             kappa = -kappa;
         }
 
@@ -1044,6 +1073,7 @@ impl<R: Renderer> Context<R> {
         self.renderer.fill(
             &fill_paint,
             state.composite_operation,
+            state.fill_type,
             &state.scissor,
             self.fringe_width,
             self.cache.bounds,
