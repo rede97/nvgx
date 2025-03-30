@@ -30,7 +30,7 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
     let mut window_size = windowed_context.window().inner_size();
     let scale_factor = windowed_context.window().scale_factor();
 
-    let renderer = nvg_gl::Renderer::create().unwrap();
+    let renderer = nvg_gl::Renderer::create(nvg_gl::RenderConfig::default()).unwrap();
     let mut context = nvg::Context::create(renderer).unwrap();
 
     demo.init(&mut context).unwrap();
