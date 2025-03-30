@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate anyhow;
 
-use nvg::renderer::*;
+use nvg::{renderer::*, FillType};
 use slab::Slab;
 use std::ffi::c_void;
 
@@ -98,7 +98,7 @@ enum ShaderType {
 
 #[derive(PartialEq, Eq)]
 enum CallType {
-    Fill,
+    Fill(FillType),
     ConvexFill,
     Stroke,
     Triangles,
@@ -253,7 +253,7 @@ impl Renderer {
         }
     }
 
-    unsafe fn do_fill(&self, call: &Call) {
+    unsafe fn do_fill(&self, call: &Call, fill_type: FillType) {
         let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
 
         gl::Enable(gl::STENCIL_TEST);
@@ -262,9 +262,12 @@ impl Renderer {
         gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
 
         self.set_uniforms(call.uniform_offset, call.image);
-
-        gl::StencilOpSeparate(gl::FRONT, gl::KEEP, gl::KEEP, gl::INCR_WRAP);
-        gl::StencilOpSeparate(gl::BACK, gl::KEEP, gl::KEEP, gl::DECR_WRAP);
+        if fill_type == FillType::Winding {
+            gl::StencilOpSeparate(gl::FRONT, gl::KEEP, gl::KEEP, gl::INCR_WRAP);
+            gl::StencilOpSeparate(gl::BACK, gl::KEEP, gl::KEEP, gl::DECR_WRAP);
+        } else {
+            gl::StencilOpSeparate(gl::FRONT_AND_BACK, gl::KEEP, gl::KEEP, gl::INVERT);
+        }
         gl::Disable(gl::CULL_FACE);
         for path in paths {
             gl::DrawArrays(
@@ -730,7 +733,7 @@ impl renderer::Renderer for Renderer {
                     );
 
                     match call.call_type {
-                        CallType::Fill => self.do_fill(&call),
+                        CallType::Fill(ft) => self.do_fill(&call, ft),
                         CallType::ConvexFill => self.do_convex_fill(&call),
                         CallType::Stroke => self.do_stroke(&call),
                         CallType::Triangles => self.do_triangles(&call),
@@ -758,13 +761,14 @@ impl renderer::Renderer for Renderer {
         &mut self,
         paint: &Paint,
         composite_operation: CompositeOperationState,
+        fill_type: FillType,
         scissor: &Scissor,
         fringe: f32,
         bounds: Bounds,
         paths: &[Path],
     ) -> anyhow::Result<()> {
         let mut call = Call {
-            call_type: CallType::Fill,
+            call_type: CallType::Fill(fill_type),
             image: paint.image,
             path_offset: self.paths.len(),
             path_count: paths.len(),
@@ -806,7 +810,7 @@ impl renderer::Renderer for Renderer {
             self.paths.push(gl_path);
         }
 
-        if call.call_type == CallType::Fill {
+        if let CallType::Fill(_) = call.call_type {
             call.triangle_offset = offset;
             self.vertexes
                 .push(Vertex::new(bounds.max.x, bounds.max.y, 0.5, 1.0));

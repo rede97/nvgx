@@ -556,7 +556,7 @@ impl PathCache {
             for i in 0..self.paths.len() {
                 let path = &mut self.paths[i];
                 let pts = &mut self.points[path.first] as *mut VPoint;
-                let woff = 0.5 * aa;
+                let woff = if path.windding == PathDir::CW { 0.5 } else { 0.5 * aa };
                 let mut dst = vertexes;
 
                 path.fill = dst;

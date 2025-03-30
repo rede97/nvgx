@@ -637,6 +637,10 @@ impl<R: Renderer> Context<R> {
         paint.xform *= self.state().xform;
         self.state_mut().fill = paint;
     }
+    
+    pub fn fill_type(&mut self, fill_type: FillType) {
+        self.state_mut().fill_type= fill_type;
+    }
 
     pub fn create_image<D: AsRef<[u8]>>(
         &mut self,
@@ -1069,6 +1073,7 @@ impl<R: Renderer> Context<R> {
         self.renderer.fill(
             &fill_paint,
             state.composite_operation,
+            state.fill_type,
             &state.scissor,
             self.fringe_width,
             self.cache.bounds,
