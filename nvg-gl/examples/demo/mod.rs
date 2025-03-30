@@ -4,8 +4,12 @@ use nvg::{Align, Color, Context, Renderer};
 use std::time::Instant;
 
 pub trait Demo<R: Renderer> {
-    fn init(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
+    fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> anyhow::Result<()> {
         ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
+        Ok(())
+    }
+
+    fn before_frame(&mut self, _ctx: &mut Context<R>) -> anyhow::Result<()> {
         Ok(())
     }
 
@@ -28,12 +32,12 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
     gl::load_with(|p| windowed_context.get_proc_address(p) as *const _);
 
     let mut window_size = windowed_context.window().inner_size();
-    let scale_factor = windowed_context.window().scale_factor();
+    let scale_factor = windowed_context.window().scale_factor() as f32;
 
-    let renderer = nvg_gl::Renderer::create().unwrap();
+    let renderer = nvg_gl::Renderer::create(nvg_gl::RenderConfig::default()).unwrap();
     let mut context = nvg::Context::create(renderer).unwrap();
 
-    demo.init(&mut context).unwrap();
+    demo.init(&mut context, scale_factor).unwrap();
 
     let mut total_frames = 0;
     let mut start_time = Instant::now();
@@ -52,6 +56,8 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
                 _ => (),
             },
             Event::RedrawRequested(_) => {
+                demo.before_frame(&mut context).unwrap();
+
                 unsafe {
                     gl::Viewport(0, 0, window_size.width as i32, window_size.height as i32);
                     gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -63,7 +69,7 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
                             width: window_size.width as f32,
                             height: window_size.height as f32,
                         },
-                        scale_factor as f32,
+                        scale_factor,
                     )
                     .unwrap();
 

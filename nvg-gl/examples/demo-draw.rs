@@ -11,7 +11,7 @@ struct DemoDraw {
 }
 
 impl<R: Renderer> demo::Demo<R> for DemoDraw {
-    fn init(&mut self, ctx: &mut Context<R>) -> Result<(), Error> {
+    fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> Result<(), Error> {
         ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
         self.img = Some(ctx.create_image_from_file(
             ImageFlags::REPEATX | ImageFlags::REPEATY,
@@ -88,8 +88,11 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
 }
 
 fn main() {
-    demo::run(DemoDraw {
-        img: None,
-        start_time: Instant::now(),
-    }, "demo-draw");
+    demo::run(
+        DemoDraw {
+            img: None,
+            start_time: Instant::now(),
+        },
+        "demo-draw",
+    );
 }

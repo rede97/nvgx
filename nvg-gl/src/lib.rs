@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate anyhow;
+pub mod fb;
 
 use nvg::{renderer::*, FillType};
 use slab::Slab;
@@ -172,6 +173,32 @@ struct FragUniforms {
     type_: i32,
 }
 
+pub struct RenderConfig {
+    antialias: bool,
+    stencil_stroke: bool,
+}
+
+impl RenderConfig {
+    pub fn antialias(mut self, antialias: bool) -> Self {
+        self.antialias = antialias;
+        self
+    }
+
+    pub fn stencil_stroke(mut self, stencil_stroke: bool) -> Self {
+        self.stencil_stroke = stencil_stroke;
+        self
+    }
+}
+
+impl Default for RenderConfig {
+    fn default() -> Self {
+        Self {
+            antialias: true,
+            stencil_stroke: true,
+        }
+    }
+}
+
 pub struct Renderer {
     shader: Shader,
     textures: Slab<Texture>,
@@ -184,6 +211,7 @@ pub struct Renderer {
     paths: Vec<GLPath>,
     vertexes: Vec<Vertex>,
     uniforms: Vec<u8>,
+    config: RenderConfig,
 }
 
 impl Drop for Renderer {
@@ -197,7 +225,7 @@ impl Drop for Renderer {
 }
 
 impl Renderer {
-    pub fn create() -> anyhow::Result<Renderer> {
+    pub fn create(config: RenderConfig) -> anyhow::Result<Renderer> {
         unsafe {
             let shader = Shader::load()?;
 
@@ -231,6 +259,7 @@ impl Renderer {
                 paths: Default::default(),
                 vertexes: Default::default(),
                 uniforms: Default::default(),
+                config,
             })
         }
     }
@@ -324,44 +353,54 @@ impl Renderer {
 
     unsafe fn do_stroke(&self, call: &Call) {
         let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+        if self.config.stencil_stroke {
+            gl::Enable(gl::STENCIL_TEST);
+            gl::StencilMask(0xff);
+            gl::StencilFunc(gl::EQUAL, 0x0, 0xff);
+            gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
+            self.set_uniforms(call.uniform_offset + 1, call.image);
+            for path in paths {
+                gl::DrawArrays(
+                    gl::TRIANGLE_STRIP,
+                    path.stroke_offset as i32,
+                    path.stroke_count as i32,
+                );
+            }
 
-        gl::Enable(gl::STENCIL_TEST);
-        gl::StencilMask(0xff);
-        gl::StencilFunc(gl::EQUAL, 0x0, 0xff);
-        gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
-        self.set_uniforms(call.uniform_offset + 1, call.image);
-        for path in paths {
-            gl::DrawArrays(
-                gl::TRIANGLE_STRIP,
-                path.stroke_offset as i32,
-                path.stroke_count as i32,
-            );
+            self.set_uniforms(call.uniform_offset, call.image);
+            gl::StencilFunc(gl::EQUAL, 0x0, 0xff);
+            gl::StencilOp(gl::KEEP, gl::KEEP, gl::KEEP);
+            for path in paths {
+                gl::DrawArrays(
+                    gl::TRIANGLE_STRIP,
+                    path.stroke_offset as i32,
+                    path.stroke_count as i32,
+                );
+            }
+
+            gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
+            gl::StencilFunc(gl::ALWAYS, 0x0, 0xff);
+            gl::StencilOp(gl::ZERO, gl::ZERO, gl::ZERO);
+            for path in paths {
+                gl::DrawArrays(
+                    gl::TRIANGLE_STRIP,
+                    path.stroke_offset as i32,
+                    path.stroke_count as i32,
+                );
+            }
+            gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
+
+            gl::Disable(gl::STENCIL_TEST);
+        } else {
+            self.set_uniforms(call.uniform_offset, call.image);
+            for path in paths {
+                gl::DrawArrays(
+                    gl::TRIANGLE_STRIP,
+                    path.stroke_offset as i32,
+                    path.stroke_count as i32,
+                );
+            }
         }
-
-        self.set_uniforms(call.uniform_offset, call.image);
-        gl::StencilFunc(gl::EQUAL, 0x0, 0xff);
-        gl::StencilOp(gl::KEEP, gl::KEEP, gl::KEEP);
-        for path in paths {
-            gl::DrawArrays(
-                gl::TRIANGLE_STRIP,
-                path.stroke_offset as i32,
-                path.stroke_count as i32,
-            );
-        }
-
-        gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
-        gl::StencilFunc(gl::ALWAYS, 0x0, 0xff);
-        gl::StencilOp(gl::ZERO, gl::ZERO, gl::ZERO);
-        for path in paths {
-            gl::DrawArrays(
-                gl::TRIANGLE_STRIP,
-                path.stroke_offset as i32,
-                path.stroke_count as i32,
-            );
-        }
-        gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-
-        gl::Disable(gl::STENCIL_TEST);
     }
 
     unsafe fn do_triangles(&self, call: &Call) {
@@ -465,11 +504,16 @@ impl Renderer {
             *p = uniforms;
         }
     }
+
+    #[inline]
+    fn get_uniform_offset(&self) -> usize {
+        return self.uniforms.len() / self.frag_size;
+    }
 }
 
 impl renderer::Renderer for Renderer {
     fn edge_antialias(&self) -> bool {
-        true
+        self.config.antialias
     }
 
     fn create_texture(
@@ -774,7 +818,7 @@ impl renderer::Renderer for Renderer {
             path_count: paths.len(),
             triangle_offset: 0,
             triangle_count: 4,
-            uniform_offset: 0,
+            uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
         };
 
@@ -821,7 +865,6 @@ impl renderer::Renderer for Renderer {
             self.vertexes
                 .push(Vertex::new(bounds.min.x, bounds.min.y, 0.5, 1.0));
 
-            call.uniform_offset = self.uniforms.len() / self.frag_size;
             self.append_uniforms(FragUniforms {
                 stroke_thr: -1.0,
                 type_: ShaderType::Simple as i32,
@@ -829,7 +872,6 @@ impl renderer::Renderer for Renderer {
             });
             self.append_uniforms(self.convert_paint(paint, scissor, fringe, fringe, -1.0));
         } else {
-            call.uniform_offset = self.uniforms.len() / self.frag_size;
             self.append_uniforms(self.convert_paint(paint, scissor, fringe, fringe, -1.0));
         }
 
@@ -846,14 +888,14 @@ impl renderer::Renderer for Renderer {
         stroke_width: f32,
         paths: &[Path],
     ) -> anyhow::Result<()> {
-        let mut call = Call {
+        let call = Call {
             call_type: CallType::Stroke,
             image: paint.image,
             path_offset: self.paths.len(),
             path_count: paths.len(),
             triangle_offset: 0,
             triangle_count: 0,
-            uniform_offset: 0,
+            uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
         };
 
@@ -876,15 +918,18 @@ impl renderer::Renderer for Renderer {
             }
         }
 
-        call.uniform_offset = self.uniforms.len() / self.frag_size;
-        self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
-        self.append_uniforms(self.convert_paint(
-            paint,
-            scissor,
-            stroke_width,
-            fringe,
-            1.0 - 0.5 / 255.0,
-        ));
+        if self.config.stencil_stroke {
+            self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
+            self.append_uniforms(self.convert_paint(
+                paint,
+                scissor,
+                stroke_width,
+                fringe,
+                1.0 - 0.5 / 255.0,
+            ));
+        } else {
+            self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
+        }
 
         self.calls.push(call);
         Ok(())
@@ -904,7 +949,7 @@ impl renderer::Renderer for Renderer {
             path_count: 0,
             triangle_offset: self.vertexes.len(),
             triangle_count: vertexes.len(),
-            uniform_offset: self.uniforms.len() / self.frag_size,
+            uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
         };
 
