@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate anyhow;
+pub mod fb;
 
 use nvg::{renderer::*, FillType};
 use slab::Slab;

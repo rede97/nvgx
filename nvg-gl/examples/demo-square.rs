@@ -1,18 +1,89 @@
+use std::time::Instant;
+
 use anyhow::Error;
 use nvg::*;
+use nvg_gl::{fb::FrameBuffer, Renderer};
 
 mod demo;
 
-struct DemoCutout {}
+struct DemoCutout {
+    scale_factor: f32,
+    fb: FrameBuffer,
+    start_time: Instant,
+}
 
 impl Default for DemoCutout {
     fn default() -> Self {
-        Self {}
+        Self {
+            scale_factor: 0.0,
+            fb: FrameBuffer::default(),
+            start_time: Instant::now(),
+        }
     }
 }
 
-impl<R: Renderer> demo::Demo<R> for DemoCutout {
-    fn update(&mut self, _width: f32, _height: f32, ctx: &mut Context<R>) -> Result<(), Error> {
+impl DemoCutout {
+    pub fn render_fb(&mut self, ctx: &mut Context<Renderer>) -> Result<(), Error> {
+        let dt = Instant::now().duration_since(self.start_time).as_secs_f32();
+        self.fb.bind();
+        ctx.begin_frame((self.fb.width, self.fb.height), self.scale_factor)?;
+        unsafe {
+            gl::Viewport(0, 0, self.fb.width as i32, self.fb.height as i32);
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+        }
+        ctx.begin_path();
+        ctx.circle((50, 50), 40.0 + 10.0 * f32::sin(dt));
+        ctx.fill_paint(nvg::Color::rgb(0.6, 0.1, 0.8));
+        ctx.fill()?;
+        ctx.end_frame()?;
+        self.fb.unbind();
+        Ok(())
+    }
+}
+
+impl demo::Demo<Renderer> for DemoCutout {
+    fn init(&mut self, ctx: &mut Context<Renderer>, scale_factor: f32) -> Result<(), Error> {
+        ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
+
+        self.scale_factor = scale_factor;
+        self.fb = FrameBuffer::new(
+            ctx,
+            (100.0 * scale_factor) as usize,
+            (100.0 * scale_factor) as usize,
+            ImageFlags::REPEATX | ImageFlags::REPEATY,
+        )?;
+        self.render_fb(ctx)?;
+
+        Ok(())
+    }
+
+    fn before_frame(&mut self, ctx: &mut Context<Renderer>) -> anyhow::Result<()> {
+        self.render_fb(ctx)?;
+        Ok(())
+    }
+
+    fn update(
+        &mut self,
+        _width: f32,
+        _height: f32,
+        ctx: &mut Context<Renderer>,
+    ) -> Result<(), Error> {
+        {
+            // draw background
+            let pattern = ImagePattern {
+                img: self.fb.image,
+                angle: 0.0,
+                alpha: 1.0,
+                size: self.fb.size(),
+                center: (0.0, 0.0).into(),
+            };
+            ctx.begin_path();
+            ctx.fill_paint(pattern);
+            ctx.rect(nvg::Rect::new((0.0, 0.0).into(), (_width, _height).into()));
+            ctx.fill()?;
+        }
+
         ctx.begin_path();
         if true {
             ctx.fill_paint(nvg::Color::rgb(1.0, 0.0, 0.0));
@@ -21,7 +92,7 @@ impl<R: Renderer> demo::Demo<R> for DemoCutout {
                 nvg::Extent::new(40.0, 40.0),
             ));
             ctx.fill()?;
-            
+
             ctx.begin_path();
             ctx.shape_antialias(false);
             ctx.stroke_paint(nvg::Color::rgb(0.0, 1.0, 0.0));

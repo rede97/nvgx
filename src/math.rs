@@ -228,7 +228,8 @@ impl Transform {
         let t = &self.0;
         let sx = (t[0] * t[0] + t[2] * t[2]).sqrt();
         let sy = (t[1] * t[1] + t[3] * t[3]).sqrt();
-        (sx + sy) * 0.5
+        // (sx + sy) * 0.5
+        return (sx * sy).sqrt();
     }
 
     pub(crate) fn font_scale(&self) -> f32 {

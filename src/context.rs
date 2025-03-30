@@ -177,7 +177,6 @@ pub enum PathDir {
     CW,
 }
 
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FillType {
     Winding,
@@ -340,11 +339,17 @@ pub struct CompositeOperationState {
 
 bitflags! {
     pub struct ImageFlags: u32 {
+        /// Generate mipmaps during creation of the image.
         const GENERATE_MIPMAPS = 0x1;
+        /// Repeat image in X direction.
         const REPEATX = 0x2;
+        /// Repeat image in Y direction.
         const REPEATY = 0x4;
+        /// Flips (inverses) image in Y direction when rendered.
         const FLIPY	= 0x8;
+        /// Image data has premultiplied alpha.
         const PREMULTIPLIED = 0x10;
+        /// Image interpolation is Nearest instead Linear
         const NEAREST = 0x20;
     }
 }
@@ -508,6 +513,10 @@ impl<R: Renderer> Context<R> {
         })
     }
 
+    pub fn renderer(&self) -> &R {
+        &self.renderer
+    }
+
     fn set_device_pixel_ratio(&mut self, ratio: f32) {
         self.tess_tol = 0.25 / ratio;
         self.dist_tol = 0.01 / ratio;
@@ -665,6 +674,19 @@ impl<R: Renderer> Context<R> {
         path: P,
     ) -> anyhow::Result<ImageId> {
         self.create_image(flags, std::fs::read(path)?)
+    }
+
+    pub fn create_image_rgba(
+        &mut self,
+        width: usize,
+        height: usize,
+        flags: ImageFlags,
+        data: Option<&[u8]>,
+    ) -> anyhow::Result<ImageId> {
+        let img = self
+            .renderer
+            .create_texture(TextureType::RGBA, width, height, flags, data)?;
+        Ok(img)
     }
 
     pub fn update_image(&mut self, img: ImageId, data: &[u8]) -> anyhow::Result<()> {
@@ -1101,7 +1123,6 @@ impl<R: Renderer> Context<R> {
             .flatten_paths(&self.commands, self.dist_tol, self.tess_tol);
 
         if self.renderer.edge_antialias() && state.shape_antialias {
-
             if stroke_width < self.fringe_width {
                 let alpha = (stroke_width / self.fringe_width).clamped(0.0, 1.0);
                 stroke_paint.inner_color.a *= alpha * alpha;
