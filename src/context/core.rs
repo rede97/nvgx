@@ -1,437 +1,33 @@
-use crate::cache::PathCache;
+use super::{
+    Align, BasicCompositeOperation, Command, CompositeOperation, CompositeOperationState, FillType,
+    ImageFlags, ImageId, LineCap, LineJoin, Paint, PathDir, TextureType, KAPPA90,
+};
 use crate::fonts::{FontId, Fonts, LayoutChar};
-use crate::renderer::{Renderer, Scissor, TextureType};
-use crate::{Color, Extent, Point, Rect, Transform};
+use crate::renderer::Scissor;
+use crate::Color;
+use crate::{cache::PathCache, Extent, Point, Rect, Renderer, Transform};
 use clamped::Clamp;
 use std::f32::consts::PI;
 
-pub type ImageId = usize;
-
-const KAPPA90: f32 = 0.5522847493;
-
-#[derive(Debug, Copy, Clone)]
-pub struct Paint {
-    pub xform: Transform,
-    pub extent: Extent,
-    pub radius: f32,
-    pub feather: f32,
-    pub inner_color: Color,
-    pub outer_color: Color,
-    pub image: Option<ImageId>,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum Gradient {
-    Linear {
-        start: Point,
-        end: Point,
-        start_color: Color,
-        end_color: Color,
-    },
-    Radial {
-        center: Point,
-        in_radius: f32,
-        out_radius: f32,
-        inner_color: Color,
-        outer_color: Color,
-    },
-    Box {
-        rect: Rect,
-        radius: f32,
-        feather: f32,
-        inner_color: Color,
-        outer_color: Color,
-    },
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct ImagePattern {
-    pub center: Point,
-    pub size: Extent,
-    pub angle: f32,
-    pub img: ImageId,
-    pub alpha: f32,
-}
-
-impl From<Gradient> for Paint {
-    fn from(grad: Gradient) -> Self {
-        match grad {
-            Gradient::Linear {
-                start,
-                end,
-                start_color: inner_color,
-                end_color: outer_color,
-            } => {
-                const LARGE: f32 = 1e5;
-
-                let mut dx = end.x - start.x;
-                let mut dy = end.y - start.y;
-                let d = (dx * dx + dy * dy).sqrt();
-
-                if d > 0.0001 {
-                    dx /= d;
-                    dy /= d;
-                } else {
-                    dx = 0.0;
-                    dy = 1.0;
-                }
-
-                Paint {
-                    xform: Transform([dy, -dx, dx, dy, start.x - dx * LARGE, start.y - dy * LARGE]),
-                    extent: Extent {
-                        width: LARGE,
-                        height: LARGE + d * 0.5,
-                    },
-                    radius: 0.0,
-                    feather: d.max(1.0),
-                    inner_color,
-                    outer_color,
-                    image: None,
-                }
-            }
-            Gradient::Radial {
-                center,
-                in_radius,
-                out_radius,
-                inner_color,
-                outer_color,
-            } => {
-                let r = (in_radius + out_radius) * 0.5;
-                let f = out_radius - in_radius;
-                Paint {
-                    xform: Transform([1.0, 0.0, 0.0, 1.0, center.x, center.y]),
-                    extent: Extent {
-                        width: r,
-                        height: r,
-                    },
-                    radius: r,
-                    feather: f.max(1.0),
-                    inner_color,
-                    outer_color,
-                    image: None,
-                }
-            }
-            Gradient::Box {
-                rect,
-                radius,
-                feather,
-                inner_color,
-                outer_color,
-            } => {
-                let Rect { xy, size } = rect;
-                Paint {
-                    xform: Transform([
-                        1.0,
-                        0.0,
-                        0.0,
-                        1.0,
-                        xy.x + size.width * 0.5,
-                        xy.y + size.height * 0.5,
-                    ]),
-                    extent: Extent::new(size.width * 0.5, size.height * 0.5),
-                    radius,
-                    feather: feather.max(1.0),
-                    inner_color,
-                    outer_color,
-                    image: None,
-                }
-            }
-        }
-    }
-}
-
-impl From<ImagePattern> for Paint {
-    fn from(pat: ImagePattern) -> Self {
-        let mut xform = Transform::rotate(pat.angle);
-        xform.0[4] = pat.center.x;
-        xform.0[5] = pat.center.y;
-        Paint {
-            xform,
-            extent: pat.size,
-            radius: 0.0,
-            feather: 0.0,
-            inner_color: Color::rgba(1.0, 1.0, 1.0, pat.alpha),
-            outer_color: Color::rgba(1.0, 1.0, 1.0, pat.alpha),
-            image: Some(pat.img),
-        }
-    }
-}
-
-impl<T: Into<Color> + Clone> From<T> for Paint {
-    fn from(color: T) -> Self {
-        Paint {
-            xform: Transform::identity(),
-            extent: Default::default(),
-            radius: 0.0,
-            feather: 1.0,
-            inner_color: color.clone().into(),
-            outer_color: color.into(),
-            image: None,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum PathDir {
-    CCW,
-    CW,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum FillType {
-    Winding,
-    EvenOdd,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum WindingSolidity {
-    Solid,
-    Hole,
-}
-
-impl Into<PathDir> for WindingSolidity {
-    fn into(self) -> PathDir {
-        match self {
-            WindingSolidity::Solid => PathDir::CCW,
-            WindingSolidity::Hole => PathDir::CW,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum LineJoin {
-    Miter,
-    Round,
-    Bevel,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum LineCap {
-    Butt,
-    Round,
-    Square,
-}
-
-bitflags! {
-    pub struct Align: u32 {
-        const LEFT = 0x1;
-        const CENTER = 0x2;
-        const RIGHT = 0x4;
-        const TOP = 0x8;
-        const MIDDLE = 0x10;
-        const BOTTOM = 0x20;
-        const BASELINE = 0x40;
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum BlendFactor {
-    Zero,
-    One,
-    SrcColor,
-    OneMinusSrcColor,
-    DstColor,
-    OneMinusDstColor,
-    SrcAlpha,
-    OneMinusSrcAlpha,
-    DstAlpha,
-    OneMinusDstAlpha,
-    SrcAlphaSaturate,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum BasicCompositeOperation {
-    SrcOver,
-    SrcIn,
-    SrcOut,
-    Atop,
-    DstOver,
-    DstIn,
-    DstOut,
-    DstAtop,
-    Lighter,
-    Copy,
-    Xor,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum CompositeOperation {
-    Basic(BasicCompositeOperation),
-    BlendFunc {
-        src: BlendFactor,
-        dst: BlendFactor,
-    },
-    BlendFuncSeparate {
-        src_rgb: BlendFactor,
-        dst_rgb: BlendFactor,
-        src_alpha: BlendFactor,
-        dst_alpha: BlendFactor,
-    },
-}
-
-impl Into<CompositeOperationState> for CompositeOperation {
-    fn into(self) -> CompositeOperationState {
-        match self {
-            CompositeOperation::Basic(op) => {
-                let (src_factor, dst_factor) = match op {
-                    BasicCompositeOperation::SrcOver => {
-                        (BlendFactor::One, BlendFactor::OneMinusSrcAlpha)
-                    }
-                    BasicCompositeOperation::SrcIn => (BlendFactor::DstAlpha, BlendFactor::Zero),
-                    BasicCompositeOperation::SrcOut => {
-                        (BlendFactor::OneMinusDstAlpha, BlendFactor::Zero)
-                    }
-                    BasicCompositeOperation::Atop => {
-                        (BlendFactor::DstAlpha, BlendFactor::OneMinusSrcAlpha)
-                    }
-                    BasicCompositeOperation::DstOver => {
-                        (BlendFactor::OneMinusDstAlpha, BlendFactor::One)
-                    }
-                    BasicCompositeOperation::DstIn => (BlendFactor::Zero, BlendFactor::SrcAlpha),
-                    BasicCompositeOperation::DstOut => {
-                        (BlendFactor::Zero, BlendFactor::OneMinusSrcAlpha)
-                    }
-                    BasicCompositeOperation::DstAtop => {
-                        (BlendFactor::OneMinusDstAlpha, BlendFactor::SrcAlpha)
-                    }
-                    BasicCompositeOperation::Lighter => (BlendFactor::One, BlendFactor::One),
-                    BasicCompositeOperation::Copy => (BlendFactor::One, BlendFactor::Zero),
-                    BasicCompositeOperation::Xor => {
-                        (BlendFactor::OneMinusDstAlpha, BlendFactor::OneMinusSrcAlpha)
-                    }
-                };
-
-                CompositeOperationState {
-                    src_rgb: src_factor,
-                    dst_rgb: dst_factor,
-                    src_alpha: src_factor,
-                    dst_alpha: dst_factor,
-                }
-            }
-            CompositeOperation::BlendFunc { src, dst } => CompositeOperationState {
-                src_rgb: src,
-                dst_rgb: dst,
-                src_alpha: src,
-                dst_alpha: dst,
-            },
-            CompositeOperation::BlendFuncSeparate {
-                src_rgb,
-                dst_rgb,
-                src_alpha,
-                dst_alpha,
-            } => CompositeOperationState {
-                src_rgb,
-                dst_rgb,
-                src_alpha,
-                dst_alpha,
-            },
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct CompositeOperationState {
-    pub src_rgb: BlendFactor,
-    pub dst_rgb: BlendFactor,
-    pub src_alpha: BlendFactor,
-    pub dst_alpha: BlendFactor,
-}
-
-bitflags! {
-    pub struct ImageFlags: u32 {
-        /// Generate mipmaps during creation of the image.
-        const GENERATE_MIPMAPS = 0x1;
-        /// Repeat image in X direction.
-        const REPEATX = 0x2;
-        /// Repeat image in Y direction.
-        const REPEATY = 0x4;
-        /// Flips (inverses) image in Y direction when rendered.
-        const FLIPY	= 0x8;
-        /// Image data has premultiplied alpha.
-        const PREMULTIPLIED = 0x10;
-        /// Image interpolation is Nearest instead Linear
-        const NEAREST = 0x20;
-    }
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-pub struct Vertex {
-    pub x: f32,
-    pub y: f32,
-    pub u: f32,
-    pub v: f32,
-}
-
-impl Vertex {
-    pub fn new(x: f32, y: f32, u: f32, v: f32) -> Vertex {
-        Vertex { x, y, u, v }
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Path {
-    pub(crate) first: usize,
-    pub(crate) count: usize,
-    pub(crate) closed: bool,
-    pub(crate) num_bevel: usize,
-    pub(crate) windding: PathDir,
-    pub(crate) fill: *mut Vertex,
-    pub(crate) num_fill: usize,
-    pub(crate) stroke: *mut Vertex,
-    pub(crate) num_stroke: usize,
-    pub convex: bool,
-}
-
-impl Path {
-    pub fn get_fill(&self) -> &[Vertex] {
-        if self.fill.is_null() {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts_mut(self.fill, self.num_fill) }
-        }
-    }
-
-    pub fn get_stroke(&self) -> &[Vertex] {
-        if self.stroke.is_null() {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts_mut(self.stroke, self.num_stroke) }
-        }
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct TextMetrics {
-    pub ascender: f32,
-    pub descender: f32,
-    pub line_gap: f32,
-}
-
-impl TextMetrics {
-    pub fn line_height(&self) -> f32 {
-        self.ascender - self.descender + self.line_gap
-    }
-}
-
 #[derive(Clone)]
-struct State {
-    composite_operation: CompositeOperationState,
-    shape_antialias: bool,
-    fill: Paint,
-    fill_type: FillType,
-    stroke: Paint,
-    stroke_width: f32,
-    miter_limit: f32,
-    line_join: LineJoin,
-    line_cap: LineCap,
-    alpha: f32,
-    xform: Transform,
-    scissor: Scissor,
-    font_size: f32,
-    letter_spacing: f32,
-    line_height: f32,
-    text_align: Align,
-    font_id: FontId,
+pub(super) struct State {
+    pub(super) composite_operation: CompositeOperationState,
+    pub(super) shape_antialias: bool,
+    pub(super) fill: Paint,
+    pub(super) fill_type: FillType,
+    pub(super) stroke: Paint,
+    pub(super) stroke_width: f32,
+    pub(super) miter_limit: f32,
+    pub(super) line_join: LineJoin,
+    pub(super) line_cap: LineCap,
+    pub(super) alpha: f32,
+    pub(super) xform: Transform,
+    pub(super) scissor: Scissor,
+    pub(super) font_size: f32,
+    pub(super) letter_spacing: f32,
+    pub(super) line_height: f32,
+    pub(super) text_align: Align,
+    pub(super) font_id: FontId,
 }
 
 impl Default for State {
@@ -464,31 +60,22 @@ impl Default for State {
     }
 }
 
-#[derive(Debug)]
-pub(crate) enum Command {
-    MoveTo(Point),
-    LineTo(Point),
-    BezierTo(Point, Point, Point),
-    Close,
-    Winding(PathDir),
-}
-
 pub struct Context<R: Renderer> {
-    renderer: R,
-    commands: Vec<Command>,
-    last_position: Point,
-    states: Vec<State>,
-    cache: PathCache,
-    tess_tol: f32,
-    dist_tol: f32,
-    fringe_width: f32,
-    device_pixel_ratio: f32,
-    fonts: Fonts,
-    layout_chars: Vec<LayoutChar>,
-    draw_call_count: usize,
-    fill_triangles_count: usize,
-    stroke_triangles_count: usize,
-    text_triangles_count: usize,
+    pub(super) renderer: R,
+    pub(super) commands: Vec<Command>,
+    pub(super) last_position: Point,
+    pub(super) states: Vec<State>,
+    pub(super) cache: PathCache,
+    pub(super) tess_tol: f32,
+    pub(super) dist_tol: f32,
+    pub(super) fringe_width: f32,
+    pub(super) device_pixel_ratio: f32,
+    pub(super) fonts: Fonts,
+    pub(super) layout_chars: Vec<LayoutChar>,
+    pub(super) draw_call_count: usize,
+    pub(super) fill_triangles_count: usize,
+    pub(super) stroke_triangles_count: usize,
+    pub(super) text_triangles_count: usize,
 }
 
 impl<R: Renderer> Context<R> {
@@ -569,7 +156,7 @@ impl<R: Renderer> Context<R> {
         self.states.last().unwrap()
     }
 
-    fn state_mut(&mut self) -> &mut State {
+    pub(super) fn state_mut(&mut self) -> &mut State {
         self.states.last_mut().unwrap()
     }
 
@@ -1167,153 +754,5 @@ impl<R: Renderer> Context<R> {
         }
 
         Ok(())
-    }
-
-    pub fn create_font_from_file<N: Into<String>, P: AsRef<std::path::Path>>(
-        &mut self,
-        name: N,
-        path: P,
-    ) -> anyhow::Result<FontId> {
-        self.create_font(name, std::fs::read(path)?)
-    }
-
-    pub fn create_font<N: Into<String>, D: Into<Vec<u8>>>(
-        &mut self,
-        name: N,
-        data: D,
-    ) -> anyhow::Result<FontId> {
-        self.fonts.add_font(name, data)
-    }
-
-    pub fn find_font<N: AsRef<str>>(&self, name: N) -> Option<FontId> {
-        self.fonts.find(name.as_ref())
-    }
-
-    pub fn add_fallback_fontid(&mut self, base: FontId, fallback: FontId) {
-        self.fonts.add_fallback(base, fallback);
-    }
-
-    pub fn add_fallback_font<N1: AsRef<str>, N2: AsRef<str>>(&mut self, base: N1, fallback: N2) {
-        if let (Some(base), Some(fallback)) = (self.find_font(base), self.find_font(fallback)) {
-            self.fonts.add_fallback(base, fallback);
-        }
-    }
-
-    pub fn font_size(&mut self, size: f32) {
-        self.state_mut().font_size = size;
-    }
-
-    pub fn text_letter_spacing(&mut self, spacing: f32) {
-        self.state_mut().letter_spacing = spacing;
-    }
-
-    pub fn text_line_height(&mut self, line_height: f32) {
-        self.state_mut().line_height = line_height;
-    }
-
-    pub fn text_align(&mut self, align: Align) {
-        self.state_mut().text_align = align;
-    }
-
-    pub fn fontid(&mut self, id: FontId) {
-        self.state_mut().font_id = id;
-    }
-
-    pub fn font<N: AsRef<str>>(&mut self, name: N) {
-        if let Some(id) = self.find_font(name) {
-            self.state_mut().font_id = id;
-        }
-    }
-
-    pub fn text<S: AsRef<str>, P: Into<Point>>(&mut self, pt: P, text: S) -> anyhow::Result<()> {
-        let state = self.states.last().unwrap();
-        let scale = state.xform.font_scale() * self.device_pixel_ratio;
-        let xform = &state.xform;
-        let invscale = 1.0 / scale;
-        let pt = pt.into();
-
-        self.fonts.layout_text(
-            &mut self.renderer,
-            text.as_ref(),
-            state.font_id,
-            (pt.x * scale, pt.y * scale).into(),
-            state.font_size * scale,
-            state.text_align,
-            state.letter_spacing * scale,
-            true,
-            &mut self.layout_chars,
-        )?;
-
-        self.cache.vertexes.clear();
-
-        for lc in &self.layout_chars {
-            let lt = xform.transform_point(Point::new(
-                lc.bounds.min.x * invscale,
-                lc.bounds.min.y * invscale,
-            ));
-            let rt = xform.transform_point(Point::new(
-                lc.bounds.max.x * invscale,
-                lc.bounds.min.y * invscale,
-            ));
-            let lb = xform.transform_point(Point::new(
-                lc.bounds.min.x * invscale,
-                lc.bounds.max.y * invscale,
-            ));
-            let rb = xform.transform_point(Point::new(
-                lc.bounds.max.x * invscale,
-                lc.bounds.max.y * invscale,
-            ));
-
-            self.cache
-                .vertexes
-                .push(Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y));
-            self.cache
-                .vertexes
-                .push(Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y));
-            self.cache
-                .vertexes
-                .push(Vertex::new(rt.x, rt.y, lc.uv.max.x, lc.uv.min.y));
-
-            self.cache
-                .vertexes
-                .push(Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y));
-            self.cache
-                .vertexes
-                .push(Vertex::new(lb.x, lb.y, lc.uv.min.x, lc.uv.max.y));
-            self.cache
-                .vertexes
-                .push(Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y));
-        }
-
-        let mut paint = state.fill.clone();
-        paint.image = Some(self.fonts.img.clone());
-        paint.inner_color.a *= state.alpha;
-        paint.outer_color.a *= state.alpha;
-
-        self.renderer.triangles(
-            &paint,
-            state.composite_operation,
-            &state.scissor,
-            &self.cache.vertexes,
-        )?;
-        Ok(())
-    }
-
-    pub fn text_metrics(&self) -> TextMetrics {
-        let state = self.states.last().unwrap();
-        let scale = state.xform.font_scale() * self.device_pixel_ratio;
-        self.fonts
-            .text_metrics(state.font_id, state.font_size * scale)
-    }
-
-    pub fn text_size<S: AsRef<str>>(&self, text: S) -> Extent {
-        let state = self.states.last().unwrap();
-        let scale = state.xform.font_scale() * self.device_pixel_ratio;
-        self.fonts.text_size(
-            text.as_ref(),
-            state.font_id,
-            state.font_size * scale,
-            state.letter_spacing * scale,
-        )
     }
 }

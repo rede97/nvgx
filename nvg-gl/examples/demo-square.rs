@@ -96,7 +96,7 @@ impl demo::Demo<Renderer> for DemoCutout {
             ctx.begin_path();
             ctx.shape_antialias(false);
             ctx.stroke_paint(nvg::Color::rgb(0.0, 1.0, 0.0));
-            ctx.stroke_width(1.0 / 1.5);
+            ctx.stroke_width(1.0 / self.scale_factor);
             ctx.move_to((100.0, 10.0));
             ctx.line_to((400.0, 500.0));
             ctx.line_to((500.0, 500.0));
