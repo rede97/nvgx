@@ -73,4 +73,6 @@ pub trait Renderer {
         scissor: &Scissor,
         vertexes: &[Vertex],
     ) -> anyhow::Result<()>;
+    
+    fn clear(&mut self, color: Color) -> anyhow::Result<()>;
 }

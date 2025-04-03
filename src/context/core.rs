@@ -386,4 +386,8 @@ impl<R: Renderer> Context<R> {
 
         Ok(())
     }
+
+    pub fn clear(&mut self, color: Color) -> anyhow::Result<()> {
+        return self.renderer.clear(color);
+    }
 }

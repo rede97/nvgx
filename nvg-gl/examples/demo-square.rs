@@ -27,11 +27,7 @@ impl DemoCutout {
         let dt = Instant::now().duration_since(self.start_time).as_secs_f32();
         self.fb.bind();
         ctx.begin_frame((self.fb.width, self.fb.height), self.scale_factor)?;
-        unsafe {
-            gl::Viewport(0, 0, self.fb.width as i32, self.fb.height as i32);
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-        }
+        ctx.clear(Color::rgb(0.0, 0.0, 0.0))?;
         ctx.begin_path();
         ctx.circle((50, 50), 40.0 + 10.0 * f32::sin(dt));
         ctx.fill_paint(nvg::Color::rgb(0.6, 0.1, 0.8));
