@@ -4,6 +4,8 @@ use crate::Point;
 mod composite;
 mod core;
 mod core_font;
+mod core_path;
+mod core_image;
 mod paint;
 
 pub use composite::*;
