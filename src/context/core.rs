@@ -5,7 +5,7 @@ use super::{
 use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::renderer::Scissor;
 use crate::Color;
-use crate::{cache::PathCache, Extent, Point, Rect, Renderer, Transform};
+use crate::{path_cache::PathCache, Extent, Point, Rect, Renderer, Transform};
 use clamped::Clamp;
 
 #[derive(Clone)]

@@ -1,11 +1,12 @@
 #[macro_use]
 extern crate bitflags;
 
-mod cache;
+mod path_cache;
 mod color;
 mod context;
 mod fonts;
 mod math;
+
 pub mod renderer;
 
 pub use color::*;
