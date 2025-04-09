@@ -83,6 +83,8 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
         ctx.stroke_width(5.0);
         ctx.stroke()?;
 
+        ctx.
+
         Ok(())
     }
 }

@@ -73,6 +73,14 @@ pub trait Renderer {
         scissor: &Scissor,
         vertexes: &[Vertex],
     ) -> anyhow::Result<()>;
-    
+
     fn clear(&mut self, color: Color) -> anyhow::Result<()>;
+
+    fn wireframe(&mut self, _paint: Paint) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn wirepath(&mut self, _paint: Paint) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
