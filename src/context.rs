@@ -1169,6 +1169,21 @@ impl<R: Renderer> Context<R> {
         Ok(())
     }
 
+    pub fn dash_array(&mut self, _dash: &[f32]) {
+        // let state = self.state_mut();
+        // state.stroke.dash_array.clear();
+        // for d in dash {
+        //     state.stroke.dash_array.push(*d * self.device_pixel_ratio);
+        // }
+        todo!()
+    }
+
+    pub fn dash_offset(&mut self, _offset: f32) {
+        // let state = self.state_mut();
+        // state.stroke.dash_offset = offset * self.device_pixel_ratio;
+        todo!()
+    }
+
     pub fn create_font_from_file<N: Into<String>, P: AsRef<std::path::Path>>(
         &mut self,
         name: N,
