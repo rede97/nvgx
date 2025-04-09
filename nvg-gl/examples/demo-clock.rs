@@ -43,6 +43,19 @@ impl<R: Renderer> demo::Demo<R> for DemoClock {
         let dial_color = Color::rgba(0.4, 0.3, 0.8, 1.0);
 
         let sigils: Vec<String> = (0..13).map(|n| format!("{}", n)).collect();
+
+        // draw dial
+        ctx.begin_path();
+        ctx.translate(dial_center.0, dial_center.1);
+        ctx.circle(origin, dial_radius);
+        ctx.fill_paint(dial_color);
+        ctx.fill()?;
+        ctx.stroke_width(3.0);
+        ctx.stroke_paint(silver);
+        ctx.stroke()?;
+
+        ctx.global_composite_operation(CompositeOperation::Basic(BasicCompositeOperation::Lighter));
+        ctx.reset_transform();
         for h in 1..13 {
             let j = f64::from(h) as f32;
             let x = dial_center.0 + (second_hand_len * (j * radians_per_hour).sin());
@@ -68,16 +81,13 @@ impl<R: Renderer> demo::Demo<R> for DemoClock {
             ctx.transform(Transform::rotate(m * radians_per_sec));
             ctx.move_to((0.0, -ticks_radius));
             ctx.line_to((0.0, -ticks_radius - tick_len));
-            ctx.global_composite_operation(CompositeOperation::Basic(
-                BasicCompositeOperation::Lighter,
-            ));
+            ctx.line_cap(LineCap::Butt);
             ctx.stroke_paint(white);
             ctx.stroke_width(tick_width);
             ctx.stroke()?;
         }
 
         ctx.fill_paint(silver);
-
         ctx.reset_transform();
         ctx.text_align(Align::CENTER | Align::BASELINE);
         ctx.text(
@@ -94,16 +104,7 @@ impl<R: Renderer> demo::Demo<R> for DemoClock {
             (dial_center.0, dial_center.1 + dial_radius * 0.7),
             &format!("{:4}-{:02}-{:02}", year, month, day),
         )?;
-
-        // draw dial
-        ctx.begin_path();
-        ctx.translate(dial_center.0, dial_center.1);
-        ctx.circle(origin, dial_radius);
-        ctx.stroke_width(3.0);
-        ctx.stroke_paint(silver);
-        ctx.fill_paint(dial_color);
-        ctx.fill()?;
-        ctx.stroke()?;
+        ctx.global_composite_operation(CompositeOperation::Basic(BasicCompositeOperation::SrcOver));
 
         let mut draw_hand = |theta: f32, length: f32, width: f32| {
             ctx.stroke_width(width);
@@ -132,7 +133,6 @@ impl<R: Renderer> demo::Demo<R> for DemoClock {
         ctx.circle(origin, boss_rad);
         ctx.stroke_width(1.0);
         ctx.stroke_paint(darkgray);
-        ctx.global_composite_operation(CompositeOperation::Basic(BasicCompositeOperation::SrcOver));
         ctx.fill_paint(Gradient::Radial {
             center: origin.into(),
             in_radius: 0.0,

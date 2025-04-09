@@ -58,11 +58,6 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
             Event::RedrawRequested(_) => {
                 demo.before_frame(&mut context).unwrap();
 
-                unsafe {
-                    gl::Viewport(0, 0, window_size.width as i32, window_size.height as i32);
-                    gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-                    gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-                }
                 context
                     .begin_frame(
                         nvg::Extent {
@@ -72,6 +67,7 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
                         scale_factor,
                     )
                     .unwrap();
+                context.clear(Color::rgb(0.1, 0.1, 0.1)).unwrap();
 
                 context.save();
                 demo.update(
