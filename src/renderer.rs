@@ -76,11 +76,15 @@ pub trait Renderer {
 
     fn clear(&mut self, color: Color) -> anyhow::Result<()>;
 
-    fn wireframe(&mut self, _paint: Paint) -> anyhow::Result<()> {
+    #[cfg(feature = "wireframe")]
+    fn wireframe(
+        &mut self,
+        _enable: bool,
+    ) -> anyhow::Result<()> {
         Ok(())
     }
 
-    fn wirepath(&mut self, _paint: Paint) -> anyhow::Result<()> {
+    fn wirelines(&mut self, _paint: Paint) -> anyhow::Result<()> {
         Ok(())
     }
 }
