@@ -20,6 +20,11 @@ num-traits = "0.2.8"
 clamped = "1.0.0"
 rawpointer = "0.2.1"
 
+
+[features]
+default = []
+wireframe = []
+
 [workspace]
 members = [
     "nvg-gl"

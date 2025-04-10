@@ -390,4 +390,24 @@ impl<R: Renderer> Context<R> {
     pub fn clear(&mut self, color: Color) -> anyhow::Result<()> {
         return self.renderer.clear(color);
     }
+
+    #[cfg(feature = "wireframe")]
+    pub fn wireframe(&mut self, enable: bool) -> anyhow::Result<()> {
+        return self.renderer.wireframe(enable);
+    }
+
+    pub fn dash_array(&mut self, _dash: &[f32]) {
+        // let state = self.state_mut();
+        // state.stroke.dash_array.clear();
+        // for d in dash {
+        //     state.stroke.dash_array.push(*d * self.device_pixel_ratio);
+        // }
+        todo!()
+    }
+
+    pub fn dash_offset(&mut self, _offset: f32) {
+        // let state = self.state_mut();
+        // state.stroke.dash_offset = offset * self.device_pixel_ratio;
+        todo!()
+    }
 }

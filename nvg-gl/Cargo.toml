@@ -10,6 +10,10 @@ publish = true
 homepage = "https://github.com/sunli829/nvg"
 repository = "https://github.com/sunli829/nvg"
 
+[features]
+default = ["wireframe"]
+wireframe = ["nvg/wireframe"]
+
 [dependencies]
 nvg = { version = "0.5.7", path = "../" }
 slab = "0.4.2"
