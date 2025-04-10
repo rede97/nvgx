@@ -1,4 +1,4 @@
-use glutin::event::{Event, WindowEvent};
+use glutin::event::{ElementState, Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use nvg::{Align, Color, Context, Renderer};
 use std::time::Instant;
@@ -18,6 +18,8 @@ pub trait Demo<R: Renderer> {
     }
 
     fn cursor_moved(&mut self, _x: f32, _y: f32) {}
+
+    fn key_event(&mut self, _key: glutin::event::VirtualKeyCode, state: ElementState) {}
 }
 
 pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
@@ -52,6 +54,15 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
                 WindowEvent::Resized(psize) => window_size = psize,
                 WindowEvent::CursorMoved { position, .. } => {
                     demo.cursor_moved(position.x as f32, position.y as f32)
+                }
+                WindowEvent::KeyboardInput {
+                    device_id: _,
+                    input,
+                    is_synthetic: _,
+                } => {
+                    if let Some(key) = input.virtual_keycode {
+                        demo.key_event(key, input.state);
+                    }
                 }
                 _ => (),
             },

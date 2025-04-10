@@ -671,11 +671,16 @@ impl PathCache {
             }
 
             for path in self.paths.iter_mut() {
-                let pts = &self.points[path.first..];
+                let pts = &self.points[path.first..path.first + path.count];
                 let mut dst = vertexes;
                 path.lines = dst;
                 for pt in pts {
                     *dst = Vertex::new(pt.xy.x, pt.xy.y, 0.5, 1.0);
+                    dst = dst.add(1);
+                }
+                if path.closed {
+                    let v0 = &*vertexes;
+                    *dst = Vertex::new(v0.x, v0.y, 0.5, 1.0);
                     dst = dst.add(1);
                 }
                 path.num_lines = ptrdistance(vertexes, dst);

@@ -10,6 +10,7 @@ struct DemoCutout {
     scale_factor: f32,
     fb: FrameBuffer,
     start_time: Instant,
+    mouse: (f32, f32),
 }
 
 impl Default for DemoCutout {
@@ -18,6 +19,7 @@ impl Default for DemoCutout {
             scale_factor: 0.0,
             fb: FrameBuffer::default(),
             start_time: Instant::now(),
+            mouse: (0.0, 0.0),
         }
     }
 }
@@ -109,7 +111,20 @@ impl demo::Demo<Renderer> for DemoCutout {
         ctx.fill_paint(nvg::Color::rgb_i(255, 192, 0));
         ctx.fill()?;
 
+        ctx.begin_path();
+        ctx.move_to((_width / 2.0, _height / 2.0));
+        ctx.line_to((self.mouse.0, self.mouse.1));
+        let dt = Instant::now().duration_since(self.start_time).as_secs_f32();
+        ctx.circle((self.mouse.0, self.mouse.1), 150.0 + f32::cos(dt) * 20.0);
+        ctx.fill_paint(nvg::Color::rgba_i(90, 120, 250, 100));
+        ctx.fill()?;
+        ctx.stroke_paint(nvg::Color::rgb_i(90, 120, 250));
+        ctx.wirelines()?;
         Ok(())
+    }
+
+    fn cursor_moved(&mut self, x: f32, y: f32) {
+        self.mouse = (x, y);
     }
 }
 

@@ -8,6 +8,9 @@ mod demo;
 struct DemoDraw {
     img: Option<ImageId>,
     start_time: Instant,
+    close: bool,
+    wirelines: bool,
+    wireframe: bool,
 }
 
 impl<R: Renderer> demo::Demo<R> for DemoDraw {
@@ -22,6 +25,39 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
 
     fn update(&mut self, _width: f32, _height: f32, ctx: &mut Context<R>) -> anyhow::Result<()> {
         let elapsed = self.start_time.elapsed().as_secs_f32();
+        {
+            ctx.wireframe(self.wireframe)?;
+            ctx.global_composite_operation(CompositeOperation::Basic(
+                BasicCompositeOperation::SrcOver,
+            ));
+            ctx.reset_transform();
+            ctx.translate(_width / 2.0, 0.0);
+            ctx.save();
+            ctx.rotate(PI / 6.0);
+            ctx.begin_path();
+            ctx.move_to((200, 200));
+            ctx.line_to((600, 200));
+            ctx.line_to((400, 100));
+            ctx.line_to((400, 600));
+            if self.close {
+                ctx.close_path();
+            }
+            ctx.restore();
+            ctx.circle((700.0, 500.0), 500.0);
+
+            ctx.reset_transform();
+            ctx.stroke_paint(Color::rgb_i(0xFF, 0xFF, 0xFF));
+            if self.wirelines {
+                ctx.fill_paint(nvg::Color::rgba_i(90, 120, 250, 100));
+                ctx.fill()?;
+                ctx.wirelines()?;
+            } else {
+                ctx.stroke_width(3.0);
+                ctx.stroke()?;
+            }
+
+            ctx.wireframe(false)?;
+        }
 
         ctx.begin_path();
         ctx.rect((100.0, 100.0, 300.0, 300.0));
@@ -85,6 +121,31 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
 
         Ok(())
     }
+
+    fn key_event(
+        &mut self,
+        _key: glutin::event::VirtualKeyCode,
+        state: glutin::event::ElementState,
+    ) {
+        match _key {
+            glutin::event::VirtualKeyCode::C => {
+                if state == glutin::event::ElementState::Pressed {
+                    self.close = !self.close;
+                }
+            }
+            glutin::event::VirtualKeyCode::W => {
+                if state == glutin::event::ElementState::Pressed {
+                    self.wireframe = !self.wireframe;
+                }
+            }
+            glutin::event::VirtualKeyCode::L => {
+                if state == glutin::event::ElementState::Pressed {
+                    self.wirelines = !self.wirelines;
+                }
+            }
+            _ => (),
+        }
+    }
 }
 
 fn main() {
@@ -92,6 +153,9 @@ fn main() {
         DemoDraw {
             img: None,
             start_time: Instant::now(),
+            close: false,
+            wireframe: false,
+            wirelines: false,
         },
         "demo-draw",
     );
