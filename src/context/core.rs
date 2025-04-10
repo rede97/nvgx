@@ -396,6 +396,25 @@ impl<R: Renderer> Context<R> {
         return self.renderer.wireframe(enable);
     }
 
+    #[cfg(feature = "wirelines")]
+    pub fn wirelines(&mut self) -> anyhow::Result<()> {
+        let state = self.states.last_mut().unwrap();
+        self.cache
+            .flatten_paths(&self.commands, self.dist_tol, self.tess_tol);
+        self.cache.expand_lines();
+
+        self.renderer.wirelines(
+            &state.stroke,
+            state.composite_operation,
+            &state.scissor,
+            &self.cache.paths,
+        )?;
+        for _path in &self.cache.paths {
+            self.draw_call_count += 1;
+        }
+        Ok(())
+    }
+
     pub fn dash_array(&mut self, _dash: &[f32]) {
         // let state = self.state_mut();
         // state.stroke.dash_array.clear();

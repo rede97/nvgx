@@ -293,6 +293,8 @@ impl renderer::Renderer for Renderer {
                         CallType::ConvexFill => self.do_convex_fill(&call),
                         CallType::Stroke => self.do_stroke(&call),
                         CallType::Triangles => self.do_triangles(&call),
+                        #[cfg(feature = "wirelines")]
+                        CallType::Lines => self.do_lines(&call),
                     }
                 }
 
@@ -477,6 +479,63 @@ impl renderer::Renderer for Renderer {
         let mut uniforms = self.convert_paint(paint, scissor, 1.0, 1.0, -1.0);
         uniforms.type_ = ShaderType::Image as i32;
         self.append_uniforms(uniforms);
+        Ok(())
+    }
+    
+    #[cfg(feature = "wirelines")]
+    fn wirelines(
+        &mut self,
+        paint: &Paint,
+        composite_operation: CompositeOperationState,
+        scissor: &Scissor,
+        paths: &[Path],
+    ) -> anyhow::Result<()> {
+        let call = Call {
+            call_type: CallType::Lines,
+            image: paint.image,
+            path_offset: self.paths.len(),
+            path_count: paths.len(),
+            triangle_offset: 0,
+            triangle_count: 0,
+            uniform_offset: self.get_uniform_offset(),
+            blend_func: composite_operation.into(),
+            #[cfg(feature = "wireframe")]
+            wireframe: self.wireframe,
+        };
+
+        let mut offset = self.vertexes.len();
+        for path in paths {
+            let mut gl_path = GLPath {
+                fill_offset: 0,
+                fill_count: 0,
+                stroke_offset: 0,
+                stroke_count: 0,
+            };
+
+            let stroke = path.get_stroke();
+            if !stroke.is_empty() {
+                gl_path.stroke_offset = offset;
+                gl_path.stroke_count = stroke.len();
+                self.vertexes.extend(stroke);
+                offset += stroke.len();
+                self.paths.push(gl_path);
+            }
+        }
+
+        if self.config.stencil_stroke {
+            self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
+            self.append_uniforms(self.convert_paint(
+                paint,
+                scissor,
+                stroke_width,
+                fringe,
+                1.0 - 0.5 / 255.0,
+            ));
+        } else {
+            self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
+        }
+
+        self.calls.push(call);
         Ok(())
     }
 

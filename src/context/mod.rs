@@ -4,8 +4,8 @@ use crate::Point;
 mod composite;
 mod core;
 mod core_font;
-mod core_path;
 mod core_image;
+mod core_path;
 mod paint;
 
 pub use composite::*;
@@ -111,6 +111,10 @@ pub struct Path {
     pub(crate) num_fill: usize,
     pub(crate) stroke: *mut Vertex,
     pub(crate) num_stroke: usize,
+    #[cfg(feature = "wirelines")]
+    pub(crate) lines: *mut Vertex,
+    #[cfg(feature = "wirelines")]
+    pub(crate) num_lines: usize,
     pub convex: bool,
 }
 
@@ -128,6 +132,15 @@ impl Path {
             &[]
         } else {
             unsafe { std::slice::from_raw_parts_mut(self.stroke, self.num_stroke) }
+        }
+    }
+    
+    #[cfg(feature = "wirelines")]
+    pub fn get_lines(&self) -> &[Vertex] {
+        if self.lines.is_aligned() {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts_mut(self.lines, self.num_lines) }
         }
     }
 }

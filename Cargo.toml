@@ -24,6 +24,7 @@ rawpointer = "0.2.1"
 [features]
 default = []
 wireframe = []
+wirelines = []
 
 [workspace]
 members = [

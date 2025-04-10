@@ -11,8 +11,9 @@ homepage = "https://github.com/sunli829/nvg"
 repository = "https://github.com/sunli829/nvg"
 
 [features]
-default = ["wireframe"]
+default = ["wireframe", "wirelines"]
 wireframe = ["nvg/wireframe"]
+wirelines = ["nvg/wirelines"]
 
 [dependencies]
 nvg = { version = "0.5.7", path = "../" }

@@ -22,6 +22,10 @@ impl PathCache {
             num_fill: 0,
             stroke: std::ptr::null_mut(),
             num_stroke: 0,
+            #[cfg(feature = "wirelines")]
+            lines: std::ptr::null_mut(),
+            #[cfg(feature = "wirelines")]
+            num_lines: 0,
             convex: false,
         });
         self.paths.last_mut().unwrap()
@@ -326,8 +330,7 @@ impl PathCache {
                 return;
             }
 
-            for i in 0..self.paths.len() {
-                let path = &mut self.paths[i];
+            for path in self.paths.iter_mut() {
                 let pts = &mut self.points[path.first] as *mut VPoint;
 
                 path.fill = std::ptr::null_mut();
@@ -527,8 +530,7 @@ impl PathCache {
 
             let convex = self.paths.len() == 1 && self.paths[0].convex;
 
-            for i in 0..self.paths.len() {
-                let path = &mut self.paths[i];
+            for path in self.paths.iter_mut() {
                 let pts = &mut self.points[path.first] as *mut VPoint;
                 let woff = if path.windding == PathDir::CW {
                     0.5
@@ -655,6 +657,29 @@ impl PathCache {
                     path.stroke = std::ptr::null_mut();
                     path.num_stroke = 0;
                 }
+            }
+        }
+    }
+
+    #[cfg(feature = "wirelines")]
+    pub(crate) fn expand_lines(&mut self) {
+        unsafe {
+            let cverts = self.paths.iter().fold(0, |acc, e| acc + e.count);
+            let mut vertexes = self.alloc_temp_vertexes(cverts);
+            if vertexes.is_null() {
+                return;
+            }
+
+            for path in self.paths.iter_mut() {
+                let pts = &self.points[path.first..];
+                let mut dst = vertexes;
+                path.lines = dst;
+                for pt in pts {
+                    *dst = Vertex::new(pt.xy.x, pt.xy.y, 0.5, 1.0);
+                    dst = dst.add(1);
+                }
+                path.num_lines = ptrdistance(vertexes, dst);
+                vertexes = dst;
             }
         }
     }

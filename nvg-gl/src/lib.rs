@@ -104,6 +104,8 @@ enum CallType {
     ConvexFill,
     Stroke,
     Triangles,
+    #[cfg(feature = "wirelines")]
+    Lines,
 }
 
 struct Blend {
@@ -289,6 +291,7 @@ impl Renderer {
         }
     }
 
+    #[inline]
     unsafe fn do_fill(&self, call: &Call, fill_type: FillType) {
         let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
 
@@ -339,6 +342,7 @@ impl Renderer {
         gl::Disable(gl::STENCIL_TEST);
     }
 
+    #[inline]
     unsafe fn do_convex_fill(&self, call: &Call) {
         let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
         self.set_uniforms(call.uniform_offset, call.image);
@@ -358,6 +362,7 @@ impl Renderer {
         }
     }
 
+    #[inline]
     unsafe fn do_stroke(&self, call: &Call) {
         let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
         if self.config.stencil_stroke {
@@ -410,6 +415,7 @@ impl Renderer {
         }
     }
 
+    #[inline]
     unsafe fn do_triangles(&self, call: &Call) {
         self.set_uniforms(call.uniform_offset, call.image);
         gl::DrawArrays(
@@ -419,7 +425,22 @@ impl Renderer {
         );
     }
 
+    #[cfg(feature = "wirelines")]
+    #[inline]
+    unsafe fn do_lines(&self, call: &Call) {
+        let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+        self.set_uniforms(call.uniform_offset, call.image);
+        for path in paths {
+            gl::DrawArrays(
+                gl::LINE_STRIP,
+                path.stroke_offset as i32,
+                path.stroke_count as i32,
+            );
+        }
+    }
+
     #[cfg(feature = "wireframe")]
+    #[inline]
     unsafe fn do_wireframe(&self, call: &Call) {
         match call.call_type {
             CallType::Fill(_) => {
@@ -458,6 +479,8 @@ impl Renderer {
                 }
             }
             CallType::Triangles => self.do_triangles(call),
+            #[cfg(feature = "wirelines")]
+            CallType::Lines => self.do_lines(call),
         }
     }
 
