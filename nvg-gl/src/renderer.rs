@@ -481,7 +481,7 @@ impl renderer::Renderer for Renderer {
         self.append_uniforms(uniforms);
         Ok(())
     }
-    
+
     #[cfg(feature = "wirelines")]
     fn wirelines(
         &mut self,
@@ -505,35 +505,21 @@ impl renderer::Renderer for Renderer {
 
         let mut offset = self.vertexes.len();
         for path in paths {
-            let mut gl_path = GLPath {
-                fill_offset: 0,
-                fill_count: 0,
-                stroke_offset: 0,
-                stroke_count: 0,
-            };
-
-            let stroke = path.get_stroke();
-            if !stroke.is_empty() {
-                gl_path.stroke_offset = offset;
-                gl_path.stroke_count = stroke.len();
-                self.vertexes.extend(stroke);
-                offset += stroke.len();
+            let lines = path.get_lines();
+            if !lines.is_empty() {
+                let gl_path = GLPath {
+                    fill_offset: 0,
+                    fill_count: 0,
+                    stroke_offset: offset,
+                    stroke_count: lines.len(),
+                };
+                self.vertexes.extend(lines);
+                offset += lines.len();
                 self.paths.push(gl_path);
             }
         }
 
-        if self.config.stencil_stroke {
-            self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
-            self.append_uniforms(self.convert_paint(
-                paint,
-                scissor,
-                stroke_width,
-                fringe,
-                1.0 - 0.5 / 255.0,
-            ));
-        } else {
-            self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
-        }
+        self.append_uniforms(self.convert_paint(paint, scissor, 1.0, 1.0, -1.0));
 
         self.calls.push(call);
         Ok(())

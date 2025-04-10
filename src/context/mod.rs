@@ -137,7 +137,7 @@ impl Path {
     
     #[cfg(feature = "wirelines")]
     pub fn get_lines(&self) -> &[Vertex] {
-        if self.lines.is_aligned() {
+        if self.lines.is_null() {
             &[]
         } else {
             unsafe { std::slice::from_raw_parts_mut(self.lines, self.num_lines) }
