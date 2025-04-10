@@ -19,7 +19,7 @@ pub trait Demo<R: Renderer> {
 
     fn cursor_moved(&mut self, _x: f32, _y: f32) {}
 
-    fn key_event(&mut self, _key: glutin::event::VirtualKeyCode, state: ElementState) {}
+    fn key_event(&mut self, _key: glutin::event::VirtualKeyCode, _state: ElementState) {}
 }
 
 pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
