@@ -85,7 +85,7 @@ impl<R: Renderer> Context<R> {
             cache: Default::default(),
             tess_tol: 0.0,
             dist_tol: 0.0,
-            fringe_width: 0.0,
+            fringe_width: 1.0,
             device_pixel_ratio: 0.0,
             fonts,
             layout_chars: Default::default(),
@@ -103,7 +103,6 @@ impl<R: Renderer> Context<R> {
     fn set_device_pixel_ratio(&mut self, ratio: f32) {
         self.tess_tol = 0.25 / ratio;
         self.dist_tol = 0.01 / ratio;
-        self.fringe_width = 1.0 * ratio;
         self.device_pixel_ratio = ratio;
     }
 
