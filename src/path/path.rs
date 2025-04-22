@@ -1,13 +1,64 @@
+use core::f32;
 
+use super::*;
+use crate::{Paint, Point, Rect, Transform};
+const PI: f32 = f32::consts::PI;
 
-use super::Context;
-use crate::{Command, PathDir, Point, Rect, Renderer, KAPPA90};
-use std::f32::consts::PI;
+pub struct Path {
+    pub(crate) dist_tol: f32,
+    pub(crate) last_position: Point,
+    pub(super) commands: Vec<Command>,
+    pub(crate) xforms: Vec<Transform>,
+    pub(crate) xform: Transform,
+    pub(crate) cache: cache::PathCache,
+}
 
-impl<R: Renderer> Context<R> {
+impl Path {
+    pub fn new() -> Self {
+        return Self {
+            dist_tol: 0.01,
+            last_position: Point { x: 0.0, y: 0.0 },
+            commands: Vec::new(),
+            xforms: Vec::new(),
+            xform: Transform::identity(),
+            cache: Default::default(),
+        };
+    }
+
+    pub fn identity(&mut self) {
+        self.xform = Transform::identity();
+    }
+
+    pub fn translate(&mut self, tx: f32, ty: f32) {
+        self.xform = self.xform.pre_multiply(Transform::translate(tx, ty));
+    }
+
+    pub fn scale(&mut self, sx: f32, sy: f32) {
+        self.xform = self.xform.pre_multiply(Transform::scale(sx, sy));
+    }
+
+    pub fn rotate(&mut self, a: f32) {
+        self.xform = self.xform.pre_multiply(Transform::rotate(a));
+    }
+
+    pub fn skew_x(&mut self, a: f32) {
+        self.xform = self.xform.pre_multiply(Transform::skew_x(a));
+    }
+
+    pub fn skew_y(&mut self, a: f32) {
+        self.xform = self.xform.pre_multiply(Transform::skew_y(a));
+    }
+
+    pub fn save(&mut self) {
+        self.xforms.push(self.xform);
+    }
+
+    pub fn restore(&mut self) {
+        self.xform = self.xforms.pop().unwrap();
+    }
+
     fn append_command(&mut self, cmd: Command) {
-        let state = self.states.last().unwrap();
-        let xform = &state.xform;
+        let xform = &self.xform;
         match cmd {
             Command::MoveTo(pt) => {
                 self.commands
@@ -309,12 +360,11 @@ impl<R: Renderer> Context<R> {
         self.ellipse(center.into(), radius, radius);
     }
 
-    pub fn begin_path(&mut self) {
-        self.commands.clear();
-        self.cache.clear();
-    }
-
     pub fn close_path(&mut self) {
         self.commands.push(Command::Close);
+    }
+
+    pub(crate) fn stroke(paint: Paint) {
+
     }
 }

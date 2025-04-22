@@ -1,7 +1,7 @@
 use super::Context;
 use super::{Align, TextMetrics};
 use crate::fonts::FontId;
-use crate::path_cache::Vertex;
+use crate::path::cache::Vertex;
 use crate::{Extent, Point, Renderer};
 
 impl<R: Renderer> Context<R> {

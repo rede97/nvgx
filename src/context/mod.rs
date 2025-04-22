@@ -7,56 +7,12 @@ mod core_font;
 mod core_image;
 mod core_path;
 mod paint;
-mod path;
 
 pub use composite::*;
 pub use core::*;
 pub use paint::*;
 
 pub type ImageId = usize;
-
-const KAPPA90: f32 = 0.5522847493;
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum PathDir {
-    CCW,
-    CW,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum FillType {
-    Winding,
-    EvenOdd,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum WindingSolidity {
-    Solid,
-    Hole,
-}
-
-impl Into<PathDir> for WindingSolidity {
-    fn into(self) -> PathDir {
-        match self {
-            WindingSolidity::Solid => PathDir::CCW,
-            WindingSolidity::Hole => PathDir::CW,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum LineJoin {
-    Miter,
-    Round,
-    Bevel,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum LineCap {
-    Butt,
-    Round,
-    Square,
-}
 
 bitflags! {
     pub struct Align: u32 {
@@ -87,7 +43,6 @@ bitflags! {
     }
 }
 
-
 #[derive(Copy, Clone)]
 pub struct TextMetrics {
     pub ascender: f32,
@@ -99,13 +54,4 @@ impl TextMetrics {
     pub fn line_height(&self) -> f32 {
         self.ascender - self.descender + self.line_gap
     }
-}
-
-#[derive(Debug)]
-pub(crate) enum Command {
-    MoveTo(Point),
-    LineTo(Point),
-    BezierTo(Point, Point, Point),
-    Close,
-    Winding(PathDir),
 }

@@ -1,11 +1,8 @@
-use super::{
-    Align, BasicCompositeOperation, Command, CompositeOperation, CompositeOperationState, FillType,
-    LineCap, LineJoin, Paint, PathDir,
-};
+use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState, Paint};
 use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::renderer::Scissor;
-use crate::Color;
-use crate::{path_cache::PathCache, Extent, Point, Rect, Renderer, Transform};
+use crate::{path::cache::PathCache, Extent, Point, Rect, Renderer, Transform};
+use crate::{Color, Command, FillType, LineCap, LineJoin, PathDir};
 use clamped::Clamp;
 
 #[derive(Clone)]

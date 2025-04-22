@@ -1,6 +1,6 @@
 pub use crate::context::{CompositeOperationState, ImageId};
-pub use crate::path_cache::PathInfo;
-pub use crate::path_cache::Vertex;
+pub use crate::path::cache::PathInfo;
+pub use crate::path::cache::Vertex;
 pub use crate::*;
 
 #[derive(Debug, Copy, Clone)]
