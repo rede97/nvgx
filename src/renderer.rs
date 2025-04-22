@@ -1,4 +1,6 @@
-pub use crate::context::{CompositeOperationState, ImageId, Path, Vertex};
+pub use crate::context::{CompositeOperationState, ImageId};
+pub use crate::path_cache::PathInfo;
+pub use crate::path_cache::Vertex;
 pub use crate::*;
 
 #[derive(Debug, Copy, Clone)]
@@ -53,7 +55,7 @@ pub trait Renderer {
         scissor: &Scissor,
         fringe: f32,
         bounds: Bounds,
-        paths: &[Path],
+        paths: &[PathInfo],
     ) -> anyhow::Result<()>;
 
     fn stroke(
@@ -63,7 +65,7 @@ pub trait Renderer {
         scissor: &Scissor,
         fringe: f32,
         stroke_width: f32,
-        paths: &[Path],
+        paths: &[PathInfo],
     ) -> anyhow::Result<()>;
 
     fn triangles(
@@ -85,6 +87,6 @@ pub trait Renderer {
         _paint: &Paint,
         _composite_operation: CompositeOperationState,
         _scissor: &Scissor,
-        _path: &[Path],
+        _path: &[PathInfo],
     ) -> anyhow::Result<()>;
 }

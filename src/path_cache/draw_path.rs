@@ -1,6 +1,7 @@
 use super::cap_join::*;
+use super::{PathInfo, Vertex};
 use super::{PathCache, PointFlags, VPoint};
-use crate::context::{Command, Path, Vertex};
+use crate::context::Command;
 use crate::{LineCap, LineJoin, PathDir, Point};
 use rawpointer::ptrdistance;
 use std::f32::consts::PI;
@@ -11,8 +12,8 @@ impl PathCache {
         self.paths.clear();
     }
 
-    fn add_path(&mut self) -> &mut Path {
-        self.paths.push(Path {
+    fn add_path(&mut self) -> &mut PathInfo {
+        self.paths.push(PathInfo {
             first: self.points.len(),
             count: 0,
             closed: false,

@@ -4,7 +4,7 @@ use crate::{Call, CallType, FragUniforms, GLPath, ShaderType, Texture};
 
 use super::Renderer;
 use nvg::{
-    renderer::{self, CompositeOperationState, Path, Scissor, TextureType, Vertex},
+    renderer::{self, CompositeOperationState, PathInfo, Scissor, TextureType, Vertex},
     Bounds, Color, Extent, FillType, ImageFlags, ImageId, Paint,
 };
 
@@ -323,7 +323,7 @@ impl renderer::Renderer for Renderer {
         scissor: &Scissor,
         fringe: f32,
         bounds: Bounds,
-        paths: &[Path],
+        paths: &[PathInfo],
     ) -> anyhow::Result<()> {
         let mut call = Call {
             call_type: CallType::Fill(fill_type),
@@ -402,7 +402,7 @@ impl renderer::Renderer for Renderer {
         scissor: &Scissor,
         fringe: f32,
         stroke_width: f32,
-        paths: &[Path],
+        paths: &[PathInfo],
     ) -> anyhow::Result<()> {
         let call = Call {
             call_type: CallType::Stroke,
@@ -488,7 +488,7 @@ impl renderer::Renderer for Renderer {
         paint: &Paint,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
-        paths: &[Path],
+        paths: &[PathInfo],
     ) -> anyhow::Result<()> {
         let call = Call {
             call_type: CallType::Lines,

@@ -19,6 +19,8 @@ pub trait Demo<R: Renderer> {
 
     fn cursor_moved(&mut self, _x: f32, _y: f32) {}
 
+    fn mouse_event(&mut self, _btn: glutin::event::MouseButton, _state: ElementState) {}
+
     fn key_event(&mut self, _key: glutin::event::VirtualKeyCode, _state: ElementState) {}
 }
 
@@ -54,6 +56,15 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
                 WindowEvent::Resized(psize) => window_size = psize,
                 WindowEvent::CursorMoved { position, .. } => {
                     demo.cursor_moved(position.x as f32, position.y as f32)
+                }
+                #[allow(deprecated)]
+                WindowEvent::MouseInput {
+                    device_id: _,
+                    state,
+                    button,
+                    modifiers: _,
+                } => {
+                    demo.mouse_event(button, state);
                 }
                 WindowEvent::KeyboardInput {
                     device_id: _,
