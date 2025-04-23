@@ -103,7 +103,7 @@ impl demo::Demo<Renderer> for DemoCutout {
         }
         ctx.shape_antialias(true);
         ctx.begin_path();
-        ctx.fill_type(FillType::EvenOdd);
+        ctx.fill_type(PathFillType::EvenOdd);
         ctx.circle((250.0, 220.0), 150.0);
         ctx.circle((400.0, 220.0), 150.0);
         ctx.circle((300.0, 350.0), 100.0);

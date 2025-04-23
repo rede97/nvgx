@@ -1,10 +1,9 @@
 use super::ImageId;
 use crate::{Color, Extent, Point, Rect, Transform};
 
-mod paint;
 
 #[derive(Debug, Copy, Clone)]
-pub struct PaintInfo {
+pub struct PaintPattern {
     pub xform: Transform,
     pub extent: Extent,
     pub radius: f32,
@@ -47,7 +46,7 @@ pub struct ImagePattern {
     pub alpha: f32,
 }
 
-impl From<Gradient> for PaintInfo {
+impl From<Gradient> for PaintPattern {
     fn from(grad: Gradient) -> Self {
         match grad {
             Gradient::Linear {
@@ -70,7 +69,7 @@ impl From<Gradient> for PaintInfo {
                     dy = 1.0;
                 }
 
-                PaintInfo {
+                PaintPattern {
                     xform: Transform([dy, -dx, dx, dy, start.x - dx * LARGE, start.y - dy * LARGE]),
                     extent: Extent {
                         width: LARGE,
@@ -92,7 +91,7 @@ impl From<Gradient> for PaintInfo {
             } => {
                 let r = (in_radius + out_radius) * 0.5;
                 let f = out_radius - in_radius;
-                PaintInfo {
+                PaintPattern {
                     xform: Transform([1.0, 0.0, 0.0, 1.0, center.x, center.y]),
                     extent: Extent {
                         width: r,
@@ -113,7 +112,7 @@ impl From<Gradient> for PaintInfo {
                 outer_color,
             } => {
                 let Rect { xy, size } = rect;
-                PaintInfo {
+                PaintPattern {
                     xform: Transform([
                         1.0,
                         0.0,
@@ -134,12 +133,12 @@ impl From<Gradient> for PaintInfo {
     }
 }
 
-impl From<ImagePattern> for PaintInfo {
+impl From<ImagePattern> for PaintPattern {
     fn from(pat: ImagePattern) -> Self {
         let mut xform = Transform::rotate(pat.angle);
         xform.0[4] = pat.center.x;
         xform.0[5] = pat.center.y;
-        PaintInfo {
+        PaintPattern {
             xform,
             extent: pat.size,
             radius: 0.0,
@@ -151,9 +150,9 @@ impl From<ImagePattern> for PaintInfo {
     }
 }
 
-impl<T: Into<Color> + Clone> From<T> for PaintInfo {
+impl<T: Into<Color> + Clone> From<T> for PaintPattern {
     fn from(color: T) -> Self {
-        PaintInfo {
+        PaintPattern {
             xform: Transform::identity(),
             extent: Default::default(),
             radius: 0.0,
@@ -164,7 +163,6 @@ impl<T: Into<Color> + Clone> From<T> for PaintInfo {
         }
     }
 }
-
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LineJoin {
@@ -180,9 +178,38 @@ pub enum LineCap {
     Square,
 }
 
+#[derive(Debug, Clone)]
+pub enum PaintStyle {
+    Stroke,
+    Fill,
+    StrokeAndFill,
+}
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum FillType {
-    Winding,
-    EvenOdd,
+#[derive(Debug, Clone)]
+pub struct Paint {
+    pub antialias: bool,
+    pub alpha: f32,
+    pub stroke: PaintPattern,
+    pub fill: PaintPattern,
+    pub stroke_width: f32,
+    pub line_join: LineJoin,
+    pub line_cap: LineCap,
+    pub miter_limit: f32,
+    pub style: PaintStyle,
+}
+
+impl Default for Paint {
+    fn default() -> Self {
+        return Self {
+            antialias: true,
+            alpha: 1.0,
+            stroke: Color::rgb(0.0, 0.0, 0.0).into(),
+            stroke_width: 1.0,
+            line_join: LineJoin::Miter,
+            line_cap: LineCap::Butt,
+            miter_limit: 10.0,
+            fill: Color::rgb(1.0, 1.0, 1.0).into(),
+            style: PaintStyle::Stroke,
+        };
+    }
 }

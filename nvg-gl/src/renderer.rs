@@ -5,7 +5,7 @@ use crate::{Call, CallType, FragUniforms, GLPath, ShaderType, Texture};
 use super::Renderer;
 use nvg::{
     renderer::{self, CompositeOperationState, PathInfo, Scissor, TextureType, Vertex},
-    Bounds, Color, Extent, FillType, ImageFlags, ImageId, PaintInfo,
+    Bounds, Color, Extent, PathFillType, ImageFlags, ImageId, PaintPattern,
 };
 
 impl renderer::Renderer for Renderer {
@@ -317,9 +317,9 @@ impl renderer::Renderer for Renderer {
 
     fn fill(
         &mut self,
-        paint: &PaintInfo,
+        paint: &PaintPattern,
         composite_operation: CompositeOperationState,
-        fill_type: FillType,
+        fill_type: PathFillType,
         scissor: &Scissor,
         fringe: f32,
         bounds: Bounds,
@@ -397,7 +397,7 @@ impl renderer::Renderer for Renderer {
 
     fn stroke(
         &mut self,
-        paint: &PaintInfo,
+        paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
         fringe: f32,
@@ -455,7 +455,7 @@ impl renderer::Renderer for Renderer {
 
     fn triangles(
         &mut self,
-        paint: &PaintInfo,
+        paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
         vertexes: &[Vertex],
@@ -485,7 +485,7 @@ impl renderer::Renderer for Renderer {
     #[cfg(feature = "wirelines")]
     fn wirelines(
         &mut self,
-        paint: &PaintInfo,
+        paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
         paths: &[PathInfo],

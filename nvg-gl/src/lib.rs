@@ -2,7 +2,7 @@
 extern crate anyhow;
 pub mod fb;
 
-use nvg::{renderer::*, FillType};
+use nvg::{renderer::*, PathFillType};
 use slab::Slab;
 
 mod renderer;
@@ -100,7 +100,7 @@ enum ShaderType {
 
 #[derive(PartialEq, Eq)]
 enum CallType {
-    Fill(FillType),
+    Fill(PathFillType),
     ConvexFill,
     Stroke,
     Triangles,
@@ -292,7 +292,7 @@ impl Renderer {
     }
 
     #[inline]
-    unsafe fn do_fill(&self, call: &Call, fill_type: FillType) {
+    unsafe fn do_fill(&self, call: &Call, fill_type: PathFillType) {
         let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
 
         gl::Enable(gl::STENCIL_TEST);
@@ -301,7 +301,7 @@ impl Renderer {
         gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
 
         self.set_uniforms(call.uniform_offset, call.image);
-        if fill_type == FillType::Winding {
+        if fill_type == PathFillType::Winding {
             gl::StencilOpSeparate(gl::FRONT, gl::KEEP, gl::KEEP, gl::INCR_WRAP);
             gl::StencilOpSeparate(gl::BACK, gl::KEEP, gl::KEEP, gl::DECR_WRAP);
         } else {
@@ -486,7 +486,7 @@ impl Renderer {
 
     fn convert_paint(
         &self,
-        paint: &PaintInfo,
+        paint: &PaintPattern,
         scissor: &Scissor,
         width: f32,
         fringe: f32,
