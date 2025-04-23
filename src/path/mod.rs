@@ -1,8 +1,7 @@
 use cache::PathCache;
 
-use crate::Point;
+use crate::{Paint, Point};
 use core::f32;
-use std::cell::Cell;
 
 use crate::{Rect, Transform};
 pub mod cache;
@@ -53,7 +52,7 @@ pub struct Path {
     pub(super) commands: Vec<Command>,
     pub(crate) xforms: Vec<Transform>,
     pub(crate) xform: Transform,
-    pub(crate) cache: Cell<PathCache>,
+    pub(crate) cache: PathCache,
     pub(crate) fill_type: PathFillType,
 }
 
@@ -383,5 +382,11 @@ impl Path {
 
     pub fn fill_type(&mut self, fill_type: PathFillType) {
         self.fill_type = fill_type;
+    }
+
+    pub(crate) fn stroke(&mut self, paint: Paint, tess_tol: f32) {
+        let scale = self.xform.average_scale();
+        let stroke_width = (paint.stroke_width * scale).clamp(0.0, 200.0);
+        self.cache.flatten_paths(&self.commands, self.dist_tol, tess_tol);
     }
 }
