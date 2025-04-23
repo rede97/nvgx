@@ -1,7 +1,8 @@
 use super::cap_join::*;
 use super::{PathInfo, Vertex};
 use super::{PathCache, PointFlags, VPoint};
-use crate::{Command, LineCap, LineJoin, PathDir, Point};
+use crate::paint::{LineCap, LineJoin};
+use crate::{Command, PathDir, Point};
 use rawpointer::ptrdistance;
 use std::f32::consts::PI;
 

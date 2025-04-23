@@ -1,17 +1,19 @@
-use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState, Paint};
+use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState};
 use crate::fonts::{FontId, Fonts, LayoutChar};
+use crate::paint::{FillType, LineCap, LineJoin, PaintInfo};
+use crate::path::path::Path;
 use crate::renderer::Scissor;
 use crate::{path::cache::PathCache, Extent, Point, Rect, Renderer, Transform};
-use crate::{Color, Command, FillType, LineCap, LineJoin, PathDir};
+use crate::{Color, Command, PathDir};
 use clamped::Clamp;
 
 #[derive(Clone)]
 pub(super) struct State {
     pub(super) composite_operation: CompositeOperationState,
     pub(super) shape_antialias: bool,
-    pub(super) fill: Paint,
+    pub(super) fill: PaintInfo,
     pub(super) fill_type: FillType,
-    pub(super) stroke: Paint,
+    pub(super) stroke: PaintInfo,
     pub(super) stroke_width: f32,
     pub(super) miter_limit: f32,
     pub(super) line_join: LineJoin,
@@ -216,13 +218,13 @@ impl<R: Renderer> Context<R> {
         self.state().xform
     }
 
-    pub fn stroke_paint<T: Into<Paint>>(&mut self, paint: T) {
+    pub fn stroke_paint<T: Into<PaintInfo>>(&mut self, paint: T) {
         let mut paint = paint.into();
         paint.xform *= self.state().xform;
         self.state_mut().stroke = paint;
     }
 
-    pub fn fill_paint<T: Into<Paint>>(&mut self, paint: T) {
+    pub fn fill_paint<T: Into<PaintInfo>>(&mut self, paint: T) {
         let mut paint = paint.into();
         paint.xform *= self.state().xform;
         self.state_mut().fill = paint;
@@ -424,5 +426,9 @@ impl<R: Renderer> Context<R> {
         // let state = self.state_mut();
         // state.stroke.dash_offset = offset * self.device_pixel_ratio;
         todo!()
+    }
+
+    pub fn draw_path(&mut self, path: Path, paint: PaintInfo) {
+
     }
 }

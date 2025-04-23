@@ -12,12 +12,6 @@ pub enum PathDir {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum FillType {
-    Winding,
-    EvenOdd,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum WindingSolidity {
     Solid,
     Hole,
@@ -30,20 +24,6 @@ impl Into<PathDir> for WindingSolidity {
             WindingSolidity::Hole => PathDir::CW,
         }
     }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum LineJoin {
-    Miter,
-    Round,
-    Bevel,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum LineCap {
-    Butt,
-    Round,
-    Square,
 }
 
 #[derive(Debug)]

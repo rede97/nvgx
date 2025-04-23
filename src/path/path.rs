@@ -1,7 +1,7 @@
 use core::f32;
 
 use super::*;
-use crate::{Paint, Point, Rect, Transform};
+use crate::{Point, Rect, Transform};
 const PI: f32 = f32::consts::PI;
 
 pub struct Path {
@@ -15,8 +15,12 @@ pub struct Path {
 
 impl Path {
     pub fn new() -> Self {
+        return Self::with_dist_tol(0.01);
+    }
+
+    pub fn with_dist_tol(dist_tol: f32) -> Self {
         return Self {
-            dist_tol: 0.01,
+            dist_tol,
             last_position: Point { x: 0.0, y: 0.0 },
             commands: Vec::new(),
             xforms: Vec::new(),
@@ -362,9 +366,5 @@ impl Path {
 
     pub fn close_path(&mut self) {
         self.commands.push(Command::Close);
-    }
-
-    pub(crate) fn stroke(paint: Paint) {
-
     }
 }

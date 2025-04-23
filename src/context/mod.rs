@@ -1,16 +1,13 @@
 use crate::renderer::TextureType;
-use crate::Point;
 
 mod composite;
 mod core;
 mod core_font;
 mod core_image;
 mod core_path;
-mod paint;
 
 pub use composite::*;
 pub use core::*;
-pub use paint::*;
 
 pub type ImageId = usize;
 

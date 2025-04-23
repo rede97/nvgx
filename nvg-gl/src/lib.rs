@@ -486,7 +486,7 @@ impl Renderer {
 
     fn convert_paint(
         &self,
-        paint: &Paint,
+        paint: &PaintInfo,
         scissor: &Scissor,
         width: f32,
         fringe: f32,

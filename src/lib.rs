@@ -11,10 +11,11 @@ pub mod renderer;
 
 pub use color::*;
 pub use context::{
-    Align, BasicCompositeOperation, BlendFactor, CompositeOperation, Context, Gradient, ImageFlags,
-    ImageId, ImagePattern, Paint, TextMetrics,
+    Align, BasicCompositeOperation, BlendFactor, CompositeOperation, Context, ImageFlags, ImageId,
+    TextMetrics,
 };
 pub use fonts::FontId;
 pub use math::*;
+pub use paint::*;
 pub use path::*;
 pub use renderer::Renderer;

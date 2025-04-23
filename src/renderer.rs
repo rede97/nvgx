@@ -2,6 +2,9 @@ pub use crate::context::{CompositeOperationState, ImageId};
 pub use crate::path::cache::PathInfo;
 pub use crate::path::cache::Vertex;
 pub use crate::*;
+pub use crate::paint::PaintInfo;
+
+use self::paint::FillType;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TextureType {
@@ -49,7 +52,7 @@ pub trait Renderer {
 
     fn fill(
         &mut self,
-        paint: &Paint,
+        paint: &PaintInfo,
         composite_operation: CompositeOperationState,
         fill_type: FillType,
         scissor: &Scissor,
@@ -60,7 +63,7 @@ pub trait Renderer {
 
     fn stroke(
         &mut self,
-        paint: &Paint,
+        paint: &PaintInfo,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
         fringe: f32,
@@ -70,7 +73,7 @@ pub trait Renderer {
 
     fn triangles(
         &mut self,
-        paint: &Paint,
+        paint: &PaintInfo,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
         vertexes: &[Vertex],
@@ -84,7 +87,7 @@ pub trait Renderer {
     #[cfg(feature = "wirelines")]
     fn wirelines(
         &mut self,
-        _paint: &Paint,
+        _paint: &PaintInfo,
         _composite_operation: CompositeOperationState,
         _scissor: &Scissor,
         _path: &[PathInfo],
