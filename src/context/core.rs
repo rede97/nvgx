@@ -315,22 +315,62 @@ impl<R: Renderer> Context<R> {
     }
 
     #[cfg(feature = "wirelines")]
-    pub fn wirelines(&mut self) -> anyhow::Result<()> {
-        let state = self.states.last_mut().unwrap();
-
-        let mut cache = self.path.cache.borrow_mut();
-        cache.flatten_paths(&self.path.commands, self.dist_tol, self.tess_tol);
+    #[inline]
+    fn wirelines_path(
+        renderer: &mut R,
+        path: &Path,
+        stroke: &PaintPattern,
+        dist_tol: f32,
+        tess_tol: f32,
+        composite_operation: CompositeOperationState,
+        scissor: &Scissor,
+    ) -> anyhow::Result<usize> {
+        let mut cache = path.cache.borrow_mut();
+        cache.flatten_paths(&path.commands, dist_tol, tess_tol);
         cache.expand_lines();
 
-        self.renderer.wirelines(
+        renderer.wirelines(&stroke, composite_operation, &scissor, &cache.paths)?;
+
+        let mut draw_call_count = 0;
+        for _path in &cache.paths {
+            draw_call_count += 1;
+        }
+        Ok(draw_call_count)
+    }
+
+    #[cfg(feature = "wirelines")]
+    pub fn wirelines(&mut self) -> anyhow::Result<()> {
+        let state = self.states.last().unwrap();
+        let draw_call_count = Self::wirelines_path(
+            &mut self.renderer,
+            &self.path,
             &state.paint.stroke,
+            self.dist_tol,
+            self.tess_tol,
             state.composite_operation,
             &state.scissor,
-            &cache.paths,
         )?;
-        for _path in &cache.paths {
-            self.draw_call_count += 1;
-        }
+        self.draw_call_count += draw_call_count;
+        Ok(())
+    }
+
+    #[cfg(feature = "wirelines")]
+    pub fn draw_wirelines_path(
+        &mut self,
+        path: &Path,
+        stroke: &PaintPattern,
+    ) -> anyhow::Result<()> {
+        let state = self.states.last().unwrap();
+        let draw_call_count = Self::wirelines_path(
+            &mut self.renderer,
+            path,
+            stroke,
+            self.dist_tol,
+            self.tess_tol,
+            state.composite_operation,
+            &state.scissor,
+        )?;
+        self.draw_call_count += draw_call_count;
         Ok(())
     }
 

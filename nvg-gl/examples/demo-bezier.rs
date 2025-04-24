@@ -137,13 +137,20 @@ impl Triangle {
         };
     }
 
-    pub fn draw<R: Renderer>(&self, ctx: &mut Context<R>) -> anyhow::Result<()> {
+    pub fn draw<R: Renderer>(&mut self, ctx: &mut Context<R>, wirelines: bool) -> anyhow::Result<()> {
         let mut path = Path::new();
         path.move_to(self.control_points[0].p);
         path.line_to(self.control_points[1].p);
         path.line_to(self.control_points[2].p);
         path.close_path();
-        ctx.draw_path(&path, &self.paint)?;
+        if wirelines {
+            self.paint.style = PaintStyle::Fill;
+            ctx.draw_path(&path, &self.paint)?;
+            ctx.draw_wirelines_path(&path, &self.paint.stroke)?;
+        } else {
+            self.paint.style = PaintStyle::StrokeAndFill;
+            ctx.draw_path(&path, &self.paint)?;
+        }
 
         for cp in self.control_points.iter() {
             cp.draw(ctx)?;
@@ -175,6 +182,7 @@ struct DemoDraw {
     line_path: Path,
     line_paint: Paint,
     triangle: Triangle,
+    wirelines: bool,
 }
 
 impl<R: Renderer> demo::Demo<R> for DemoDraw {
@@ -198,7 +206,7 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
         self.window_size = (_width, _height);
 
         ctx.draw_path(&self.line_path, &self.line_paint)?;
-        self.triangle.draw(ctx)?;
+        self.triangle.draw(ctx, self.wirelines)?;
 
         self.bezier.draw(ctx)?;
 
@@ -224,6 +232,21 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
         self.triangle
             .mouse_event(click, self.cursor.0, self.cursor.1);
     }
+
+    fn key_event(
+        &mut self,
+        _key: glutin::event::VirtualKeyCode,
+        state: glutin::event::ElementState,
+    ) {
+        match _key {
+            glutin::event::VirtualKeyCode::L => {
+                if state == glutin::event::ElementState::Pressed {
+                    self.wirelines = !self.wirelines;
+                }
+            }
+            _ => (),
+        }
+    }
 }
 
 fn main() {
@@ -236,6 +259,7 @@ fn main() {
             line_path: Path::new(),
             line_paint: Paint::default(),
             triangle: Triangle::new(),
+            wirelines: false,
         },
         "demo-draw",
     );
