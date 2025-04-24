@@ -1,7 +1,6 @@
 use super::ImageId;
 use crate::{Color, Extent, Point, Rect, Transform};
 
-
 #[derive(Debug, Copy, Clone)]
 pub struct PaintPattern {
     pub xform: Transform,
@@ -196,6 +195,12 @@ pub struct Paint {
     pub line_cap: LineCap,
     pub miter_limit: f32,
     pub style: PaintStyle,
+}
+
+impl Paint {
+    pub fn new() -> Self {
+        return Self::default();
+    }
 }
 
 impl Default for Paint {

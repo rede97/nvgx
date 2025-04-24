@@ -1,11 +1,12 @@
 use cache::PathCache;
 
-use crate::{Paint, Point};
+use crate::{Point, Transform};
 use core::f32;
+use std::cell::RefCell;
 
-use crate::{Rect, Transform};
+use crate::Rect;
 pub mod cache;
-pub mod transform;
+mod transform;
 
 const PI: f32 = f32::consts::PI;
 pub const KAPPA90: f32 = 0.5522847493;
@@ -50,10 +51,10 @@ pub struct Path {
     pub(crate) dist_tol: f32,
     pub(crate) last_position: Point,
     pub(super) commands: Vec<Command>,
-    pub(crate) xforms: Vec<Transform>,
-    pub(crate) xform: Transform,
-    pub(crate) cache: PathCache,
+    pub(crate) cache: RefCell<PathCache>,
     pub(crate) fill_type: PathFillType,
+    pub(crate) xform: Transform,
+    pub(crate) xforms: Vec<Transform>,
 }
 
 impl Path {
@@ -66,10 +67,10 @@ impl Path {
             dist_tol,
             last_position: Point { x: 0.0, y: 0.0 },
             commands: Vec::new(),
-            xforms: Vec::new(),
-            xform: Transform::identity(),
             cache: Default::default(),
             fill_type: PathFillType::Winding,
+            xform: Transform::identity(),
+            xforms: Vec::new(),
         };
     }
 
@@ -376,6 +377,10 @@ impl Path {
         self.ellipse(center.into(), radius, radius);
     }
 
+    pub fn path_winding<D: Into<PathDir>>(&mut self, dir: D) {
+        self.append_command(Command::Winding(dir.into()));
+    }
+
     pub fn close_path(&mut self) {
         self.commands.push(Command::Close);
     }
@@ -384,9 +389,8 @@ impl Path {
         self.fill_type = fill_type;
     }
 
-    pub(crate) fn stroke(&mut self, paint: Paint, tess_tol: f32) {
-        let scale = self.xform.average_scale();
-        let stroke_width = (paint.stroke_width * scale).clamp(0.0, 200.0);
-        self.cache.flatten_paths(&self.commands, self.dist_tol, tess_tol);
+    pub(crate) fn clear(&mut self) {
+        self.commands.clear();
+        self.cache.borrow_mut().clear();
     }
 }

@@ -63,6 +63,7 @@ impl<R: Renderer> Context<R> {
 
     pub fn text<S: AsRef<str>, P: Into<Point>>(&mut self, pt: P, text: S) -> anyhow::Result<()> {
         let state = self.states.last().unwrap();
+        let mut cache = self.path.cache.borrow_mut();
         let scale = state.xform.font_scale() * self.device_pixel_ratio;
         let xform = &state.xform;
         let invscale = 1.0 / scale;
@@ -80,7 +81,7 @@ impl<R: Renderer> Context<R> {
             &mut self.layout_chars,
         )?;
 
-        self.cache.vertexes.clear();
+        cache.vertexes.clear();
 
         for lc in &self.layout_chars {
             let lt = xform.transform_point(Point::new(
@@ -100,37 +101,37 @@ impl<R: Renderer> Context<R> {
                 lc.bounds.max.y * invscale,
             ));
 
-            self.cache
+            cache
                 .vertexes
                 .push(Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y));
-            self.cache
+            cache
                 .vertexes
                 .push(Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y));
-            self.cache
+            cache
                 .vertexes
                 .push(Vertex::new(rt.x, rt.y, lc.uv.max.x, lc.uv.min.y));
 
-            self.cache
+            cache
                 .vertexes
                 .push(Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y));
-            self.cache
+            cache
                 .vertexes
                 .push(Vertex::new(lb.x, lb.y, lc.uv.min.x, lc.uv.max.y));
-            self.cache
+            cache
                 .vertexes
                 .push(Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y));
         }
 
-        let mut paint = state.fill.clone();
+        let mut paint = state.paint.fill.clone();
         paint.image = Some(self.fonts.img.clone());
-        paint.inner_color.a *= state.alpha;
-        paint.outer_color.a *= state.alpha;
+        paint.inner_color.a *= state.paint.alpha;
+        paint.outer_color.a *= state.paint.alpha;
 
         self.renderer.triangles(
             &paint,
             state.composite_operation,
             &state.scissor,
-            &self.cache.vertexes,
+            &cache.vertexes,
         )?;
         Ok(())
     }

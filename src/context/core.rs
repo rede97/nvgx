@@ -3,22 +3,15 @@ use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
 use crate::path::Path;
 use crate::renderer::Scissor;
-use crate::{path::cache::PathCache, Extent, Point, Rect, Renderer, Transform};
-use crate::{Color, Command, PathDir, PathFillType};
+use crate::{Color, Paint, PaintStyle, PathFillType};
+use crate::{Extent, Point, Rect, Renderer, Transform};
 use clamped::Clamp;
 
 #[derive(Clone)]
 pub(super) struct State {
     pub(super) composite_operation: CompositeOperationState,
-    pub(super) shape_antialias: bool,
-    pub(super) fill: PaintPattern,
+    pub(super) paint: Paint,
     pub(super) fill_type: PathFillType,
-    pub(super) stroke: PaintPattern,
-    pub(super) stroke_width: f32,
-    pub(super) miter_limit: f32,
-    pub(super) line_join: LineJoin,
-    pub(super) line_cap: LineCap,
-    pub(super) alpha: f32,
     pub(super) xform: Transform,
     pub(super) scissor: Scissor,
     pub(super) font_size: f32,
@@ -32,15 +25,8 @@ impl Default for State {
     fn default() -> Self {
         State {
             composite_operation: CompositeOperation::Basic(BasicCompositeOperation::SrcOver).into(),
-            shape_antialias: true,
-            fill: Color::rgb(1.0, 1.0, 1.0).into(),
+            paint: Default::default(),
             fill_type: PathFillType::Winding,
-            stroke: Color::rgb(0.0, 0.0, 0.0).into(),
-            stroke_width: 1.0,
-            miter_limit: 10.0,
-            line_join: LineJoin::Miter,
-            line_cap: LineCap::Butt,
-            alpha: 1.0,
             xform: Transform::identity(),
             scissor: Scissor {
                 xform: Default::default(),
@@ -60,10 +46,8 @@ impl Default for State {
 
 pub struct Context<R: Renderer> {
     pub(super) renderer: R,
-    pub(super) commands: Vec<Command>,
-    pub(super) last_position: Point,
+    pub(super) path: Path,
     pub(super) states: Vec<State>,
-    pub(super) cache: PathCache,
     pub(super) tess_tol: f32,
     pub(super) dist_tol: f32,
     pub(super) fringe_width: f32,
@@ -81,10 +65,8 @@ impl<R: Renderer> Context<R> {
         let fonts = Fonts::new(&mut renderer)?;
         Ok(Context {
             renderer,
-            commands: Default::default(),
-            last_position: Default::default(),
+            path: Path::new(),
             states: vec![Default::default()],
-            cache: Default::default(),
             tess_tol: 0.0,
             dist_tol: 0.0,
             fringe_width: 1.0,
@@ -162,27 +144,27 @@ impl<R: Renderer> Context<R> {
     }
 
     pub fn shape_antialias(&mut self, enabled: bool) {
-        self.state_mut().shape_antialias = enabled;
+        self.state_mut().paint.antialias = enabled;
     }
 
     pub fn stroke_width(&mut self, width: f32) {
-        self.state_mut().stroke_width = width * self.device_pixel_ratio;
+        self.state_mut().paint.stroke_width = width;
     }
 
     pub fn miter_limit(&mut self, limit: f32) {
-        self.state_mut().miter_limit = limit;
+        self.state_mut().paint.miter_limit = limit;
     }
 
     pub fn line_cap(&mut self, cap: LineCap) {
-        self.state_mut().line_cap = cap;
+        self.state_mut().paint.line_cap = cap;
     }
 
     pub fn line_join(&mut self, join: LineJoin) {
-        self.state_mut().line_join = join;
+        self.state_mut().paint.line_join = join;
     }
 
     pub fn global_alpha(&mut self, alpha: f32) {
-        self.state_mut().alpha = alpha;
+        self.state_mut().paint.alpha = alpha;
     }
 
     pub fn transform(&mut self, xform: Transform) {
@@ -221,13 +203,13 @@ impl<R: Renderer> Context<R> {
     pub fn stroke_paint<T: Into<PaintPattern>>(&mut self, paint: T) {
         let mut paint = paint.into();
         paint.xform *= self.state().xform;
-        self.state_mut().stroke = paint;
+        self.state_mut().paint.stroke = paint;
     }
 
     pub fn fill_paint<T: Into<PaintPattern>>(&mut self, paint: T) {
         let mut paint = paint.into();
         paint.xform *= self.state().xform;
-        self.state_mut().fill = paint;
+        self.state_mut().paint.fill = paint;
     }
 
     pub fn fill_type(&mut self, fill_type: PathFillType) {
@@ -286,102 +268,40 @@ impl<R: Renderer> Context<R> {
         self.state_mut().composite_operation = op.into();
     }
 
-    pub fn path_winding<D: Into<PathDir>>(&mut self, dir: D) {
-        self.commands.push(Command::Winding(dir.into()));
-    }
-
     pub fn fill(&mut self) -> anyhow::Result<()> {
-        let state = self.states.last_mut().unwrap();
-        let mut fill_paint = state.fill.clone();
-
-        self.cache
-            .flatten_paths(&self.commands, self.dist_tol, self.tess_tol);
-        if self.renderer.edge_antialias() && state.shape_antialias {
-            self.cache
-                .expand_fill(self.fringe_width, LineJoin::Miter, 2.4, self.fringe_width);
-        } else {
-            self.cache
-                .expand_fill(0.0, LineJoin::Miter, 2.4, self.fringe_width);
-        }
-
-        fill_paint.inner_color.a *= state.alpha;
-        fill_paint.outer_color.a *= state.alpha;
-
-        self.renderer.fill(
-            &fill_paint,
-            state.composite_operation,
-            state.fill_type,
-            &state.scissor,
+        let state = self.states.last().unwrap();
+        self.path.fill_type = state.fill_type;
+        let (draw_call_count, fill_triangles_count) = Self::fill_path(
+            &mut self.renderer,
+            &self.path,
+            &state.paint,
+            self.dist_tol,
+            self.tess_tol,
             self.fringe_width,
-            self.cache.bounds,
-            &self.cache.paths,
+            state.composite_operation,
+            &state.scissor,
         )?;
-
-        for path in &self.cache.paths {
-            if path.num_fill > 2 {
-                self.fill_triangles_count += path.num_fill - 2;
-            }
-            if path.num_stroke > 2 {
-                self.fill_triangles_count += path.num_stroke - 2;
-            }
-            self.draw_call_count += 2;
-        }
-
+        self.draw_call_count += draw_call_count;
+        self.fill_triangles_count += fill_triangles_count;
         Ok(())
     }
 
     pub fn stroke(&mut self) -> anyhow::Result<()> {
-        let state = self.states.last_mut().unwrap();
-        let scale = state.xform.average_scale();
-        let mut stroke_width = (state.stroke_width * scale).clamped(0.0, 200.0);
-        let mut stroke_paint = state.stroke.clone();
-        self.cache
-            .flatten_paths(&self.commands, self.dist_tol, self.tess_tol);
-
-        if self.renderer.edge_antialias() && state.shape_antialias {
-            if stroke_width < self.fringe_width {
-                let alpha = (stroke_width / self.fringe_width).clamped(0.0, 1.0);
-                stroke_paint.inner_color.a *= alpha * alpha;
-                stroke_paint.outer_color.a *= alpha * alpha;
-                stroke_width = self.fringe_width;
-            }
-
-            stroke_paint.inner_color.a *= state.alpha;
-            stroke_paint.outer_color.a *= state.alpha;
-
-            self.cache.expand_stroke(
-                stroke_width * 0.5,
-                self.fringe_width,
-                state.line_cap,
-                state.line_join,
-                state.miter_limit,
-                self.tess_tol,
-            );
-        } else {
-            self.cache.expand_stroke(
-                stroke_width * 0.5,
-                0.0,
-                state.line_cap,
-                state.line_join,
-                state.miter_limit,
-                self.tess_tol,
-            );
-        }
-
-        self.renderer.stroke(
-            &stroke_paint,
+        let state = self.states.last().unwrap();
+        let (draw_call_count, fill_triangles_count) = Self::stroke_path(
+            &mut self.renderer,
+            &self.path,
+            &state.paint,
+            state.xform.average_scale(),
+            self.device_pixel_ratio,
+            self.dist_tol,
+            self.tess_tol,
+            self.fringe_width,
             state.composite_operation,
             &state.scissor,
-            self.fringe_width,
-            stroke_width,
-            &self.cache.paths,
         )?;
-
-        for path in &self.cache.paths {
-            self.fill_triangles_count += path.num_stroke - 2;
-            self.draw_call_count += 1;
-        }
-
+        self.draw_call_count += draw_call_count;
+        self.fill_triangles_count += fill_triangles_count;
         Ok(())
     }
 
@@ -397,23 +317,201 @@ impl<R: Renderer> Context<R> {
     #[cfg(feature = "wirelines")]
     pub fn wirelines(&mut self) -> anyhow::Result<()> {
         let state = self.states.last_mut().unwrap();
-        self.cache
-            .flatten_paths(&self.commands, self.dist_tol, self.tess_tol);
-        self.cache.expand_lines();
+
+        let mut cache = self.path.cache.borrow_mut();
+        cache.flatten_paths(&self.path.commands, self.dist_tol, self.tess_tol);
+        cache.expand_lines();
 
         self.renderer.wirelines(
-            &state.stroke,
+            &state.paint.stroke,
             state.composite_operation,
             &state.scissor,
-            &self.cache.paths,
+            &cache.paths,
         )?;
-        for _path in &self.cache.paths {
+        for _path in &cache.paths {
             self.draw_call_count += 1;
         }
         Ok(())
     }
 
-    pub fn draw_path(&mut self, path: Path, paint: PaintPattern) {
-        
+    #[inline]
+    fn stroke_path(
+        renderer: &mut R,
+        path: &Path,
+        paint: &Paint,
+        average_scale: f32,
+        device_pixel_ratio: f32,
+        dist_tol: f32,
+        tess_tol: f32,
+        fringe_width: f32,
+        composite_operation: CompositeOperationState,
+        scissor: &Scissor,
+    ) -> anyhow::Result<(usize, usize)> {
+        let mut stroke_width =
+            (paint.stroke_width * device_pixel_ratio * average_scale).clamped(0.0, 200.0);
+        let mut stroke_paint = paint.stroke;
+        let mut cache = path.cache.borrow_mut();
+        cache.flatten_paths(&path.commands, dist_tol, tess_tol);
+
+        if renderer.edge_antialias() && paint.antialias {
+            if stroke_width < fringe_width {
+                let alpha = (stroke_width / fringe_width).clamped(0.0, 1.0);
+                stroke_paint.inner_color.a *= alpha * alpha;
+                stroke_paint.outer_color.a *= alpha * alpha;
+                stroke_width = fringe_width;
+            }
+
+            stroke_paint.inner_color.a *= paint.alpha;
+            stroke_paint.outer_color.a *= paint.alpha;
+
+            cache.expand_stroke(
+                stroke_width * 0.5,
+                fringe_width,
+                paint.line_cap,
+                paint.line_join,
+                paint.miter_limit,
+                tess_tol,
+            );
+        } else {
+            cache.expand_stroke(
+                stroke_width * 0.5,
+                0.0,
+                paint.line_cap,
+                paint.line_join,
+                paint.miter_limit,
+                tess_tol,
+            );
+        }
+
+        renderer.stroke(
+            &stroke_paint,
+            composite_operation,
+            &scissor,
+            fringe_width,
+            stroke_width,
+            &cache.paths,
+        )?;
+        let mut fill_triangles_count = 0;
+        let mut draw_call_count = 0;
+        for path in &cache.paths {
+            fill_triangles_count += path.num_stroke - 2;
+            draw_call_count += 1;
+        }
+
+        Ok((draw_call_count, fill_triangles_count))
+    }
+
+    #[inline]
+    fn fill_path(
+        renderer: &mut R,
+        path: &Path,
+        paint: &Paint,
+        dist_tol: f32,
+        tess_tol: f32,
+        fringe_width: f32,
+        composite_operation: CompositeOperationState,
+        scissor: &Scissor,
+    ) -> anyhow::Result<(usize, usize)> {
+        let mut fill_paint = paint.fill.clone();
+        let mut cache = path.cache.borrow_mut();
+
+        cache.flatten_paths(&path.commands, dist_tol, tess_tol);
+        if paint.antialias && paint.antialias {
+            cache.expand_fill(fringe_width, LineJoin::Miter, 2.4, fringe_width);
+        } else {
+            cache.expand_fill(0.0, LineJoin::Miter, 2.4, fringe_width);
+        }
+
+        fill_paint.inner_color.a *= paint.alpha;
+        fill_paint.outer_color.a *= paint.alpha;
+
+        renderer.fill(
+            &fill_paint,
+            composite_operation,
+            path.fill_type,
+            &scissor,
+            fringe_width,
+            cache.bounds,
+            &cache.paths,
+        )?;
+
+        let mut fill_triangles_count = 0;
+        let mut draw_call_count = 0;
+        for path in &cache.paths {
+            if path.num_fill > 2 {
+                fill_triangles_count += path.num_fill - 2;
+            }
+            if path.num_stroke > 2 {
+                fill_triangles_count += path.num_stroke - 2;
+            }
+            draw_call_count += 2;
+        }
+
+        Ok((draw_call_count, fill_triangles_count))
+    }
+
+    pub fn draw_path(&mut self, path: &Path, paint: &Paint) -> anyhow::Result<()> {
+        let state = self.states.last().unwrap();
+        match paint.style {
+            PaintStyle::Stroke => {
+                let (draw_call_count, fill_triangles_count) = Self::stroke_path(
+                    &mut self.renderer,
+                    path,
+                    paint,
+                    state.xform.average_scale(),
+                    self.device_pixel_ratio,
+                    self.dist_tol,
+                    self.tess_tol,
+                    self.fringe_width,
+                    state.composite_operation,
+                    &state.scissor,
+                )?;
+                self.draw_call_count += draw_call_count;
+                self.fill_triangles_count += fill_triangles_count;
+            }
+            PaintStyle::Fill => {
+                let (draw_call_count, fill_triangles_count) = Self::fill_path(
+                    &mut self.renderer,
+                    path,
+                    paint,
+                    self.dist_tol,
+                    self.tess_tol,
+                    self.fringe_width,
+                    state.composite_operation,
+                    &state.scissor,
+                )?;
+                self.draw_call_count += draw_call_count;
+                self.fill_triangles_count += fill_triangles_count;
+            }
+            PaintStyle::StrokeAndFill => {
+                let (draw_call_count, fill_triangles_count) = Self::fill_path(
+                    &mut self.renderer,
+                    path,
+                    paint,
+                    self.dist_tol,
+                    self.tess_tol,
+                    self.fringe_width,
+                    state.composite_operation,
+                    &state.scissor,
+                )?;
+                self.draw_call_count += draw_call_count;
+                self.fill_triangles_count += fill_triangles_count;
+                let (draw_call_count, fill_triangles_count) = Self::stroke_path(
+                    &mut self.renderer,
+                    path,
+                    paint,
+                    state.xform.average_scale(),
+                    self.device_pixel_ratio,
+                    self.dist_tol,
+                    self.tess_tol,
+                    self.fringe_width,
+                    state.composite_operation,
+                    &state.scissor,
+                )?;
+                self.draw_call_count += draw_call_count;
+                self.fill_triangles_count += fill_triangles_count;
+            }
+        };
+        Ok(())
     }
 }

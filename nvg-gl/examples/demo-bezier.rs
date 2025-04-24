@@ -114,11 +114,67 @@ impl ControlBezier {
     }
 }
 
+struct Triangle {
+    control_points: [ControlPoint; 3],
+    paint: Paint,
+}
+
+impl Triangle {
+    pub fn new() -> Self {
+        let cyan = Color::rgb(0.2, 0.7, 0.8);
+        let mut paint = Paint::new();
+        paint.stroke = nvg::Color::rgb(0.9, 0.9, 0.9).into();
+        paint.stroke_width = 2.0;
+        paint.fill = nvg::Color::rgb(0.6, 0.4, 0.7).into();
+        paint.style = PaintStyle::StrokeAndFill;
+        return Self {
+            control_points: [
+                ControlPoint::new(200.0, 500.0, cyan),
+                ControlPoint::new(400.0, 600.0, cyan),
+                ControlPoint::new(600.0, 200.0, cyan),
+            ],
+            paint,
+        };
+    }
+
+    pub fn draw<R: Renderer>(&self, ctx: &mut Context<R>) -> anyhow::Result<()> {
+        let mut path = Path::new();
+        path.move_to(self.control_points[0].p);
+        path.line_to(self.control_points[1].p);
+        path.line_to(self.control_points[2].p);
+        path.close_path();
+        ctx.draw_path(&path, &self.paint)?;
+
+        for cp in self.control_points.iter() {
+            cp.draw(ctx)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn mouse_event(&mut self, click: bool, x: f32, y: f32) {
+        for cp in self.control_points.iter_mut() {
+            if cp.mouse_event(click, x, y) {
+                break;
+            }
+        }
+    }
+
+    pub fn mouse_move(&mut self, x: f32, y: f32) {
+        for cp in self.control_points.iter_mut() {
+            cp.mouse_move(x, y);
+        }
+    }
+}
+
 struct DemoDraw {
     img: Option<ImageId>,
     bezier: ControlBezier,
     cursor: (f32, f32),
     window_size: (f32, f32),
+    line_path: Path,
+    line_paint: Paint,
+    triangle: Triangle,
 }
 
 impl<R: Renderer> demo::Demo<R> for DemoDraw {
@@ -128,22 +184,34 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
             ImageFlags::REPEATX | ImageFlags::REPEATY,
             "nvg-gl/examples/lenna.png",
         )?);
+
+        self.line_path.move_to((400, 100));
+        self.line_path.line_to((200.0, 300.0));
+
+        self.line_paint.stroke_width = 2.0;
+        self.line_paint.stroke = nvg::Color::rgb(0.3, 0.8, 0.6).into();
+
         Ok(())
     }
 
     fn update(&mut self, _width: f32, _height: f32, ctx: &mut Context<R>) -> anyhow::Result<()> {
         self.window_size = (_width, _height);
+
+        ctx.draw_path(&self.line_path, &self.line_paint)?;
+        self.triangle.draw(ctx)?;
+
         self.bezier.draw(ctx)?;
 
         Ok(())
     }
 
     fn cursor_moved(&mut self, _x: f32, _y: f32) {
-        self.cursor = (_x, _y);
-        self.bezier.mouse_move(
+        self.cursor = (
             _x.clamp(0.0, self.window_size.0),
             _y.clamp(0.0, self.window_size.1),
         );
+        self.bezier.mouse_move(self.cursor.0, self.cursor.1);
+        self.triangle.mouse_move(self.cursor.0, self.cursor.1);
     }
 
     fn mouse_event(
@@ -153,6 +221,8 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
     ) {
         let click = _btn == MouseButton::Left && _state == ElementState::Pressed;
         self.bezier.mouse_event(click, self.cursor.0, self.cursor.1);
+        self.triangle
+            .mouse_event(click, self.cursor.0, self.cursor.1);
     }
 }
 
@@ -163,6 +233,9 @@ fn main() {
             cursor: (0.0, 0.0),
             bezier: ControlBezier::new(),
             window_size: (0.0, 0.0),
+            line_path: Path::new(),
+            line_paint: Paint::default(),
+            triangle: Triangle::new(),
         },
         "demo-draw",
     );
