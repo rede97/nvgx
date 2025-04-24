@@ -1,6 +1,7 @@
 use glutin::event::{ElementState, Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use nvg::{Align, Color, Context, Renderer};
+use nvg_gl::ogl as nvg_impl;
 use std::time::Instant;
 
 pub trait Demo<R: Renderer> {
@@ -24,7 +25,7 @@ pub trait Demo<R: Renderer> {
     fn key_event(&mut self, _key: glutin::event::VirtualKeyCode, _state: ElementState) {}
 }
 
-pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
+pub fn run<D: Demo<nvg_impl::Renderer> + 'static>(mut demo: D, title: &str) {
     let el = EventLoop::new();
     let wb = glutin::window::WindowBuilder::new()
         .with_title(format!("nvg - {}", title))
@@ -38,7 +39,7 @@ pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
     let mut window_size = windowed_context.window().inner_size();
     let scale_factor = windowed_context.window().scale_factor() as f32;
 
-    let renderer = nvg_gl::Renderer::create(nvg_gl::RenderConfig::default()).unwrap();
+    let renderer = nvg_impl::Renderer::create(nvg_impl::RenderConfig::default()).unwrap();
     let mut context = nvg::Context::create(renderer).unwrap();
 
     demo.init(&mut context, scale_factor).unwrap();

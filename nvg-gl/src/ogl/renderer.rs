@@ -1,11 +1,10 @@
 use std::ffi::c_void;
 
-use crate::{Call, CallType, FragUniforms, GLPath, ShaderType, Texture};
-
 use super::Renderer;
+use super::{Call, CallType, FragUniforms, GLPath, ShaderType, Texture};
 use nvg::{
     renderer::{self, CompositeOperationState, PathInfo, Scissor, TextureType, Vertex},
-    Bounds, Color, Extent, PathFillType, ImageFlags, ImageId, PaintPattern,
+    Bounds, Color, Extent, ImageFlags, ImageId, PaintPattern, PathFillType,
 };
 
 impl renderer::Renderer for Renderer {

@@ -8,7 +8,6 @@ use crate::Rect;
 pub mod cache;
 mod transform;
 
-const PI: f32 = f32::consts::PI;
 pub const KAPPA90: f32 = 0.5522847493;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -45,10 +44,11 @@ pub(crate) enum Command {
     BezierTo(Point, Point, Point),
     Close,
     Winding(PathDir),
+    ArcTo(Point, Point, f32),
+    Arc(Point, f32, f32, f32, PathDir),
 }
 
 pub struct Path {
-    pub(crate) dist_tol: f32,
     pub(crate) last_position: Point,
     pub(super) commands: Vec<Command>,
     pub(crate) cache: RefCell<PathCache>,
@@ -59,12 +59,7 @@ pub struct Path {
 
 impl Path {
     pub fn new() -> Self {
-        return Self::with_dist_tol(0.01);
-    }
-
-    pub fn with_dist_tol(dist_tol: f32) -> Self {
         return Self {
-            dist_tol,
             last_position: Point { x: 0.0, y: 0.0 },
             commands: Vec::new(),
             cache: Default::default(),
@@ -129,117 +124,11 @@ impl Path {
     }
 
     pub fn arc_to<P: Into<Point>>(&mut self, pt1: P, pt2: P, radius: f32) {
-        let pt0 = self.last_position;
-
-        if self.commands.is_empty() {
-            return;
-        }
-
-        let pt1 = pt1.into();
-        let pt2 = pt2.into();
-        if pt0.equals(pt1, self.dist_tol)
-            || pt1.equals(pt2, self.dist_tol)
-            || pt1.dist_pt_seg(pt0, pt2) < self.dist_tol * self.dist_tol
-            || radius < self.dist_tol
-        {
-            self.line_to(pt1);
-            return;
-        }
-
-        let d0 = Point::new(pt0.x - pt1.x, pt0.y - pt1.y);
-        let d1 = Point::new(pt2.x - pt1.x, pt2.y - pt1.y);
-        let a = (d0.x * d1.x + d0.y * d1.y).cos();
-        let d = radius / (a / 2.0).tan();
-
-        if d > 10000.0 {
-            self.line_to(pt1);
-            return;
-        }
-
-        let (cx, cy, a0, a1, dir) = if Point::cross(d0, d1) > 0.0 {
-            (
-                pt1.x + d0.x * d + d0.y * radius,
-                pt1.y + d0.y * d + -d0.x * radius,
-                d0.x.atan2(-d0.y),
-                -d1.x.atan2(d1.y),
-                PathDir::CW,
-            )
-        } else {
-            (
-                pt1.x + d0.x * d + -d0.y * radius,
-                pt1.y + d0.y * d + d0.x * radius,
-                -d0.x.atan2(d0.y),
-                d1.x.atan2(-d1.y),
-                PathDir::CCW,
-            )
-        };
-
-        self.arc(Point::new(cx, cy), radius, a0, a1, dir);
+        self.append_command(Command::ArcTo(pt1.into(), pt2.into(), radius));
     }
 
     pub fn arc<P: Into<Point>>(&mut self, cp: P, radius: f32, a0: f32, a1: f32, dir: PathDir) {
-        let cp = cp.into();
-        let move_ = self.commands.is_empty();
-
-        let mut da = a1 - a0;
-        if dir == PathDir::CW {
-            if da.abs() >= PI * 2.0 {
-                da = PI * 2.0;
-            } else {
-                while da < 0.0 {
-                    da += PI * 2.0;
-                }
-            }
-        } else {
-            if da.abs() >= PI * 2.0 {
-                da = -PI * 2.0;
-            } else {
-                while da > 0.0 {
-                    da -= PI * 2.0;
-                }
-            }
-        }
-
-        let ndivs = ((da.abs() / (PI * 0.5) + 0.5) as i32).min(5).max(1);
-        let hda = (da / (ndivs as f32)) / 2.0;
-        let mut kappa = (4.0 / 3.0 * (1.0 - hda.cos()) / hda.sin()).abs();
-
-        if dir == PathDir::CCW {
-            kappa = -kappa;
-        }
-
-        let mut px = 0.0;
-        let mut py = 0.0;
-        let mut ptanx = 0.0;
-        let mut ptany = 0.0;
-
-        for i in 0..=ndivs {
-            let a = a0 + da * ((i as f32) / (ndivs as f32));
-            let dx = a.cos();
-            let dy = a.sin();
-            let x = cp.x + dx * radius;
-            let y = cp.y + dy * radius;
-            let tanx = -dy * radius * kappa;
-            let tany = dx * radius * kappa;
-
-            if i == 0 {
-                if move_ {
-                    self.append_command(Command::MoveTo(Point::new(x, y)));
-                } else {
-                    self.append_command(Command::LineTo(Point::new(x, y)));
-                }
-            } else {
-                self.append_command(Command::BezierTo(
-                    Point::new(px + ptanx, py + ptany),
-                    Point::new(x - tanx, y - tany),
-                    Point::new(x, y),
-                ));
-            }
-            px = x;
-            py = y;
-            ptanx = tanx;
-            ptany = tany;
-        }
+        self.append_command(Command::Arc(cp.into(), radius, a0, a1, dir));
     }
 
     pub fn rect<T: Into<Rect>>(&mut self, rect: T) {

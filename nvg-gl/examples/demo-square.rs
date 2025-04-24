@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use anyhow::Error;
 use nvg::*;
-use nvg_gl::{fb::FrameBuffer, Renderer};
+use nvg_gl::ogl::{fb::FrameBuffer, Renderer};
 
 mod demo;
 

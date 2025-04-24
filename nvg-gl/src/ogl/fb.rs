@@ -1,4 +1,4 @@
-use crate::Renderer;
+use super::Renderer;
 use nvg::{Context, Extent, ImageFlags, ImageId};
 
 #[allow(unused)]
