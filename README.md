@@ -10,8 +10,10 @@
 - [x] 支持Framebuffer(OpenGL Mode)
 - [x] 支持wireframe(PolygonMode为LINE)的`wireframe`features(用于调试)
 - [x] 原生单像素方式(OpenGL LINE_STRIP)的`wirelines`features，低开销占用或者CAD场景使用
-- [ ] 支持dot dash虚线绘制
 - [x] 支持独立的Path对象，不是每次都重新将绘图命令进行路径细分，降低CPU占用
+- [ ] 曲线对齐的字体布局
+- [ ] 支持dot dash虚线绘制（Paint PathEffect）
+- [ ] FBO MSAA支持，渲染到屏幕还不支持MSAA
 - [ ] 支持[lyon](https://docs.rs/lyon/latest/lyon/)的接口进行图形绘制，支持跟复杂的细分算法，不支持抗锯齿，与[NanovgXC](https://github.com/styluslabs/nanovgXC)的抗锯齿方式肯能会有很好的兼容？
 - [ ] 复杂的填充算法，例如stroke随路径长度的色彩渐变
 - [ ] 支持WGPU
