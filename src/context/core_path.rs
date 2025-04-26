@@ -29,6 +29,20 @@ impl<R: Renderer> Context<R> {
     #[inline]
     pub fn arc_to<P: Into<Point>>(&mut self, pt1: P, pt2: P, radius: f32) {
         self.path.xform = self.state_mut().xform;
+        if self.path.commands.is_empty() {
+            return;
+        }
+        let pt0 = self.path.last_position;
+        let pt1 = pt1.into();
+        let pt2 = pt2.into();
+        if pt0.equals(pt1, self.dist_tol)
+            || pt1.equals(pt2, self.dist_tol)
+            || pt1.dist_pt_seg(pt0, pt2) < self.dist_tol * self.dist_tol
+            || radius < self.dist_tol
+        {
+            self.line_to(pt1);
+            return;
+        }
         self.path.arc_to(pt1, pt2, radius);
     }
 

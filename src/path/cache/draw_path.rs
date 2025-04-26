@@ -137,151 +137,6 @@ impl PathCache {
         );
     }
 
-    #[inline]
-    fn cmd_move_to(&mut self, pt: Point) {
-        self.add_path();
-        self.add_point(pt, PointFlags::PT_CORNER, 0.0);
-    }
-
-    #[inline]
-    fn cmd_line_to(&mut self, pt: Point) {
-        self.add_point(pt, PointFlags::PT_CORNER, 0.0);
-    }
-
-    #[inline]
-    fn cmd_bezier_to(&mut self, cp1: Point, cp2: Point, pt: Point, tess_tol: f32) {
-        if let Some(last) = self.points.last().map(|pt| *pt) {
-            self.tesselate_bezier(last.xy, cp1, cp2, pt, 0, PointFlags::PT_CORNER, tess_tol);
-        }
-    }
-
-    #[inline]
-    pub fn cmd_arc<P: Into<Point>>(
-        &mut self,
-        cp: P,
-        radius: f32,
-        a0: f32,
-        a1: f32,
-        dir: PathDir,
-        tess_tol: f32,
-    ) {
-        let cp = cp.into();
-        let move_ = self.paths.is_empty();
-
-        let mut da = a1 - a0;
-        if dir == PathDir::CW {
-            if da.abs() >= PI * 2.0 {
-                da = PI * 2.0;
-            } else {
-                while da < 0.0 {
-                    da += PI * 2.0;
-                }
-            }
-        } else {
-            if da.abs() >= PI * 2.0 {
-                da = -PI * 2.0;
-            } else {
-                while da > 0.0 {
-                    da -= PI * 2.0;
-                }
-            }
-        }
-
-        let ndivs = ((da.abs() / (PI * 0.5) + 0.5) as i32).min(5).max(1);
-        let hda = (da / (ndivs as f32)) / 2.0;
-        let mut kappa = (4.0 / 3.0 * (1.0 - hda.cos()) / hda.sin()).abs();
-
-        if dir == PathDir::CCW {
-            kappa = -kappa;
-        }
-
-        let mut px = 0.0;
-        let mut py = 0.0;
-        let mut ptanx = 0.0;
-        let mut ptany = 0.0;
-
-        for i in 0..=ndivs {
-            let a = a0 + da * ((i as f32) / (ndivs as f32));
-            let dx = a.cos();
-            let dy = a.sin();
-            let x = cp.x + dx * radius;
-            let y = cp.y + dy * radius;
-            let tanx = -dy * radius * kappa;
-            let tany = dx * radius * kappa;
-
-            if i == 0 {
-                if move_ {
-                    self.cmd_move_to(Point::new(x, y));
-                } else {
-                    self.cmd_line_to(Point::new(x, y));
-                }
-            } else {
-                self.cmd_bezier_to(
-                    Point::new(px + ptanx, py + ptany),
-                    Point::new(x - tanx, y - tany),
-                    Point::new(x, y),
-                    tess_tol,
-                );
-            }
-            px = x;
-            py = y;
-            ptanx = tanx;
-            ptany = tany;
-        }
-    }
-
-    pub fn cmd_arc_to(
-        &mut self,
-        pt1: Point,
-        pt2: Point,
-        radius: f32,
-        dist_tol: f32,
-        tess_tol: f32,
-    ) {
-        if self.paths.is_empty() {
-            return;
-        }
-        let pt0 = self.points.last().map(|pt| pt.xy).unwrap_or_default();
-        if pt0.equals(pt1, dist_tol)
-            || pt1.equals(pt2, dist_tol)
-            || pt1.dist_pt_seg(pt0, pt2) < dist_tol * dist_tol
-            || radius < dist_tol
-        {
-            self.cmd_line_to(pt1);
-            return;
-        }
-
-        let d0 = Point::new(pt0.x - pt1.x, pt0.y - pt1.y);
-        let d1 = Point::new(pt2.x - pt1.x, pt2.y - pt1.y);
-        let a = (d0.x * d1.x + d0.y * d1.y).cos();
-        let d = radius / (a / 2.0).tan();
-
-        if d > 10000.0 {
-            self.cmd_line_to(pt1);
-            return;
-        }
-
-        let (cx, cy, a0, a1, dir) = if Point::cross(d0, d1) > 0.0 {
-            (
-                pt1.x + d0.x * d + d0.y * radius,
-                pt1.y + d0.y * d + -d0.x * radius,
-                d0.x.atan2(-d0.y),
-                -d1.x.atan2(d1.y),
-                PathDir::CW,
-            )
-        } else {
-            (
-                pt1.x + d0.x * d + -d0.y * radius,
-                pt1.y + d0.y * d + d0.x * radius,
-                -d0.x.atan2(d0.y),
-                d1.x.atan2(-d1.y),
-                PathDir::CCW,
-            )
-        };
-
-        self.cmd_arc(Point::new(cx, cy), radius, a0, a1, dir, tess_tol);
-    }
-
     pub(crate) fn flatten_paths(&mut self, commands: &[Command], dist_tol: f32, tess_tol: f32) {
         if self.paths.len() != 0 {
             return;
@@ -289,22 +144,27 @@ impl PathCache {
         for cmd in commands {
             match cmd {
                 Command::MoveTo(pt) => {
-                    self.cmd_move_to(*pt);
+                    self.add_path();
+                    self.add_point(*pt, PointFlags::PT_CORNER, dist_tol);
                 }
                 Command::LineTo(pt) => {
-                    self.cmd_line_to(*pt);
+                    self.add_point(*pt, PointFlags::PT_CORNER, dist_tol);
                 }
                 Command::BezierTo(cp1, cp2, pt) => {
-                    self.cmd_bezier_to(*cp1, *cp2, *pt, tess_tol);
+                    if let Some(last) = self.points.last().map(|pt| *pt) {
+                        self.tesselate_bezier(
+                            last.xy,
+                            *cp1,
+                            *cp2,
+                            *pt,
+                            0,
+                            PointFlags::PT_CORNER,
+                            tess_tol,
+                        );
+                    }
                 }
                 Command::Close => self.close_path(),
                 Command::Winding(solidity) => self.path_solidity(*solidity),
-                Command::ArcTo(pt1, pt2, radius) => {
-                    self.cmd_arc_to(*pt1, *pt2, *radius, dist_tol, tess_tol);
-                }
-                Command::Arc(cp, radius, a0, a1, dir) => {
-                    self.cmd_arc(*cp, *radius, *a0, *a1, *dir, tess_tol);
-                }
             }
         }
 
