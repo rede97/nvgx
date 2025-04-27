@@ -1,4 +1,4 @@
-use glutin::event::{ElementState, Event, WindowEvent};
+use glutin::event::{ElementState, Event, MouseScrollDelta, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use nvg::{Align, Color, Context, Renderer};
 use nvg_gl::ogl as nvg_impl;
@@ -23,6 +23,8 @@ pub trait Demo<R: Renderer> {
     fn mouse_event(&mut self, _btn: glutin::event::MouseButton, _state: ElementState) {}
 
     fn key_event(&mut self, _key: glutin::event::VirtualKeyCode, _state: ElementState) {}
+
+    fn mouse_wheel(&mut self, _delta: MouseScrollDelta) {}
 }
 
 pub fn run<D: Demo<nvg_impl::Renderer> + 'static>(mut demo: D, title: &str) {
@@ -66,6 +68,15 @@ pub fn run<D: Demo<nvg_impl::Renderer> + 'static>(mut demo: D, title: &str) {
                     modifiers: _,
                 } => {
                     demo.mouse_event(button, state);
+                }
+                #[allow(deprecated)]
+                WindowEvent::MouseWheel {
+                    device_id: _,
+                    delta,
+                    phase: _,
+                    modifiers: _,
+                } => {
+                    demo.mouse_wheel(delta);
                 }
                 WindowEvent::KeyboardInput {
                     device_id: _,

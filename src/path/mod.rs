@@ -1,8 +1,8 @@
 use cache::PathCache;
 
-use crate::{Point, Transform};
+use crate::{Point, Transform, Vector2D};
 use core::f32;
-use std::cell::RefCell;
+use std::{cell::RefCell, ops::Add};
 
 use crate::Rect;
 pub mod cache;
@@ -122,44 +122,41 @@ impl Path {
         ));
     }
 
-    pub fn arc_to<P: Into<Point>>(&mut self, pt1: P, pt2: P, radius: f32) {
-        if self.commands.is_empty() {
+    #[inline]
+    pub(crate) fn inner_arc_to(&mut self, pt0: Point, pt1: Point, pt2: Point, radius: f32) {
+        let d0 = Point::new(pt0.x - pt1.x, pt0.y - pt1.y).normal();
+        let d1 = Point::new(pt2.x - pt1.x, pt2.y - pt1.y).normal();
+        let a = f32::acos(d0.dot(&d1));
+        let sin_a_half = f32::sin(a / 2.0);
+        if sin_a_half.abs() < f32::EPSILON {
+            self.line_to(pt1);
             return;
         }
-
-        let pt1 = pt1.into();
-        let pt2 = pt2.into();
-        let pt0 = self.last_position;
-
-        let d0 = Point::new(pt0.x - pt1.x, pt0.y - pt1.y);
-        let d1 = Point::new(pt2.x - pt1.x, pt2.y - pt1.y);
-        let a = (d0.x * d1.x + d0.y * d1.y).cos();
-        let d = radius / (a / 2.0).tan();
-
+        let d = radius / sin_a_half;
         if d > 10000.0 {
             self.line_to(pt1);
             return;
         }
 
-        let (cx, cy, a0, a1, dir) = if Point::cross(d0, d1) > 0.0 {
-            (
-                pt1.x + d0.x * d + d0.y * radius,
-                pt1.y + d0.y * d + -d0.x * radius,
-                d0.x.atan2(-d0.y),
-                -d1.x.atan2(d1.y),
-                PathDir::CW,
-            )
+        let c = d0.add(&d1).normal().mul(d).add(&pt1);
+
+        let (a0, a1, dir) = if Point::cross(d0, d1) > 0.0 {
+            (d0.x.atan2(-d0.y), -d1.x.atan2(d1.y), PathDir::CW)
         } else {
-            (
-                pt1.x + d0.x * d + -d0.y * radius,
-                pt1.y + d0.y * d + d0.x * radius,
-                -d0.x.atan2(d0.y),
-                d1.x.atan2(-d1.y),
-                PathDir::CCW,
-            )
+            (-d0.x.atan2(d0.y), d1.x.atan2(-d1.y), PathDir::CCW)
         };
 
-        self.arc(Point::new(cx, cy), radius, a0, a1, dir);
+        self.arc(c, radius, a0, a1, dir);
+    }
+
+    pub fn arc_to<P: Into<Point>>(&mut self, pt1: P, pt2: P, radius: f32) {
+        if self.commands.is_empty() {
+            return;
+        }
+        let pt0 = self.last_position;
+        let pt1 = pt1.into();
+        let pt2 = pt2.into();
+        self.inner_arc_to(pt0, pt1, pt2, radius);
     }
 
     pub fn arc<P: Into<Point>>(&mut self, cp: P, radius: f32, a0: f32, a1: f32, dir: PathDir) {

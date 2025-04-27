@@ -43,7 +43,7 @@ impl<R: Renderer> Context<R> {
             self.line_to(pt1);
             return;
         }
-        self.path.arc_to(pt1, pt2, radius);
+        self.path.inner_arc_to(pt0, pt1, pt2, radius);
     }
 
     #[inline]

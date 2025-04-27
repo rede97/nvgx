@@ -1,5 +1,5 @@
 use anyhow::Error;
-use glutin::event::{ElementState, MouseButton};
+use glutin::event::{ElementState, MouseButton, MouseScrollDelta};
 use nvg::*;
 mod demo;
 
@@ -99,12 +99,13 @@ impl ControlBezier {
         Ok(())
     }
 
-    pub fn mouse_event(&mut self, click: bool, x: f32, y: f32) {
+    pub fn mouse_event(&mut self, click: bool, x: f32, y: f32) -> bool {
         for cp in self.control_points.iter_mut() {
             if cp.mouse_event(click, x, y) {
-                break;
+                return true;
             }
         }
+        return false;
     }
 
     pub fn mouse_move(&mut self, x: f32, y: f32) {
@@ -137,7 +138,11 @@ impl Triangle {
         };
     }
 
-    pub fn draw<R: Renderer>(&mut self, ctx: &mut Context<R>, wirelines: bool) -> anyhow::Result<()> {
+    pub fn draw<R: Renderer>(
+        &mut self,
+        ctx: &mut Context<R>,
+        wirelines: bool,
+    ) -> anyhow::Result<()> {
         let mut path = Path::new();
         path.move_to(self.control_points[0].p);
         path.line_to(self.control_points[1].p);
@@ -159,12 +164,13 @@ impl Triangle {
         Ok(())
     }
 
-    pub fn mouse_event(&mut self, click: bool, x: f32, y: f32) {
+    pub fn mouse_event(&mut self, click: bool, x: f32, y: f32) -> bool {
         for cp in self.control_points.iter_mut() {
             if cp.mouse_event(click, x, y) {
-                break;
+                return true;
             }
         }
+        return false;
     }
 
     pub fn mouse_move(&mut self, x: f32, y: f32) {
@@ -174,14 +180,78 @@ impl Triangle {
     }
 }
 
+struct ArcTo {
+    control_points: [ControlPoint; 3],
+    radius: f32,
+    paint: Paint,
+}
+
+impl ArcTo {
+    pub fn new() -> Self {
+        let cyan = Color::rgb(0.2, 0.7, 0.8);
+        let mut paint = Paint::new();
+        paint.stroke = nvg::Color::rgb(0.3, 0.8, 0.6).into();
+        paint.stroke_width = 2.0;
+        paint.style = PaintStyle::Stroke;
+        return Self {
+            control_points: [
+                ControlPoint::new(400.0, 100.0, cyan),
+                ControlPoint::new(200.0, 300.0, cyan),
+                ControlPoint::new(500.0, 300.0, cyan),
+            ],
+            paint,
+            radius: 50.0,
+        };
+    }
+
+    pub fn draw<R: Renderer>(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
+        let mut path = Path::new();
+        path.move_to(self.control_points[0].p);
+        path.line_to(self.control_points[1].p);
+        path.line_to(self.control_points[2].p);
+        ctx.draw_wirelines_path(&path, &nvg::Color::rgba(0.2, 0.4, 0.6, 0.7).into())?;
+        let mut path = Path::new();
+        path.move_to(self.control_points[0].p);
+        path.arc_to(
+            self.control_points[1].p,
+            self.control_points[2].p,
+            self.radius,
+        );
+        ctx.draw_path(&path, &self.paint)?;
+        for cp in self.control_points.iter() {
+            cp.draw(ctx)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn mouse_event(&mut self, click: bool, x: f32, y: f32) -> bool {
+        for cp in self.control_points.iter_mut() {
+            if cp.mouse_event(click, x, y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn mouse_move(&mut self, x: f32, y: f32) {
+        for cp in self.control_points.iter_mut() {
+            cp.mouse_move(x, y);
+        }
+    }
+
+    pub fn mouse_wheel(&mut self, y: f32) {
+        self.radius = f32::clamp(self.radius + y, 20.0, 500.0);
+    }
+}
+
 struct DemoDraw {
     img: Option<ImageId>,
-    bezier: ControlBezier,
     cursor: (f32, f32),
     window_size: (f32, f32),
-    line_path: Path,
-    line_paint: Paint,
+    bezier: ControlBezier,
     triangle: Triangle,
+    arc_to: ArcTo,
     wirelines: bool,
 }
 
@@ -192,22 +262,13 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
             ImageFlags::REPEATX | ImageFlags::REPEATY,
             "nvg-gl/examples/lenna.png",
         )?);
-
-        self.line_path.move_to((400, 100));
-        self.line_path.line_to((200.0, 300.0));
-
-        self.line_paint.stroke_width = 2.0;
-        self.line_paint.stroke = nvg::Color::rgb(0.3, 0.8, 0.6).into();
-
         Ok(())
     }
 
     fn update(&mut self, _width: f32, _height: f32, ctx: &mut Context<R>) -> anyhow::Result<()> {
         self.window_size = (_width, _height);
-
-        ctx.draw_path(&self.line_path, &self.line_paint)?;
         self.triangle.draw(ctx, self.wirelines)?;
-
+        self.arc_to.draw(ctx)?;
         self.bezier.draw(ctx)?;
 
         Ok(())
@@ -219,6 +280,7 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
             _y.clamp(0.0, self.window_size.1),
         );
         self.bezier.mouse_move(self.cursor.0, self.cursor.1);
+        self.arc_to.mouse_move(self.cursor.0, self.cursor.1);
         self.triangle.mouse_move(self.cursor.0, self.cursor.1);
     }
 
@@ -228,9 +290,18 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
         _state: glutin::event::ElementState,
     ) {
         let click = _btn == MouseButton::Left && _state == ElementState::Pressed;
-        self.bezier.mouse_event(click, self.cursor.0, self.cursor.1);
-        self.triangle
-            .mouse_event(click, self.cursor.0, self.cursor.1);
+        if self.bezier.mouse_event(click, self.cursor.0, self.cursor.1) {
+            return;
+        }
+        if self.arc_to.mouse_event(click, self.cursor.0, self.cursor.1) {
+            return;
+        }
+        if self
+            .triangle
+            .mouse_event(click, self.cursor.0, self.cursor.1)
+        {
+            return;
+        }
     }
 
     fn key_event(
@@ -247,6 +318,15 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
             _ => (),
         }
     }
+
+    fn mouse_wheel(&mut self, _delta: MouseScrollDelta) {
+        match _delta {
+            MouseScrollDelta::LineDelta(_, y) => {
+                self.arc_to.mouse_wheel(y);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn main() {
@@ -254,11 +334,10 @@ fn main() {
         DemoDraw {
             img: None,
             cursor: (0.0, 0.0),
-            bezier: ControlBezier::new(),
             window_size: (0.0, 0.0),
-            line_path: Path::new(),
-            line_paint: Paint::default(),
+            bezier: ControlBezier::new(),
             triangle: Triangle::new(),
+            arc_to: ArcTo::new(),
             wirelines: false,
         },
         "demo-draw",
