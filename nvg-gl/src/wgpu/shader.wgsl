@@ -20,3 +20,8 @@ fn vs_main(vert_in: VertexInput,) -> VertexOutput {
     out.clip_position = vec4f(2.0 * vert_in.vertex.x / view_size.x - 1.0, 1.0 - 2.0 * vert_in.vertex.y / view_size.y, 0.0, 1.0);
     return out;
 }
+
+struct FragUniform {
+    scissor_mat: mat3x3f,
+    paint_mat: mat3x3f,
+}

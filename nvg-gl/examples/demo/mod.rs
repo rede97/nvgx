@@ -2,9 +2,12 @@ use nvg::{Context, Renderer};
 use winit;
 
 cfg_if::cfg_if! {
-    if #[cfg(feature="ogl")] {
-        mod glutin;
-        pub use glutin::run;
+    if #[cfg(feature="ogl-impl")] {
+        mod ogl;
+        pub use ogl::run;
+    } else if #[cfg(feature="wgpu-impl")] {
+        mod wgpu;
+        pub use wgpu::run;
     }
 }
 
