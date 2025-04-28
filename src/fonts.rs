@@ -12,7 +12,6 @@ const TEX_HEIGHT: usize = 1024;
 
 pub type FontId = usize;
 
-
 #[allow(unused)]
 #[derive(Debug)]
 pub struct LayoutChar {

@@ -4,7 +4,6 @@ pub use crate::path::cache::PathInfo;
 pub use crate::path::cache::Vertex;
 pub use crate::*;
 
-
 #[derive(Debug, Copy, Clone)]
 pub enum TextureType {
     RGBA,

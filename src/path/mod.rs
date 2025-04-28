@@ -5,7 +5,8 @@ use core::f32;
 use std::{cell::RefCell, ops::Add};
 
 use crate::Rect;
-pub mod cache;
+pub(crate) mod cache;
+pub(crate) mod effect;
 mod transform;
 
 pub const KAPPA90: f32 = 0.5522847493;
