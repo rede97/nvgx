@@ -129,7 +129,6 @@ impl<D: Demo<nvg_gl::Renderer>> App<D> {
         context.fill().unwrap();
         context.restore();
         context.end_frame().unwrap();
-        state.window.request_redraw();
     }
 }
 
@@ -321,20 +320,20 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(AppState {
-            gl_surface,
-            window,
-            context: _,
-        }) = self.state.as_ref()
-        {
-            let gl_context = self.gl_context.as_ref().unwrap();
-            // let renderer = self.renderer.as_ref().unwrap();
-            // renderer.draw();
-            window.request_redraw();
+    if let Some(AppState {
+    gl_surface,
+    window,
+    context: _,
+    }) = self.state.as_ref()
+    {
+let gl_context = self.gl_context.as_ref().unwrap();
+    // let renderer = self.renderer.as_ref().unwrap();
+    // renderer.draw();
+    window.request_redraw();
 
-            gl_surface.swap_buffers(gl_context).unwrap();
-        }
+    gl_surface.swap_buffers(gl_context).unwrap();
     }
+}
 }
 
 fn window_attributes() -> WindowAttributes {
