@@ -2,12 +2,9 @@ use std::ffi::c_void;
 
 use super::Renderer;
 use super::{Call, CallType, FragUniforms, GLPath, ShaderType, Texture};
-use nvg::{
-    renderer::{self, CompositeOperationState, PathInfo, Scissor, TextureType, Vertex},
-    Bounds, Color, Extent, ImageFlags, ImageId, PaintPattern, PathFillType,
-};
+use nvg::*;
 
-impl renderer::Renderer for Renderer {
+impl nvg::Renderer for Renderer {
     fn edge_antialias(&self) -> bool {
         #[cfg(feature = "wireframe")]
         if self.wireframe {
