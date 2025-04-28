@@ -143,27 +143,27 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
 
     fn key_event(
         &mut self,
-        _key: glutin::event::VirtualKeyCode,
-        state: glutin::event::ElementState,
+        _key: winit::keyboard::KeyCode,
+        state: winit::event::ElementState,
     ) {
         match _key {
-            glutin::event::VirtualKeyCode::C => {
-                if state == glutin::event::ElementState::Pressed {
+            winit::keyboard::KeyCode::KeyC => {
+                if state == winit::event::ElementState::Pressed {
                     self.close = !self.close;
                 }
             }
-            glutin::event::VirtualKeyCode::W => {
-                if state == glutin::event::ElementState::Pressed {
+            winit::keyboard::KeyCode::KeyW => {
+                if state == winit::event::ElementState::Pressed {
                     self.wireframe = !self.wireframe;
                 }
             }
-            glutin::event::VirtualKeyCode::L => {
-                if state == glutin::event::ElementState::Pressed {
+            winit::keyboard::KeyCode::KeyL => {
+                if state == winit::event::ElementState::Pressed {
                     self.wirelines = !self.wirelines;
                 }
             }
-            glutin::event::VirtualKeyCode::F => {
-                if state == glutin::event::ElementState::Pressed {
+            winit::keyboard::KeyCode::KeyF => {
+                if state == winit::event::ElementState::Pressed {
                     self.fill = !self.fill;
                 }
             }

@@ -1,13 +1,41 @@
 use super::Demo;
 use nvg::{Align, Color};
 use std::time::Instant;
+use raw_window_handle::{HasWindowHandle, HasDisplayHandle};
 
 pub fn run<D: Demo<nvg_gl::Renderer> + 'static>(mut demo: D, title: &str) {
     let el = winit::event_loop::EventLoop::new();
-    let wb = winit::window::WindowBuilder::new()
+    let window = winit::window::WindowBuilder::new()
         .with_title(format!("nvg - {}", title))
         .with_inner_size(winit::dpi::LogicalSize::new(1024.0, 768.0))
-        .build(&el).unwrap();
+        .build(&el)
+        .unwrap();
+
+    let size = window.inner_size();
+
+    let backends = wgpu::Backends::all();
+
+    let instance: wgpu::Instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        backends,
+        ..Default::default()
+    });
+    let surface = unsafe { instance.create_surface(&window) }.unwrap();
+    // let surface = instance.create_surface(&window).unwrap();
+
+    let adapters = instance.enumerate_adapters(backends);
+    let adapter = adapters
+        .iter()
+        .filter(|adapter| adapter.is_surface_supported(&surface))
+        .next()
+        .expect("no avaliable adapter");
+    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+        required_features: wgpu::Features::POLYGON_MODE_LINE,
+        required_limits: wgpu::Limits::default(),
+        label: None,
+        memory_hints: wgpu::MemoryHints::Performance,
+        trace: wgpu::Trace::default(),
+    }))
+    .unwrap();
 
     let renderer = nvg_gl::Renderer::create(nvg_gl::RenderConfig::default()).unwrap();
     let mut context = nvg::Context::create(renderer).unwrap();

@@ -32,7 +32,7 @@ pub trait Demo<R: Renderer> {
 
     fn key_event(
         &mut self,
-        _key: winit::event::VirtualKeyCode,
+        _key: winit::keyboard::KeyCode,
         _state: winit::event::ElementState,
     ) {
     }

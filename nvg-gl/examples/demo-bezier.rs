@@ -286,8 +286,8 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
 
     fn mouse_event(
         &mut self,
-        _btn: glutin::event::MouseButton,
-        _state: glutin::event::ElementState,
+        _btn: winit::event::MouseButton,
+        _state: winit::event::ElementState,
     ) {
         let click = _btn == MouseButton::Left && _state == ElementState::Pressed;
         if self.bezier.mouse_event(click, self.cursor.0, self.cursor.1) {
@@ -306,12 +306,12 @@ impl<R: Renderer> demo::Demo<R> for DemoDraw {
 
     fn key_event(
         &mut self,
-        _key: glutin::event::VirtualKeyCode,
-        state: glutin::event::ElementState,
+        _key: winit::keyboard::KeyCode,
+        state: winit::event::ElementState,
     ) {
         match _key {
-            glutin::event::VirtualKeyCode::L => {
-                if state == glutin::event::ElementState::Pressed {
+            winit::keyboard::KeyCode::KeyL => {
+                if state == winit::event::ElementState::Pressed {
                     self.wirelines = !self.wirelines;
                 }
             }
