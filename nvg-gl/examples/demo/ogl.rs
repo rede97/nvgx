@@ -82,6 +82,55 @@ impl<D: Demo<nvg_gl::Renderer>> App<D> {
             state: None,
         }
     }
+
+    #[inline]
+    fn draw(&mut self) {
+        let state = self.state.as_mut().unwrap();
+        let context = &mut state.context;
+        self.demo.before_frame(context).unwrap();
+
+        let window_size = state.window.inner_size();
+        let scale_factor = state.window.scale_factor() as f32;
+        context
+            .begin_frame(
+                nvg::Extent {
+                    width: window_size.width as f32,
+                    height: window_size.height as f32,
+                },
+                scale_factor,
+            )
+            .unwrap();
+        context.clear(Color::rgb(0.1, 0.1, 0.1)).unwrap();
+
+        context.save();
+        self.demo
+            .update(window_size.width as f32, window_size.height as f32, context)
+            .unwrap();
+        context.restore();
+
+        context.save();
+        let duration = Instant::now() - self.start_time;
+        if duration.as_millis() > 20 {
+            self.fps = format!(
+                "FPS: {:.2}",
+                (self.total_frames as f32) / duration.as_secs_f32()
+            );
+            self.start_time = Instant::now();
+            self.total_frames = 0;
+        } else {
+            self.total_frames += 1;
+        }
+        context.begin_path();
+        context.fill_paint(Color::rgb(1.0, 0.0, 0.0));
+        context.font("roboto");
+        context.font_size(20.0);
+        context.text_align(Align::TOP | Align::LEFT);
+        context.text((10, 10), &self.fps).unwrap();
+        context.fill().unwrap();
+        context.restore();
+        context.end_frame().unwrap();
+        state.window.request_redraw();
+    }
 }
 
 impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
@@ -255,51 +304,7 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
             }
 
             WindowEvent::RedrawRequested => {
-                let state = self.state.as_mut().unwrap();
-                let context = &mut state.context;
-                self.demo.before_frame(context).unwrap();
-
-                let window_size = state.window.inner_size();
-                let scale_factor = state.window.scale_factor() as f32;
-                context
-                    .begin_frame(
-                        nvg::Extent {
-                            width: window_size.width as f32,
-                            height: window_size.height as f32,
-                        },
-                        scale_factor,
-                    )
-                    .unwrap();
-                context.clear(Color::rgb(0.1, 0.1, 0.1)).unwrap();
-
-                context.save();
-                self.demo
-                    .update(window_size.width as f32, window_size.height as f32, context)
-                    .unwrap();
-                context.restore();
-
-                context.save();
-                let duration = Instant::now() - self.start_time;
-                if duration.as_millis() > 20 {
-                    self.fps = format!(
-                        "FPS: {:.2}",
-                        (self.total_frames as f32) / duration.as_secs_f32()
-                    );
-                    self.start_time = Instant::now();
-                    self.total_frames = 0;
-                } else {
-                    self.total_frames += 1;
-                }
-                context.begin_path();
-                context.fill_paint(Color::rgb(1.0, 0.0, 0.0));
-                context.font("roboto");
-                context.font_size(20.0);
-                context.text_align(Align::TOP | Align::LEFT);
-                context.text((10, 10), &self.fps).unwrap();
-                context.fill().unwrap();
-                context.restore();
-                context.end_frame().unwrap();
-                state.window.request_redraw();
+                self.draw();
             }
             _ => (),
         }
@@ -333,7 +338,9 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
 }
 
 fn window_attributes() -> WindowAttributes {
-    Window::default_attributes().with_transparent(true)
+    Window::default_attributes()
+        .with_transparent(true)
+        .with_inner_size(winit::dpi::LogicalSize::new(1024, 768))
 }
 
 fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
