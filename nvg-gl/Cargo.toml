@@ -11,18 +11,22 @@ homepage = "https://github.com/sunli829/nvg"
 repository = "https://github.com/sunli829/nvg"
 
 [features]
-default = ["wireframe", "wirelines"]
+default = ["wireframe", "wirelines", "ogl"]
 wireframe = ["nvg/wireframe"]
 wirelines = ["nvg/wirelines"]
+wgpu = []
+ogl = ["gl", "glutin"]
 
 [dependencies]
 nvg = { version = "0.5.7", path = "../" }
 slab = "0.4.2"
-gl = "0.14.0"
 anyhow = "1.0.26"
+gl = { version = "0.14.0", optional = true }
+glutin = { version = "0.25.1", optional = true }
+winit = "0.23"
+cfg-if = "1.0"
 
 [dev-dependencies]
-glutin = "0.25.1"
 chrono = "0.4.10"
 rand = "0.7.2"
 lazy_static = "1.4.0"

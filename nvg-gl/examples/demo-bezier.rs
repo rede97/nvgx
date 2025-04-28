@@ -1,5 +1,5 @@
 use anyhow::Error;
-use glutin::event::{ElementState, MouseButton, MouseScrollDelta};
+use winit::event::{ElementState, MouseButton, MouseScrollDelta};
 use nvg::*;
 mod demo;
 

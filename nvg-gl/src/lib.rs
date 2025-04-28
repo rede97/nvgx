@@ -1,5 +1,10 @@
 #[macro_use]
 extern crate anyhow;
 
-/// OpenGL implement of NanoVG
-pub mod ogl;
+cfg_if::cfg_if! {
+    if #[cfg(feature="ogl")] {
+        /// OpenGL implement of NanoVG
+        mod ogl;
+        pub use ogl::*;
+    }
+}

@@ -1,4 +1,4 @@
-use nvg::{renderer::*, PathFillType};
+use nvg::*;
 use slab::Slab;
 
 mod renderer;
