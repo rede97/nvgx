@@ -6,6 +6,7 @@ use std::{cell::RefCell, ops::Add};
 
 use crate::Rect;
 pub(crate) mod cache;
+#[allow(unused)]
 pub(crate) mod effect;
 mod transform;
 
