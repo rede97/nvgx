@@ -205,8 +205,8 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                 if let Some(AppState {
                     gl_surface,
                     window: _,
-                    context: _,
-                }) = self.state.as_ref()
+                    context,
+                }) = self.state.as_mut()
                 {
                     let gl_context = self.gl_context.as_ref().unwrap();
                     gl_surface.resize(
@@ -214,6 +214,8 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                         NonZeroU32::new(size.width).unwrap(),
                         NonZeroU32::new(size.height).unwrap(),
                     );
+                    // Noting to do for opengl context
+                    context.resize(size.width, size.height).unwrap();
                 }
             }
             WindowEvent::CloseRequested

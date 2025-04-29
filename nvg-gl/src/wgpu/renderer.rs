@@ -10,6 +10,13 @@ impl nvg::Renderer for Renderer {
         return true;
     }
 
+    fn resize(&mut self, _width: u32, _height: u32) -> anyhow::Result<()> {
+        self.surface_config.width = _width;
+        self.surface_config.height = _height;
+        self.surface.configure(&self.device, &self.surface_config);
+        Ok(())
+    }
+
     fn create_texture(
         &mut self,
         texture_type: nvg::TextureType,
@@ -81,7 +88,7 @@ impl nvg::Renderer for Renderer {
     }
 
     fn viewport(&mut self, extent: nvg::Extent, device_pixel_ratio: f32) -> anyhow::Result<()> {
-        self.view = extent;
+        self.viewsize = extent;
         Ok(())
     }
 

@@ -83,6 +83,15 @@ impl<R: Renderer> Context<R> {
         &self.renderer
     }
 
+    #[inline]
+    pub fn renderer_mut(&mut self) -> &mut R {
+        &mut self.renderer
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) -> anyhow::Result<()> {
+        self.renderer.resize(width, height)
+    }
+
     fn set_device_pixel_ratio(&mut self, ratio: f32) {
         self.tess_tol = 0.25 / ratio;
         self.dist_tol = 0.01 / ratio;

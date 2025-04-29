@@ -42,6 +42,10 @@ pub trait Renderer {
 
     fn texture_size(&self, img: ImageId) -> anyhow::Result<(usize, usize)>;
 
+    fn resize(&mut self, _width: u32, _height: u32) -> anyhow::Result<()> {
+        Ok(())
+    }
+
     fn viewport(&mut self, extent: Extent, device_pixel_ratio: f32) -> anyhow::Result<()>;
 
     fn cancel(&mut self) -> anyhow::Result<()>;

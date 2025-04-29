@@ -69,16 +69,8 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                 // Notable platforms here are Wayland and macOS, other don't require it
                 // and the function is no-op, but it's wise to resize it for portability
                 // reasons.
-                if let Some(AppState {
-                    window: _,
-                    config,
-                    surface,
-                    context,
-                }) = self.state.as_mut()
-                {
-                    config.width = size.width;
-                    config.height = size.height;
-                    surface.configure(context.renderer().device(), config);
+                if let Some(AppState { window: _, context }) = self.state.as_mut() {
+                    context.resize(size.width, size.height).unwrap();
                 }
             }
             WindowEvent::CloseRequested
@@ -165,6 +157,7 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                     // context.fill().unwrap();
                     // context.restore();
                     // context.end_frame().unwrap();
+                    state.context.renderer_mut().do_fill();
                 }
 
                 {
@@ -178,8 +171,7 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
 
 struct AppState {
     window: Arc<Window>,
-    config: wgpu::SurfaceConfiguration,
-    surface: wgpu::Surface<'static>,
+
     context: nvg::Context<nvg_gl::Renderer>,
 }
 
@@ -226,14 +218,8 @@ impl AppState {
                 desired_maximum_frame_latency: 2,
             };
         surface.configure(&device, &config);
-
-        let renderer = nvg_gl::Renderer::create(device, queue)?;
+        let renderer = nvg_gl::Renderer::create(device, queue, config, surface)?;
         let context = nvg::Context::create(renderer)?;
-        return Ok(Self {
-            window,
-            config,
-            surface,
-            context,
-        });
+        return Ok(Self { window, context });
     }
 }
