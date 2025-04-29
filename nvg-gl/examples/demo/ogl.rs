@@ -59,7 +59,7 @@ struct App<D: Demo<nvg_gl::Renderer>> {
     template: ConfigTemplateBuilder,
     demo: D,
     start_time: Instant,
-    total_frames: u32,
+    frame_count: u32,
     fps: String,
     // NOTE: `AppState` carries the `Window`, thus it should be dropped after everything else.
     state: Option<AppState>,
@@ -74,61 +74,13 @@ impl<D: Demo<nvg_gl::Renderer>> App<D> {
             template,
             demo,
             start_time: Instant::now(),
-            total_frames: 0,
+            frame_count: 0,
             fps: String::new(),
             gl_display: GlDisplayCreationState::Builder(display_builder),
             exit_state: Ok(()),
             gl_context: None,
             state: None,
         }
-    }
-
-    #[inline]
-    fn draw(&mut self) {
-        let state = self.state.as_mut().unwrap();
-        let context = &mut state.context;
-        self.demo.before_frame(context).unwrap();
-
-        let window_size = state.window.inner_size();
-        let scale_factor = state.window.scale_factor() as f32;
-        context
-            .begin_frame(
-                nvg::Extent {
-                    width: window_size.width as f32,
-                    height: window_size.height as f32,
-                },
-                scale_factor,
-            )
-            .unwrap();
-        context.clear(Color::rgb(0.1, 0.1, 0.1)).unwrap();
-
-        context.save();
-        self.demo
-            .update(window_size.width as f32, window_size.height as f32, context)
-            .unwrap();
-        context.restore();
-
-        context.save();
-        let duration = Instant::now() - self.start_time;
-        if duration.as_millis() > 20 {
-            self.fps = format!(
-                "FPS: {:.2}",
-                (self.total_frames as f32) / duration.as_secs_f32()
-            );
-            self.start_time = Instant::now();
-            self.total_frames = 0;
-        } else {
-            self.total_frames += 1;
-        }
-        context.begin_path();
-        context.fill_paint(Color::rgb(1.0, 0.0, 0.0));
-        context.font("roboto");
-        context.font_size(20.0);
-        context.text_align(Align::TOP | Align::LEFT);
-        context.text((10, 10), &self.fps).unwrap();
-        context.fill().unwrap();
-        context.restore();
-        context.end_frame().unwrap();
     }
 }
 
@@ -303,7 +255,58 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
             }
 
             WindowEvent::RedrawRequested => {
-                self.draw();
+                let state = unsafe { self.state.as_mut().unwrap_unchecked() };
+                {
+                    let context = &mut state.context;
+                    self.demo.before_frame(context).unwrap();
+
+                    let window_size = state.window.inner_size();
+                    let scale_factor = state.window.scale_factor() as f32;
+                    context
+                        .begin_frame(
+                            nvg::Extent {
+                                width: window_size.width as f32,
+                                height: window_size.height as f32,
+                            },
+                            scale_factor,
+                        )
+                        .unwrap();
+                    context.clear(Color::rgb(0.1, 0.1, 0.1)).unwrap();
+
+                    context.save();
+                    self.demo
+                        .update(window_size.width as f32, window_size.height as f32, context)
+                        .unwrap();
+                    context.restore();
+
+                    context.save();
+                    let duration = Instant::now() - self.start_time;
+                    if duration.as_millis() > 20 {
+                        self.fps = format!(
+                            "FPS: {:.2}",
+                            (self.frame_count as f32) / duration.as_secs_f32()
+                        );
+                        self.start_time = Instant::now();
+                        self.frame_count = 0;
+                    } else {
+                        self.frame_count += 1;
+                    }
+                    context.begin_path();
+                    context.fill_paint(Color::rgb(1.0, 0.0, 0.0));
+                    context.font("roboto");
+                    context.font_size(20.0);
+                    context.text_align(Align::TOP | Align::LEFT);
+                    context.text((10, 10), &self.fps).unwrap();
+                    context.fill().unwrap();
+                    context.restore();
+                    context.end_frame().unwrap();
+                }
+
+                {
+                    let gl_context = self.gl_context.as_ref().unwrap();
+                    state.window.request_redraw();
+                    state.gl_surface.swap_buffers(gl_context).unwrap();
+                }
             }
             _ => (),
         }
@@ -318,22 +321,6 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
         // Clear the window.
         self.state = None;
     }
-
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-    if let Some(AppState {
-    gl_surface,
-    window,
-    context: _,
-    }) = self.state.as_ref()
-    {
-let gl_context = self.gl_context.as_ref().unwrap();
-    // let renderer = self.renderer.as_ref().unwrap();
-    // renderer.draw();
-    window.request_redraw();
-
-    gl_surface.swap_buffers(gl_context).unwrap();
-    }
-}
 }
 
 fn window_attributes() -> WindowAttributes {
@@ -387,8 +374,9 @@ pub fn gl_config_picker(configs: Box<dyn Iterator<Item = Config> + '_>) -> Confi
         .reduce(|accum, config| {
             let transparency_check = config.supports_transparency().unwrap_or(false)
                 & !accum.supports_transparency().unwrap_or(false);
-
-            if transparency_check || config.num_samples() > accum.num_samples() {
+            // if transparency_check || config.num_samples() > accum.num_samples() {
+            if transparency_check {
+                // ignore msaa
                 config
             } else {
                 accum
