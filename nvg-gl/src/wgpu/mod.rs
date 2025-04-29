@@ -1,6 +1,7 @@
 use call::Call;
 use nvg::*;
 use slab::Slab;
+use texture::Texture;
 use unifroms::{RenderUnifrom, Unifrom};
 use wgpu::{vertex_attr_array, ShaderStages};
 
@@ -31,11 +32,14 @@ impl VertexIn {
 pub struct Renderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
+    view: Extent,
     render_unifrom: Unifrom<RenderUnifrom>,
     viewsize_uniform: Unifrom<[f32; 2]>,
     pipeline_layout: wgpu::PipelineLayout,
     shader: wgpu::ShaderModule,
     calls: Vec<Call>,
+    textures: Slab<Texture>,
+    texture_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl Renderer {
@@ -56,14 +60,40 @@ impl Renderer {
             push_constant_ranges: &[],
         });
 
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Texture Bind Group Layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
         return Ok(Self {
             device,
             queue,
+            view: Extent::default(),
             viewsize_uniform,
             render_unifrom,
             pipeline_layout,
             shader,
             calls: Vec::new(),
+            textures: Slab::default(),
+            texture_bind_group_layout,
         });
     }
 

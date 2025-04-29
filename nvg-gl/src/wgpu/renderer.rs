@@ -1,3 +1,8 @@
+use anyhow::Ok;
+use wgpu::{Extent3d, Origin2d};
+
+use crate::wgpu::texture;
+
 use super::Renderer;
 
 impl nvg::Renderer for Renderer {
@@ -13,11 +18,28 @@ impl nvg::Renderer for Renderer {
         flags: nvg::ImageFlags,
         data: Option<&[u8]>,
     ) -> anyhow::Result<nvg::ImageId> {
-        todo!()
+        let size = wgpu::Extent3d {
+            width: width as u32,
+            height: height as u32,
+            depth_or_array_layers: 1,
+        };
+        let texture = texture::Texture::new(
+            &self.device,
+            size,
+            flags,
+            texture_type,
+            &self.texture_bind_group_layout,
+        );
+        if let Some(data) = data {
+            texture.update(&self.queue, data, Origin2d::ZERO, size);
+        }
+        let id = self.textures.insert(texture);
+        Ok(id as nvg::ImageId)
     }
 
     fn delete_texture(&mut self, img: nvg::ImageId) -> anyhow::Result<()> {
-        todo!()
+        self.textures.remove(img as usize);
+        Ok(())
     }
 
     fn update_texture(
@@ -29,15 +51,38 @@ impl nvg::Renderer for Renderer {
         height: usize,
         data: &[u8],
     ) -> anyhow::Result<()> {
-        todo!()
+        let texture = self
+            .textures
+            .get_mut(img as usize)
+            .ok_or_else(|| anyhow::anyhow!("Texture not found"))?;
+        texture.update(
+            &self.queue,
+            data,
+            Origin2d {
+                x: x as u32,
+                y: y as u32,
+            },
+            Extent3d {
+                width: width as u32,
+                height: height as u32,
+                depth_or_array_layers: 1,
+            },
+        );
+        Ok(())
     }
 
     fn texture_size(&self, img: nvg::ImageId) -> anyhow::Result<(usize, usize)> {
-        todo!()
+        let texture = self
+            .textures
+            .get(img as usize)
+            .ok_or_else(|| anyhow::anyhow!("Texture not found"))?;
+        let size = texture.size();
+        Ok((size.width as usize, size.height as usize))
     }
 
     fn viewport(&mut self, extent: nvg::Extent, device_pixel_ratio: f32) -> anyhow::Result<()> {
-        todo!()
+        self.view = extent;
+        Ok(())
     }
 
     fn cancel(&mut self) -> anyhow::Result<()> {
