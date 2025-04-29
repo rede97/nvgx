@@ -67,6 +67,14 @@ impl Color {
     pub fn hsl(h: f32, s: f32, l: f32) -> Color {
         Self::hsla(h, s, l, 1.0)
     }
+
+    pub fn gray(g: f32) -> Color {
+        return Color::rgb(g, g, g);
+    }
+
+    pub fn gray_i(g: u8) -> Color {
+        return Color::rgb_i(g, g, g);
+    }
 }
 
 impl<T: AsPrimitive<f32>> From<(T, T, T)> for Color {
