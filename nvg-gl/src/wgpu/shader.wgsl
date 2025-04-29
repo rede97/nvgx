@@ -51,5 +51,5 @@ var frag_sampler: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return textureSample(frag_texture, frag_sampler, in.ftcoord);
+    return vec4(1, 1, 1, 1);
 }

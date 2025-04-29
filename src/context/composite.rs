@@ -110,3 +110,9 @@ pub struct CompositeOperationState {
     pub src_alpha: BlendFactor,
     pub dst_alpha: BlendFactor,
 }
+
+impl AsRef<CompositeOperationState> for &CompositeOperationState {
+    fn as_ref(&self) -> &CompositeOperationState {
+        return self;
+    }
+}

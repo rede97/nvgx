@@ -78,6 +78,7 @@ impl<R: Renderer> Context<R> {
         })
     }
 
+    #[inline]
     pub fn renderer(&self) -> &R {
         &self.renderer
     }

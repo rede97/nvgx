@@ -1,4 +1,5 @@
 #[macro_use]
+#[allow(unused)]
 extern crate anyhow;
 
 cfg_if::cfg_if! {

@@ -2,7 +2,7 @@ use super::Renderer;
 
 impl nvg::Renderer for Renderer {
     fn edge_antialias(&self) -> bool {
-        todo!()
+        return true;
     }
 
     fn create_texture(
