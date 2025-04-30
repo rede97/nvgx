@@ -1,9 +1,16 @@
+use std::path;
+
 use anyhow::Ok;
+use nvg::Vertex;
 use wgpu::{Extent3d, Origin2d};
 
-use crate::wgpu::texture;
+use crate::wgpu::{
+    call::{Call, GpuPath, ToBlendState},
+    texture,
+    unifroms::{RenderCommand, ShaderType},
+};
 
-use super::Renderer;
+use super::{call::CallType, Renderer};
 
 impl nvg::Renderer for Renderer {
     fn edge_antialias(&self) -> bool {
@@ -20,14 +27,14 @@ impl nvg::Renderer for Renderer {
     fn create_texture(
         &mut self,
         texture_type: nvg::TextureType,
-        width: usize,
-        height: usize,
+        width: u32,
+        height: u32,
         flags: nvg::ImageFlags,
         data: Option<&[u8]>,
     ) -> anyhow::Result<nvg::ImageId> {
         let size = wgpu::Extent3d {
-            width: width as u32,
-            height: height as u32,
+            width: width,
+            height: height,
             depth_or_array_layers: 1,
         };
         let texture = texture::Texture::new(
@@ -52,10 +59,10 @@ impl nvg::Renderer for Renderer {
     fn update_texture(
         &mut self,
         img: nvg::ImageId,
-        x: usize,
-        y: usize,
-        width: usize,
-        height: usize,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
         data: &[u8],
     ) -> anyhow::Result<()> {
         let texture = self
@@ -65,30 +72,27 @@ impl nvg::Renderer for Renderer {
         texture.update(
             &self.queue,
             data,
-            Origin2d {
-                x: x as u32,
-                y: y as u32,
-            },
+            Origin2d { x, y },
             Extent3d {
-                width: width as u32,
-                height: height as u32,
+                width: width,
+                height: height,
                 depth_or_array_layers: 1,
             },
         );
         Ok(())
     }
 
-    fn texture_size(&self, img: nvg::ImageId) -> anyhow::Result<(usize, usize)> {
+    fn texture_size(&self, img: nvg::ImageId) -> anyhow::Result<(u32, u32)> {
         let texture = self
             .textures
             .get(img as usize)
             .ok_or_else(|| anyhow::anyhow!("Texture not found"))?;
         let size = texture.size();
-        Ok((size.width as usize, size.height as usize))
+        Ok((size.width, size.height))
     }
 
-    fn viewport(&mut self, extent: nvg::Extent, device_pixel_ratio: f32) -> anyhow::Result<()> {
-        self.viewsize = extent;
+    fn viewport(&mut self, extent: nvg::Extent, _device_pixel_ratio: f32) -> anyhow::Result<()> {
+        self.viewsize_uniform.value = extent;
         Ok(())
     }
 
@@ -110,7 +114,65 @@ impl nvg::Renderer for Renderer {
         bounds: nvg::Bounds,
         paths: &[nvg::PathInfo],
     ) -> anyhow::Result<()> {
-        todo!()
+        let mut offset = self.vertexes.len();
+        for path in paths {
+            let fill = path.get_fill();
+            let mut wgpu_path = GpuPath::default();
+            if !fill.is_empty() {
+                wgpu_path.fill_offset = offset;
+                wgpu_path.fill_count = fill.len();
+                self.vertexes.extend(fill);
+                offset += fill.len()
+            }
+
+            let stroke = path.get_stroke();
+            if !stroke.is_empty() {
+                wgpu_path.stroke_offset = offset;
+                wgpu_path.stroke_count = stroke.len();
+                self.vertexes.extend(stroke);
+                offset += stroke.len();
+            }
+            self.paths.push(wgpu_path);
+        }
+
+        let call = Call {
+            call_type: if paths.len() == 1 && paths[0].convex {
+                crate::wgpu::call::CallType::ConvexFill
+            } else {
+                crate::wgpu::call::CallType::Fill(fill_type)
+            },
+            image: paint.image,
+            path_offset: self.paths.len(),
+            path_count: paths.len(),
+            triangle_offset: offset,
+            triangle_count: 4,
+            uniform_offset: self.render_unifrom.value.len(),
+            blend_func: (&composite_operation).to_wgpu_blend_state(),
+            wireframe: false,
+        };
+
+        if let CallType::Fill(_) = call.call_type {
+            self.vertexes.extend([
+                Vertex::new(bounds.max.x, bounds.max.y, 0.5, 1.0),
+                Vertex::new(bounds.max.x, bounds.min.y, 0.5, 1.0),
+                Vertex::new(bounds.min.x, bounds.max.y, 0.5, 1.0),
+                Vertex::new(bounds.min.x, bounds.min.y, 0.5, 1.0),
+            ]);
+            self.render_unifrom.value.push(RenderCommand {
+                stroke_thr: -1.0,
+                render_type: ShaderType::Simple as u32,
+                ..Default::default()
+            });
+            self.render_unifrom.value.push(RenderCommand::new(
+                &self, paint, scissor, fringe, fringe, -1.0,
+            ));
+        } else {
+            self.render_unifrom.value.push(RenderCommand::new(
+                &self, paint, scissor, fringe, fringe, -1.0,
+            ));
+        }
+        self.calls.push(call);
+        Ok(())
     }
 
     fn stroke(

@@ -25,7 +25,7 @@ pub enum WindingSolidity {
     Hole,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum PathFillType {
     Winding,
     EvenOdd,

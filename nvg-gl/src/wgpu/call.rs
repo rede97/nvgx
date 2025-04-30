@@ -19,12 +19,12 @@ pub(crate) struct Call {
     pub triangle_offset: usize,
     pub triangle_count: usize,
     pub uniform_offset: usize,
-    pub blend_func: wgpu::BlendComponent,
+    pub blend_func: wgpu::BlendState,
     #[cfg(feature = "wireframe")]
     pub wireframe: bool,
 }
 
-trait ToBlendState: AsRef<CompositeOperationState> {
+pub(crate) trait ToBlendState: AsRef<CompositeOperationState> {
     fn to_wgpu_blend_state(&self) -> wgpu::BlendState {
         let value = self.as_ref();
         return wgpu::BlendState {
@@ -60,6 +60,7 @@ fn convert_blend_factor(factor: BlendFactor) -> wgpu::BlendFactor {
 
 impl ToBlendState for &CompositeOperationState {}
 
+#[derive(Default)]
 pub(crate) struct GpuPath {
     pub fill_offset: usize,
     pub fill_count: usize,

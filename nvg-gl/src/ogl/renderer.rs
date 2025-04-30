@@ -16,8 +16,8 @@ impl nvg::Renderer for Renderer {
     fn create_texture(
         &mut self,
         texture_type: TextureType,
-        width: usize,
-        height: usize,
+        width: u32,
+        height: u32,
         flags: ImageFlags,
         data: Option<&[u8]>,
     ) -> anyhow::Result<ImageId> {
@@ -135,10 +135,10 @@ impl nvg::Renderer for Renderer {
     fn update_texture(
         &mut self,
         img: ImageId,
-        x: usize,
-        y: usize,
-        width: usize,
-        height: usize,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
         data: &[u8],
     ) -> anyhow::Result<()> {
         if let Some(texture) = self.textures.get(img) {
@@ -180,7 +180,7 @@ impl nvg::Renderer for Renderer {
         }
     }
 
-    fn texture_size(&self, img: ImageId) -> anyhow::Result<(usize, usize)> {
+    fn texture_size(&self, img: ImageId) -> anyhow::Result<(u32, u32)> {
         if let Some(texture) = self.textures.get(img) {
             Ok((texture.width, texture.height))
         } else {

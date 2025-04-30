@@ -98,6 +98,10 @@ impl<R: Renderer> Context<R> {
         self.device_pixel_ratio = ratio;
     }
 
+    pub fn resize(&mut self, width: u32, height: u32) -> anyhow::Result<()> {
+        self.renderer.resize(width, height)
+    }
+
     pub fn begin_frame<E: Into<Extent>>(
         &mut self,
         window_extent: E,

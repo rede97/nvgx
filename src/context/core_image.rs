@@ -12,8 +12,8 @@ impl<R: Renderer> Context<R> {
         let dimensions = img.dimensions();
         let img = self.renderer.create_texture(
             TextureType::RGBA,
-            dimensions.0 as usize,
-            dimensions.1 as usize,
+            dimensions.0,
+            dimensions.1,
             flags,
             Some(&img.into_raw()),
         )?;
@@ -30,8 +30,8 @@ impl<R: Renderer> Context<R> {
 
     pub fn create_image_rgba(
         &mut self,
-        width: usize,
-        height: usize,
+        width: u32,
+        height: u32,
         flags: ImageFlags,
         data: Option<&[u8]>,
     ) -> anyhow::Result<ImageId> {
@@ -47,7 +47,7 @@ impl<R: Renderer> Context<R> {
         Ok(())
     }
 
-    pub fn image_size(&self, img: ImageId) -> anyhow::Result<(usize, usize)> {
+    pub fn image_size(&self, img: ImageId) -> anyhow::Result<(u32, u32)> {
         let res = self.renderer.texture_size(img)?;
         Ok(res)
     }

@@ -17,8 +17,8 @@ pub struct FrameBuffer {
 impl FrameBuffer {
     pub fn new(
         ctx: &mut Context<Renderer>,
-        width: usize,
-        height: usize,
+        width: u32,
+        height: u32,
         flags: ImageFlags,
     ) -> anyhow::Result<Self> {
         let mut fbo = 0;

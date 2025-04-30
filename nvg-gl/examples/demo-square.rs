@@ -47,8 +47,8 @@ impl demo::Demo<Renderer> for DemoCutout {
         self.scale_factor = scale_factor;
         self.fb = FrameBuffer::new(
             ctx,
-            (100.0 * scale_factor) as usize,
-            (100.0 * scale_factor) as usize,
+            (100.0 * scale_factor) as u32,
+            (100.0 * scale_factor) as u32,
             ImageFlags::REPEATX | ImageFlags::REPEATY,
         )?;
         self.render_fb(ctx)?;

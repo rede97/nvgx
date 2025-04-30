@@ -1,7 +1,8 @@
 use super::Point;
 use num_traits::AsPrimitive;
 
-#[derive(Debug, Copy, Clone, Default)]
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Extent {
     pub width: f32,
     pub height: f32,
