@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{Bounds, PathDir, Point};
 
 mod cap_join;
@@ -30,12 +32,23 @@ pub(crate) struct PathCache {
     pub(crate) bounds: Bounds,
 }
 
-#[derive(Debug, Copy, Clone, Default)]
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Vertex {
     pub x: f32,
     pub y: f32,
     pub u: f32,
     pub v: f32,
+}
+
+impl Display for Vertex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "x: {}, y: {}, u: {}, v: {}",
+            self.x, self.y, self.u, self.v
+        )
+    }
 }
 
 impl Vertex {

@@ -39,6 +39,23 @@ pub struct Texture {
 }
 
 impl Texture {
+    pub fn placeholder_texture(
+        device: &wgpu::Device,
+        texture_bind_group_layout: &wgpu::BindGroupLayout,
+    ) -> Self {
+        return Self::new(
+            device,
+            Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+            ImageFlags::empty(),
+            nvg::TextureType::RGBA,
+            texture_bind_group_layout,
+        );
+    }
+    
     pub fn new(
         device: &wgpu::Device,
         size: wgpu::Extent3d,
@@ -177,8 +194,3 @@ impl Texture {
     }
 }
 
-impl Drop for Texture {
-    fn drop(&mut self) {
-        self.texture.destroy();
-    }
-}

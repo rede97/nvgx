@@ -110,20 +110,20 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
             WindowEvent::RedrawRequested => {
                 let state = unsafe { self.state.as_mut().unwrap_unchecked() };
                 {
-                    // let context = &mut state.context;
+                    let context = &mut state.context;
                     // self.demo.before_frame(context).unwrap();
 
-                    // let window_size = state.window.inner_size();
-                    // let scale_factor = state.window.scale_factor() as f32;
-                    // context
-                    //     .begin_frame(
-                    //         nvg::Extent {
-                    //             width: window_size.width as f32,
-                    //             height: window_size.height as f32,
-                    //         },
-                    //         scale_factor,
-                    //     )
-                    //     .unwrap();
+                    let window_size = state.window.inner_size();
+                    let scale_factor = state.window.scale_factor() as f32;
+                    context
+                        .begin_frame(
+                            nvg::Extent {
+                                width: window_size.width as f32,
+                                height: window_size.height as f32,
+                            },
+                            scale_factor,
+                        )
+                        .unwrap();
                     // context.clear(Color::rgb(0.1, 0.1, 0.1)).unwrap();
 
                     // context.save();
@@ -153,7 +153,11 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                     // context.fill().unwrap();
                     // context.restore();
                     // context.end_frame().unwrap();
-                    state.context.renderer_mut().do_fill();
+                    state.context.begin_path();
+                    state.context.rect((20, 20, 100, 100));
+                    state.context.rect((50, 50, 100, 100));
+                    state.context.fill().unwrap();
+                    state.context.end_frame().unwrap();
                 }
 
                 {

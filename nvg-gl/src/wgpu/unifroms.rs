@@ -155,9 +155,13 @@ impl<T: WgpuUnifromContent> Unifrom<T> {
             bind_group,
         };
     }
+
+    pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
+        queue.write_buffer(&self.buffer, 0, self.value.as_contents());
+    }
 }
 
-trait WgpuUnifromContent: Default {
+pub trait WgpuUnifromContent: Default {
     fn elem_size() -> usize;
     fn as_contents(&self) -> &[u8];
 }

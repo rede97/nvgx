@@ -1,6 +1,6 @@
 use nvg::PathFillType;
 
-use super::{call::ToBlendState, VertexIn};
+use super::{call::ToBlendState, mesh::VERTEX_DESC};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PipelineUsage {
@@ -115,14 +115,14 @@ impl PipelineConfig {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
-                buffers: &[VertexIn::desc()],
+                buffers: &[VERTEX_DESC],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Bgra8UnormSrgb,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
                     blend: Some(self.blend),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -209,11 +209,12 @@ pub struct Pipelines {
 
 impl Pipelines {
     pub fn default(builder: &mut PipelineBuilder, device: &wgpu::Device) -> Self {
+        let defaylrt_blend = (&nvg::CompositeOperationState::default()).to_wgpu_blend_state();
         let fill_stencil = builder.create(
             &device,
             PipelineConfig {
                 usage: PipelineUsage::FillStencil(PathFillType::Winding),
-                blend: (&nvg::CompositeOperationState::default()).to_wgpu_blend_state(),
+                blend: defaylrt_blend,
             },
         );
 

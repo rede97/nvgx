@@ -1,4 +1,7 @@
+use std::path;
+
 use call::{Call, GpuPath, ToBlendState};
+use mesh::Mesh;
 use nvg::*;
 use pipeline::{PipelineBuilder, PipelineConfig, Pipelines};
 use slab::Slab;
@@ -7,30 +10,11 @@ use unifroms::{RenderCommand, Unifrom};
 use wgpu::{vertex_attr_array, ShaderStages};
 
 mod call;
+mod mesh;
 mod pipeline;
 mod renderer;
 mod texture;
 mod unifroms;
-
-struct VertexIn {
-    vertex: [f32; 2],
-    texcoord: [f32; 2],
-}
-
-impl VertexIn {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] = vertex_attr_array![
-        0 => Float32x2,
-        1 => Float32x2,
-    ];
-
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as _,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBS,
-        }
-    }
-}
 
 pub struct Renderer {
     device: wgpu::Device,
@@ -41,10 +25,11 @@ pub struct Renderer {
     render_unifrom: Unifrom<Vec<RenderCommand>>,
     stencil_texture: StencilTexture,
     textures: Slab<Texture>,
+    place_holder_texture: Texture,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     calls: Vec<Call>,
     paths: Vec<GpuPath>,
-    vertexes: Vec<Vertex>,
+    mesh: Mesh,
     pipeline_builder: PipelineBuilder,
     pipelines: Pipelines,
 }
@@ -89,6 +74,11 @@ impl Renderer {
                 ],
             });
 
+        let place_holder_texture =
+            Texture::placeholder_texture(&device, &texture_bind_group_layout);
+
+        let mesh = Mesh::new(&device, &queue, 1024);
+
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
             bind_group_layouts: &[
@@ -111,14 +101,69 @@ impl Renderer {
             render_unifrom,
             stencil_texture,
             textures: Slab::default(),
+            place_holder_texture,
             texture_bind_group_layout,
             calls: Vec::new(),
             paths: Vec::new(),
-            vertexes: Vec::new(),
+            mesh,
             pipeline_builder,
             pipelines,
         });
     }
 
-    pub fn do_fill(&mut self) {}
+    fn do_fill(&self, call: &Call) {
+        let output = self.surface.get_current_texture().unwrap();
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.3,
+                            b: 0.4,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.stencil_texture.view,
+                    stencil_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    depth_ops: None,
+                }),
+                ..Default::default()
+            });
+
+            let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+            render_pass.set_pipeline(self.pipelines.fill_stencil.pipeline());
+            render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
+            render_pass.set_bind_group(1, &self.render_unifrom.bind_group, &[0]);
+            render_pass.set_bind_group(2, &self.place_holder_texture.bind_group, &[]);
+            for path in paths {
+                render_pass.set_stencil_reference(0);
+                render_pass
+                    .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(path.triangle_fan_slice()));
+                render_pass
+                    .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..path.triangle_fan_count() * 3, 0, 0..1);
+            }
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+    }
 }

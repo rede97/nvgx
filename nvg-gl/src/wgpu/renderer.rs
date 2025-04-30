@@ -7,7 +7,7 @@ use wgpu::{Extent3d, Origin2d};
 use crate::wgpu::{
     call::{Call, GpuPath, ToBlendState},
     texture,
-    unifroms::{RenderCommand, ShaderType},
+    unifroms::{RenderCommand, ShaderType, WgpuUnifromContent},
 };
 
 use super::{call::CallType, Renderer};
@@ -21,6 +21,7 @@ impl nvg::Renderer for Renderer {
         self.surface_config.width = _width;
         self.surface_config.height = _height;
         self.surface.configure(&self.device, &self.surface_config);
+        self.stencil_texture = texture::StencilTexture::new(&self.device, &self.surface_config);
         Ok(())
     }
 
@@ -101,7 +102,26 @@ impl nvg::Renderer for Renderer {
     }
 
     fn flush(&mut self) -> anyhow::Result<()> {
-        todo!()
+        self.mesh.update_buffer(&self.device, &self.queue);
+        self.viewsize_uniform.update_buffer(&self.queue);
+        // self.render_unifrom.update_buffer(&self.queue);
+
+        for call in &self.calls {
+            match call.call_type {
+                CallType::Fill(_) => {
+                    self.do_fill(call);
+                }
+                _ => {
+                    println!("call: {:?}, todo", call.call_type);
+                },
+            }
+        }
+
+        self.calls.clear();
+        self.paths.clear();
+        self.mesh.clear();
+        self.render_unifrom.value.clear();
+        Ok(())
     }
 
     fn fill(
@@ -114,14 +134,15 @@ impl nvg::Renderer for Renderer {
         bounds: nvg::Bounds,
         paths: &[nvg::PathInfo],
     ) -> anyhow::Result<()> {
-        let mut offset = self.vertexes.len();
+        let path_offset = self.paths.len();
+        let mut offset = self.mesh.vertices.len();
         for path in paths {
             let fill = path.get_fill();
             let mut wgpu_path = GpuPath::default();
             if !fill.is_empty() {
                 wgpu_path.fill_offset = offset;
                 wgpu_path.fill_count = fill.len();
-                self.vertexes.extend(fill);
+                self.mesh.vertices.extend(fill);
                 offset += fill.len()
             }
 
@@ -129,7 +150,7 @@ impl nvg::Renderer for Renderer {
             if !stroke.is_empty() {
                 wgpu_path.stroke_offset = offset;
                 wgpu_path.stroke_count = stroke.len();
-                self.vertexes.extend(stroke);
+                self.mesh.vertices.extend(stroke);
                 offset += stroke.len();
             }
             self.paths.push(wgpu_path);
@@ -142,7 +163,7 @@ impl nvg::Renderer for Renderer {
                 crate::wgpu::call::CallType::Fill(fill_type)
             },
             image: paint.image,
-            path_offset: self.paths.len(),
+            path_offset,
             path_count: paths.len(),
             triangle_offset: offset,
             triangle_count: 4,
@@ -152,7 +173,7 @@ impl nvg::Renderer for Renderer {
         };
 
         if let CallType::Fill(_) = call.call_type {
-            self.vertexes.extend([
+            self.mesh.vertices.extend([
                 Vertex::new(bounds.max.x, bounds.max.y, 0.5, 1.0),
                 Vertex::new(bounds.max.x, bounds.min.y, 0.5, 1.0),
                 Vertex::new(bounds.min.x, bounds.max.y, 0.5, 1.0),

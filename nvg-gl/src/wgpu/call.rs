@@ -1,7 +1,9 @@
-use nvg::{BlendFactor, CompositeOperationState, PathFillType};
+use std::ops::Range;
+
+use nvg::{BlendFactor, CompositeOperationState, PathFillType, Vertex};
 use wgpu::BlendComponent;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub(crate) enum CallType {
     Fill(PathFillType),
     ConvexFill,
@@ -66,4 +68,19 @@ pub(crate) struct GpuPath {
     pub fill_count: usize,
     pub stroke_offset: usize,
     pub stroke_count: usize,
+}
+
+impl GpuPath {
+    pub fn triangle_fan_slice(&self) -> Range<u64> {
+        let start = (self.fill_offset * size_of::<Vertex>()) as u64;
+        let end = ((self.fill_offset + self.fill_count) * size_of::<Vertex>()) as u64;
+        return start..end;
+    }
+    pub fn triangle_fan_indices_range(&self) -> Range<u64> {
+        0..((self.fill_count - 2) * 3 * size_of::<u32>()) as u64
+    }
+
+    pub fn triangle_fan_count(&self) -> u32 {
+        (self.fill_count - 2) as u32
+    }
 }
