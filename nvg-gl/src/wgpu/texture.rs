@@ -1,11 +1,41 @@
 use nvg::ImageFlags;
 use wgpu::Extent3d;
 
+pub struct StencilTexture {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+}
+
+impl StencilTexture {
+    pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Self {
+        let size = wgpu::Extent3d {
+            width: config.width,
+            height: config.height,
+            depth_or_array_layers: 1,
+        };
+
+        let desc = wgpu::TextureDescriptor {
+            label: Some("Stencil Texture"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Stencil8,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        };
+        let texture = device.create_texture(&desc);
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        return Self { texture, view };
+    }
+}
+
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
     pub bind_group: wgpu::BindGroup,
+    pub image_flags: nvg::ImageFlags,
 }
 
 impl Texture {
@@ -96,6 +126,7 @@ impl Texture {
             view,
             sampler,
             bind_group,
+            image_flags,
         }
     }
 
@@ -132,6 +163,17 @@ impl Texture {
     #[inline]
     pub fn size(&self) -> Extent3d {
         self.texture.size()
+    }
+
+    #[inline]
+    pub fn texture_type(&self) -> nvg::TextureType {
+        match self.texture.format() {
+            wgpu::TextureFormat::Rgba8UnormSrgb => nvg::TextureType::RGBA,
+            wgpu::TextureFormat::R8Unorm => nvg::TextureType::Alpha,
+            _ => {
+                panic!("unsupport texture format: {:?}", self.texture.format())
+            }
+        }
     }
 }
 

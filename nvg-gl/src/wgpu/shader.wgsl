@@ -33,7 +33,7 @@ struct RenderUnifrom {
     outer_color: vec4f,
     scissor_ext: vec2f,
     scissor_scale: vec2f,
-    extend: vec2f,
+    extent: vec2f,
     radius: f32,
     feather: f32,
     stroke_mult: f32,
@@ -51,5 +51,9 @@ var frag_sampler: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(1.0, 1.0, 1.0, 1.0);
+    if render_uniform.render_type == 3 {
+        return textureSample(frag_texture, frag_sampler, in.ftcoord);
+    } else {
+        return vec4f(1.0, 1.0, 1.0, 1.0);
+    }
 }

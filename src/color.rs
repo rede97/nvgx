@@ -2,7 +2,8 @@ use clamped::Clamp;
 use num_traits::AsPrimitive;
 use std::ops::Rem;
 
-#[derive(Debug, Copy, Clone, Default)]
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
