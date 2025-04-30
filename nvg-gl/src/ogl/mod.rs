@@ -139,8 +139,8 @@ struct Call {
 
 struct Texture {
     tex: gl::types::GLuint,
-    width: usize,
-    height: usize,
+    width: u32,
+    height: u32,
     texture_type: TextureType,
     flags: ImageFlags,
 }

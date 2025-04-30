@@ -7,8 +7,8 @@ use rusttype::{Font, Glyph, Point, PositionedGlyph, Scale};
 use slab::Slab;
 use std::collections::HashMap;
 
-const TEX_WIDTH: usize = 1024;
-const TEX_HEIGHT: usize = 1024;
+const TEX_WIDTH: u32 = 1024;
+const TEX_HEIGHT: u32 = 1024;
 
 pub type FontId = usize;
 
@@ -108,10 +108,10 @@ impl Fonts {
             renderer
                 .update_texture(
                     img.clone(),
-                    rect.min.x as usize,
-                    rect.min.y as usize,
-                    (rect.max.x - rect.min.x) as usize,
-                    (rect.max.y - rect.min.y) as usize,
+                    rect.min.x,
+                    rect.min.y,
+                    rect.max.x - rect.min.x,
+                    rect.max.y - rect.min.y,
                     data,
                 )
                 .unwrap();

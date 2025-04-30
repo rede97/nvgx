@@ -19,11 +19,15 @@ pub struct Scissor {
 pub trait Renderer {
     fn edge_antialias(&self) -> bool;
 
+    fn resize(&mut self, _width: u32, _height: u32) -> anyhow::Result<()> {
+        Ok(())
+    }
+
     fn create_texture(
         &mut self,
         texture_type: TextureType,
-        width: usize,
-        height: usize,
+        width: u32,
+        height: u32,
         flags: ImageFlags,
         data: Option<&[u8]>,
     ) -> anyhow::Result<ImageId>;
@@ -33,14 +37,14 @@ pub trait Renderer {
     fn update_texture(
         &mut self,
         img: ImageId,
-        x: usize,
-        y: usize,
-        width: usize,
-        height: usize,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
         data: &[u8],
     ) -> anyhow::Result<()>;
 
-    fn texture_size(&self, img: ImageId) -> anyhow::Result<(usize, usize)>;
+    fn texture_size(&self, img: ImageId) -> anyhow::Result<(u32, u32)>;
 
     fn viewport(&mut self, extent: Extent, device_pixel_ratio: f32) -> anyhow::Result<()>;
 
