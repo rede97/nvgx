@@ -32,7 +32,9 @@ impl VertexIn {
 pub struct Renderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
-    view: Extent,
+    surface: wgpu::Surface<'static>,
+    surface_config: wgpu::SurfaceConfiguration,
+    viewsize: Extent,
     render_unifrom: Unifrom<RenderUnifrom>,
     viewsize_uniform: Unifrom<[f32; 2]>,
     pipeline_layout: wgpu::PipelineLayout,
@@ -43,7 +45,12 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn create(device: wgpu::Device, queue: wgpu::Queue) -> anyhow::Result<Self> {
+    pub fn create(
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+        surface: wgpu::Surface<'static>,
+        surface_config: wgpu::SurfaceConfiguration,
+    ) -> anyhow::Result<Self> {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
@@ -53,12 +60,6 @@ impl Renderer {
             Unifrom::new(&device, 0, ShaderStages::VERTEX, false);
         let render_unifrom: Unifrom<RenderUnifrom> =
             Unifrom::new(&device, 0, ShaderStages::FRAGMENT, true);
-
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[&viewsize_uniform.layout, &render_unifrom.layout],
-            push_constant_ranges: &[],
-        });
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -83,10 +84,22 @@ impl Renderer {
                 ],
             });
 
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Render Pipeline Layout"),
+            bind_group_layouts: &[
+                &viewsize_uniform.layout,
+                &render_unifrom.layout,
+                &texture_bind_group_layout,
+            ],
+            push_constant_ranges: &[],
+        });
+
         return Ok(Self {
             device,
             queue,
-            view: Extent::default(),
+            surface,
+            surface_config,
+            viewsize: Extent::default(),
             viewsize_uniform,
             render_unifrom,
             pipeline_layout,

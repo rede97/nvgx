@@ -65,20 +65,8 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
     ) {
         match event {
             WindowEvent::Resized(size) if size.width != 0 && size.height != 0 => {
-                // Some platforms like EGL require resizing GL surface to update the size
-                // Notable platforms here are Wayland and macOS, other don't require it
-                // and the function is no-op, but it's wise to resize it for portability
-                // reasons.
-                if let Some(AppState {
-                    window: _,
-                    config,
-                    surface,
-                    context,
-                }) = self.state.as_mut()
-                {
-                    config.width = size.width;
-                    config.height = size.height;
-                    surface.configure(context.renderer().device(), config);
+                if let Some(AppState { window: _, context }) = self.state.as_mut() {
+                    context.resize(size.width, size.height).unwrap();
                 }
             }
             WindowEvent::CloseRequested
@@ -178,8 +166,6 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
 
 struct AppState {
     window: Arc<Window>,
-    config: wgpu::SurfaceConfiguration,
-    surface: wgpu::Surface<'static>,
     context: nvg::Context<nvg_gl::Renderer>,
 }
 
@@ -227,13 +213,8 @@ impl AppState {
             };
         surface.configure(&device, &config);
 
-        let renderer = nvg_gl::Renderer::create(device, queue)?;
+        let renderer = nvg_gl::Renderer::create(device, queue, surface, config)?;
         let context = nvg::Context::create(renderer)?;
-        return Ok(Self {
-            window,
-            config,
-            surface,
-            context,
-        });
+        return Ok(Self { window, context });
     }
 }
