@@ -1,5 +1,5 @@
 use nvg::{Color, Extent, ImageFlags, PaintPattern, Scissor, TextureType, Transform};
-use wgpu::{util::DeviceExt, Device};
+use wgpu::Device;
 
 use crate::{premul_color, xform_to_3x4};
 
@@ -109,6 +109,7 @@ pub struct Unifrom<T: WgpuUnifromContent> {
     pub buffer: wgpu::Buffer,
     pub layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
+    pub binding: u32,
 }
 
 impl<T: WgpuUnifromContent> Unifrom<T> {
@@ -116,13 +117,14 @@ impl<T: WgpuUnifromContent> Unifrom<T> {
         device: &Device,
         binding: u32,
         visibility: wgpu::ShaderStages,
-        dyn_offset: bool,
+        dyn_offset_with_init_size: Option<usize>,
     ) -> Self {
         // let elem_size = T::
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Uniform Buffer"),
-            contents: vec![0; T::elem_size()].as_slice(),
+            size: (T::elem_size() * dyn_offset_with_init_size.unwrap_or(1)) as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -132,7 +134,7 @@ impl<T: WgpuUnifromContent> Unifrom<T> {
                 visibility,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: dyn_offset,
+                    has_dynamic_offset: dyn_offset_with_init_size.is_some(),
                     min_binding_size: None,
                 },
                 count: None,
@@ -153,10 +155,28 @@ impl<T: WgpuUnifromContent> Unifrom<T> {
             buffer: uniform_buffer,
             layout: bind_group_layout,
             bind_group,
+            binding,
         };
     }
 
-    pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
+    pub fn update_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+        let content = self.value.as_contents();
+        if self.buffer.size() < content.len() as u64 {
+            self.buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Uniform Buffer"),
+                size: (content.len() * 2) as u64,
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+            self.bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Unifrom Bind Group"),
+                layout: &self.layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: self.binding,
+                    resource: self.buffer.as_entire_binding(),
+                }],
+            });
+        }
         queue.write_buffer(&self.buffer, 0, self.value.as_contents());
     }
 }

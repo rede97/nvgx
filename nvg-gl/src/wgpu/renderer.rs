@@ -10,7 +10,7 @@ use crate::wgpu::{
     unifroms::{RenderCommand, ShaderType, WgpuUnifromContent},
 };
 
-use super::{call::CallType, Renderer};
+use super::{call::CallType, pipeline::PipelineConfig, Renderer};
 
 impl nvg::Renderer for Renderer {
     fn edge_antialias(&self) -> bool {
@@ -103,21 +103,31 @@ impl nvg::Renderer for Renderer {
 
     fn flush(&mut self) -> anyhow::Result<()> {
         self.mesh.update_buffer(&self.device, &self.queue);
-        self.viewsize_uniform.update_buffer(&self.queue);
-        // self.render_unifrom.update_buffer(&self.queue);
+        self.viewsize_uniform
+            .update_buffer(&self.device, &self.queue);
+        self.render_unifrom.update_buffer(&self.device, &self.queue);
 
         for call in &self.calls {
             match call.call_type {
                 CallType::Fill(_) => {
+                    if self.pipelines.fill_stencil.config().blend != call.blend_func {
+                        self.pipeline_builder.update_pipeline(
+                            PipelineConfig {
+                                blend: call.blend_func,
+                                usage: self.pipelines.fill_stencil.config().usage,
+                            },
+                            &self.device,
+                            &mut self.pipelines.fill_stencil,
+                        );
+                    }
                     self.do_fill(call);
                 }
                 _ => {
                     println!("call: {:?}, todo", call.call_type);
-                },
+                }
             }
         }
 
-        self.calls.clear();
         self.paths.clear();
         self.mesh.clear();
         self.render_unifrom.value.clear();

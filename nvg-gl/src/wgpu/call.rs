@@ -26,6 +26,19 @@ pub(crate) struct Call {
     pub wireframe: bool,
 }
 
+
+impl Call {
+    pub fn triangle_slice(&self) -> Range<u64> {
+        let start = (self.triangle_offset * size_of::<Vertex>()) as u64;
+        let end = ((self.triangle_offset + self.triangle_count) * size_of::<Vertex>()) as u64;
+        return start..end;
+    }
+
+    pub fn triangle_count(&self) -> u32 {
+        self.triangle_count as u32
+    }
+}
+
 pub(crate) trait ToBlendState: AsRef<CompositeOperationState> {
     fn to_wgpu_blend_state(&self) -> wgpu::BlendState {
         let value = self.as_ref();

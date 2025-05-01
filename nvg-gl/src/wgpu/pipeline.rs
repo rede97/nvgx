@@ -188,23 +188,27 @@ impl PipelineBuilder {
     /// Recycle pipeline and find or create a new pipeline
     pub fn update_pipeline(
         &mut self,
-        pipeline: Pipeline,
-        device: &wgpu::Device,
         new_config: PipelineConfig,
-    ) -> Pipeline {
-        self.cache.insert(pipeline.config, pipeline.pipeline);
-        if let Some(pipeline) = self.cache.shift_remove(&new_config) {
-            return Pipeline {
+        device: &wgpu::Device,
+        pipeline: &mut Pipeline,
+    ) {
+        let new_pipeline = if let Some(pipeline) = self.cache.shift_remove(&new_config) {
+            Pipeline {
                 pipeline,
                 config: new_config,
-            };
-        }
-        return self.create(device, new_config);
+            }
+        } else {
+            self.create(device, new_config)
+        };
+        let old_pipeline = std::mem::replace(pipeline, new_pipeline);
+        self.cache
+            .insert(old_pipeline.config, old_pipeline.pipeline);
     }
 }
 
 pub struct Pipelines {
     pub fill_stencil: Pipeline,
+    pub fill_final: Pipeline,
 }
 
 impl Pipelines {
@@ -218,6 +222,17 @@ impl Pipelines {
             },
         );
 
-        return Self { fill_stencil };
+        let fill_final = builder.create(
+            &device,
+            PipelineConfig {
+                usage: PipelineUsage::FillFinal,
+                blend: defaylrt_blend,
+            },
+        );
+
+        return Self {
+            fill_stencil,
+            fill_final,
+        };
     }
 }

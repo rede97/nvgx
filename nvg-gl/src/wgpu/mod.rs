@@ -47,9 +47,9 @@ impl Renderer {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
         let viewsize_uniform: Unifrom<Extent> =
-            Unifrom::new(&device, 0, ShaderStages::VERTEX, false);
+            Unifrom::new(&device, 0, ShaderStages::VERTEX, None);
         let render_unifrom: Unifrom<Vec<RenderCommand>> =
-            Unifrom::new(&device, 0, ShaderStages::FRAGMENT, true);
+            Unifrom::new(&device, 0, ShaderStages::FRAGMENT, Some(64));
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -121,9 +121,11 @@ impl Renderer {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+
+        let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
         {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
+            let mut stencil_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Fill Stencil Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
@@ -134,7 +136,7 @@ impl Renderer {
                             b: 0.4,
                             a: 1.0,
                         }),
-                        store: wgpu::StoreOp::Store,
+                        store: wgpu::StoreOp::Discard,
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
@@ -148,19 +150,59 @@ impl Renderer {
                 ..Default::default()
             });
 
-            let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
-            render_pass.set_pipeline(self.pipelines.fill_stencil.pipeline());
-            render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
-            render_pass.set_bind_group(1, &self.render_unifrom.bind_group, &[0]);
-            render_pass.set_bind_group(2, &self.place_holder_texture.bind_group, &[]);
+            stencil_render_pass.set_pipeline(self.pipelines.fill_stencil.pipeline());
+            stencil_render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
+            stencil_render_pass.set_bind_group(
+                1,
+                &self.render_unifrom.bind_group,
+                &[call.uniform_offset as u32],
+            );
+            stencil_render_pass.set_bind_group(2, &self.place_holder_texture.bind_group, &[]);
             for path in paths {
-                render_pass
+                stencil_render_pass
                     .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(path.triangle_fan_slice()));
-                render_pass
+                stencil_render_pass
                     .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.set_stencil_reference(0);
-                render_pass.draw_indexed(0..path.triangle_fan_count() * 3, 0, 0..1);
+                stencil_render_pass.set_stencil_reference(0);
+                stencil_render_pass.draw_indexed(0..path.triangle_fan_count() * 3, 0, 0..1);
             }
+        }
+        
+        #[cfg(target_arch = "wasm32")]
+        {
+            let mut fill_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Fill Final Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.stencil_texture.view,
+                    stencil_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    depth_ops: None,
+                }),
+                ..Default::default()
+            });
+
+            fill_render_pass.set_pipeline(self.pipelines.fill_final.pipeline());
+            fill_render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
+            fill_render_pass.set_bind_group(
+                1,
+                &self.render_unifrom.bind_group,
+                &[(call.uniform_offset + 1) as u32],
+            );
+            fill_render_pass.set_bind_group(2, &self.place_holder_texture.bind_group, &[]);
+            fill_render_pass
+                .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(call.triangle_slice()));
+            fill_render_pass.set_stencil_reference(0);
+            fill_render_pass.draw(0..call.triangle_count(), 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
