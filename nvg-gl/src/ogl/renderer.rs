@@ -432,19 +432,7 @@ impl nvg::Renderer for Renderer {
             }
         }
 
-        if self.config.stencil_stroke {
-            self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
-            self.append_uniforms(self.convert_paint(
-                paint,
-                scissor,
-                stroke_width,
-                fringe,
-                1.0 - 0.5 / 255.0,
-            ));
-        } else {
-            self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
-        }
-
+        self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
         self.calls.push(call);
         Ok(())
     }

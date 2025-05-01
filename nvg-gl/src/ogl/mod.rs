@@ -339,53 +339,13 @@ impl Renderer {
     #[inline]
     unsafe fn do_stroke(&self, call: &Call) {
         let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
-        if self.config.stencil_stroke {
-            gl::Enable(gl::STENCIL_TEST);
-            gl::StencilMask(0xff);
-            gl::StencilFunc(gl::EQUAL, 0x0, 0xff);
-            gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
-            self.set_uniforms(call.uniform_offset + 1, call.image);
-            for path in paths {
-                gl::DrawArrays(
-                    gl::TRIANGLE_STRIP,
-                    path.stroke_offset as i32,
-                    path.stroke_count as i32,
-                );
-            }
-
-            self.set_uniforms(call.uniform_offset, call.image);
-            gl::StencilFunc(gl::EQUAL, 0x0, 0xff);
-            gl::StencilOp(gl::KEEP, gl::KEEP, gl::KEEP);
-            for path in paths {
-                gl::DrawArrays(
-                    gl::TRIANGLE_STRIP,
-                    path.stroke_offset as i32,
-                    path.stroke_count as i32,
-                );
-            }
-
-            gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
-            gl::StencilFunc(gl::ALWAYS, 0x0, 0xff);
-            gl::StencilOp(gl::ZERO, gl::ZERO, gl::ZERO);
-            for path in paths {
-                gl::DrawArrays(
-                    gl::TRIANGLE_STRIP,
-                    path.stroke_offset as i32,
-                    path.stroke_count as i32,
-                );
-            }
-            gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-
-            gl::Disable(gl::STENCIL_TEST);
-        } else {
-            self.set_uniforms(call.uniform_offset, call.image);
-            for path in paths {
-                gl::DrawArrays(
-                    gl::TRIANGLE_STRIP,
-                    path.stroke_offset as i32,
-                    path.stroke_count as i32,
-                );
-            }
+        self.set_uniforms(call.uniform_offset, call.image);
+        for path in paths {
+            gl::DrawArrays(
+                gl::TRIANGLE_STRIP,
+                path.stroke_offset as i32,
+                path.stroke_count as i32,
+            );
         }
     }
 
