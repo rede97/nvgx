@@ -1,9 +1,11 @@
 use std::ops::Range;
 
-use nvg::{BlendFactor, CompositeOperationState, PathFillType, Vertex};
+use nvg::{BlendFactor, Color, CompositeOperationState, PathFillType, Vertex};
 use wgpu::BlendComponent;
 
-#[derive(PartialEq, Eq, Debug)]
+use super::{pipeline::PipelineUsage, unifroms::RenderCommand};
+
+#[derive(PartialEq, Debug)]
 pub(crate) enum CallType {
     Fill(PathFillType),
     ConvexFill,
@@ -26,16 +28,39 @@ pub(crate) struct Call {
     pub wireframe: bool,
 }
 
+impl Default for Call {
+    fn default() -> Self {
+        Self {
+            call_type: CallType::ConvexFill,
+            image: None,
+            path_offset: 0,
+            path_count: 0,
+            triangle_offset: 0,
+            triangle_count: 0,
+            uniform_offset: 0,
+            blend_func: (&CompositeOperationState::default()).to_wgpu_blend_state(),
+            #[cfg(feature = "wireframe")]
+            wireframe: false,
+        }
+    }
+}
 
 impl Call {
+    #[inline]
     pub fn triangle_slice(&self) -> Range<u64> {
         let start = (self.triangle_offset * size_of::<Vertex>()) as u64;
         let end = ((self.triangle_offset + self.triangle_count) * size_of::<Vertex>()) as u64;
         return start..end;
     }
 
+    #[inline]
     pub fn triangle_count(&self) -> u32 {
         self.triangle_count as u32
+    }
+
+    #[inline]
+    pub fn uniform_offset(&self, offset: usize) -> u32 {
+        ((self.uniform_offset + offset) * size_of::<RenderCommand>()) as u32
     }
 }
 
@@ -84,13 +109,27 @@ pub(crate) struct GpuPath {
 }
 
 impl GpuPath {
+    #[inline]
     pub fn triangle_fan_slice(&self) -> Range<u64> {
         let start = (self.fill_offset * size_of::<Vertex>()) as u64;
         let end = ((self.fill_offset + self.fill_count) * size_of::<Vertex>()) as u64;
         return start..end;
     }
 
+    #[inline]
     pub fn triangle_fan_count(&self) -> u32 {
         (self.fill_count - 2) as u32
+    }
+
+    #[inline]
+    pub fn stroke_slice(&self) -> Range<u64> {
+        let start = (self.stroke_offset * size_of::<Vertex>()) as u64;
+        let end = ((self.stroke_offset + self.stroke_count) * size_of::<Vertex>()) as u64;
+        return start..end;
+    }
+
+    #[inline]
+    pub fn stroke_count(&self) -> u32 {
+        self.stroke_count as u32
     }
 }

@@ -27,14 +27,14 @@ impl Mesh {
 
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, init_vertex_size: u64) -> Self {
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Vertex Buffer"),
+            label: Some("NVG New Vertex Buffer"),
             size: init_vertex_size * size_of::<Vertex>() as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Index Buffer"),
+            label: Some("NVG New Index Buffer"),
             size: init_vertex_size * 3 * size_of::<u32>() as u64,
             usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -72,14 +72,14 @@ impl Mesh {
         if self.vertex_free_space() < vertex_count * Self::VERTEX_SIZE {
             self.vertex_buffer.destroy();
             self.vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("Vertex Buffer"),
+                label: Some("NVG Expand Vertex Buffer"),
                 size: vertex_count * Self::VERTEX_SIZE,
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
             self.index_buffer.destroy();
             self.index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("Index Buffer"),
+                label: Some("NVG Expand Index Buffer"),
                 size: vertex_count * Self::INDEX_SIZE,
                 usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,

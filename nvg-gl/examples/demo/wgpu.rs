@@ -154,8 +154,16 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                     // context.restore();
                     // context.end_frame().unwrap();
                     state.context.begin_path();
-                    state.context.rect((20, 20, 100, 100));
+                    // state.context.rect((20, 20, 100, 100));
+                    state.context.move_to((20, 20));
+                    state.context.line_to((150, 100));
+                    state.context.line_to((10, 100));
+                    state.context.close_path();
+                    state.context.path_winding(nvg::WindingSolidity::Solid);
+
                     state.context.rect((50, 50, 100, 100));
+                    state.context.path_winding(nvg::WindingSolidity::Hole);
+                    state.context.fill_paint(Color::rgb(1.0, 0.4, 0.6));
                     state.context.fill().unwrap();
                     state.context.end_frame().unwrap();
                 }

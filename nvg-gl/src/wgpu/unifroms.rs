@@ -1,5 +1,7 @@
+use std::num::NonZero;
+
 use nvg::{Color, Extent, ImageFlags, PaintPattern, Scissor, TextureType, Transform};
-use wgpu::Device;
+use wgpu::{Buffer, Device};
 
 use crate::{premul_color, xform_to_3x4};
 
@@ -11,7 +13,7 @@ pub enum ShaderType {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct RenderCommand {
     pub scissor_mat: [f32; 12],
     pub paint_mat: [f32; 12],
@@ -26,6 +28,7 @@ pub struct RenderCommand {
     pub stroke_thr: f32,
     pub texture_type: u32,
     pub render_type: u32,
+    pub _padding: AlignPadding<80>,
 }
 
 impl RenderCommand {
@@ -121,14 +124,14 @@ impl<T: WgpuUnifromContent> Unifrom<T> {
     ) -> Self {
         // let elem_size = T::
         let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Uniform Buffer"),
+            label: Some("NVG Uniform Buffer"),
             size: (T::elem_size() * dyn_offset_with_init_size.unwrap_or(1)) as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Uniform Bind Group Layout"),
+            label: Some("NVG Uniform Bind Group Layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding,
                 visibility,
@@ -142,11 +145,15 @@ impl<T: WgpuUnifromContent> Unifrom<T> {
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Unifrom Bind Group"),
+            label: Some("NVG Unifrom Bind Group"),
             layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding,
-                resource: uniform_buffer.as_entire_binding(),
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                    buffer: &uniform_buffer,
+                    offset: 0,
+                    size: NonZero::new(T::elem_size() as u64),
+                }),
             }],
         });
 
@@ -163,17 +170,21 @@ impl<T: WgpuUnifromContent> Unifrom<T> {
         let content = self.value.as_contents();
         if self.buffer.size() < content.len() as u64 {
             self.buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("Uniform Buffer"),
+                label: Some("NVG Expand Uniform Buffer"),
                 size: (content.len() * 2) as u64,
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
             self.bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Unifrom Bind Group"),
+                label: Some("NVg Expand Unifrom Bind Group"),
                 layout: &self.layout,
                 entries: &[wgpu::BindGroupEntry {
                     binding: self.binding,
-                    resource: self.buffer.as_entire_binding(),
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &self.buffer,
+                        offset: 0,
+                        size: NonZero::new(T::elem_size() as u64),
+                    }),
                 }],
             });
         }
@@ -203,5 +214,17 @@ impl WgpuUnifromContent for Extent {
 
     fn as_contents(&self) -> &[u8] {
         return bytemuck::bytes_of(self);
+    }
+}
+
+#[repr(transparent)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct AlignPadding<const S: usize> {
+    _padding: [u8; S],
+}
+
+impl<const S: usize> Default for AlignPadding<S> {
+    fn default() -> Self {
+        Self { _padding: [0; S] }
     }
 }

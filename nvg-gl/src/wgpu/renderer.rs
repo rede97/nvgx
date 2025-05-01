@@ -1,4 +1,4 @@
-use std::path;
+use std::thread::sleep_ms;
 
 use anyhow::Ok;
 use nvg::Vertex;
@@ -7,10 +7,10 @@ use wgpu::{Extent3d, Origin2d};
 use crate::wgpu::{
     call::{Call, GpuPath, ToBlendState},
     texture,
-    unifroms::{RenderCommand, ShaderType, WgpuUnifromContent},
+    unifroms::{RenderCommand, ShaderType},
 };
 
-use super::{call::CallType, pipeline::PipelineConfig, Renderer};
+use super::{call::CallType, pipeline::PipelineUsage, Renderer};
 
 impl nvg::Renderer for Renderer {
     fn edge_antialias(&self) -> bool {
@@ -98,7 +98,11 @@ impl nvg::Renderer for Renderer {
     }
 
     fn cancel(&mut self) -> anyhow::Result<()> {
-        todo!()
+        self.calls.clear();
+        self.paths.clear();
+        self.mesh.clear();
+        self.render_unifrom.value.clear();
+        Ok(())
     }
 
     fn flush(&mut self) -> anyhow::Result<()> {
@@ -107,31 +111,68 @@ impl nvg::Renderer for Renderer {
             .update_buffer(&self.device, &self.queue);
         self.render_unifrom.update_buffer(&self.device, &self.queue);
 
-        for call in &self.calls {
-            match call.call_type {
-                CallType::Fill(_) => {
-                    if self.pipelines.fill_stencil.config().blend != call.blend_func {
-                        self.pipeline_builder.update_pipeline(
-                            PipelineConfig {
-                                blend: call.blend_func,
-                                usage: self.pipelines.fill_stencil.config().usage,
-                            },
-                            &self.device,
-                            &mut self.pipelines.fill_stencil,
-                        );
+        let output = self.surface.get_current_texture().unwrap();
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Nvg Flush Render Encoder"),
+            });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("NVG Fill Stencil Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: if let Some(color) = self.clear_cmd {
+                            wgpu::LoadOp::Clear(color)
+                        } else {
+                            wgpu::LoadOp::Load
+                        },
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.stencil_texture.view,
+                    stencil_ops: Some(wgpu::Operations {
+                        load: if self.clear_cmd.is_some() {
+                            wgpu::LoadOp::Clear(0)
+                        } else {
+                            wgpu::LoadOp::Load
+                        },
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    depth_ops: None,
+                }),
+                ..Default::default()
+            });
+            for call in &self.calls {
+                match call.call_type {
+                    CallType::Fill(t) => {
+                        let fill_stencil_usage = PipelineUsage::FillStencil(t);
+                        if self.pipelines.fill_stencil.usage() != &fill_stencil_usage {
+                            self.pipeline_builder.update_pipeline(
+                                fill_stencil_usage,
+                                &self.device,
+                                &mut self.pipelines.fill_stencil,
+                            );
+                        }
+                        self.do_fill(call, &mut render_pass);
                     }
-                    self.do_fill(call);
-                }
-                _ => {
-                    println!("call: {:?}, todo", call.call_type);
+                    _ => {
+                        println!("call: {:?}, todo", call.call_type);
+                    }
                 }
             }
         }
-
-        self.paths.clear();
-        self.mesh.clear();
-        self.render_unifrom.value.clear();
-        Ok(())
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+        return self.cancel();
     }
 
     fn fill(
@@ -229,7 +270,14 @@ impl nvg::Renderer for Renderer {
     }
 
     fn clear(&mut self, color: nvg::Color) -> anyhow::Result<()> {
-        todo!()
+        self.cancel()?;
+        self.clear_cmd = Some(wgpu::Color {
+            r: color.r as f64,
+            g: color.g as f64,
+            b: color.b as f64,
+            a: color.a as f64,
+        });
+        Ok(())
     }
 
     fn wireframe(&mut self, _enable: bool) -> anyhow::Result<()> {

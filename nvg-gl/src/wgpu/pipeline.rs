@@ -5,11 +5,28 @@ use super::{call::ToBlendState, mesh::VERTEX_DESC};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PipelineUsage {
     FillStencil(PathFillType),
-    FillStroke,
-    FillFinal,
+    FillStroke(wgpu::BlendState),
+    FillFinal(wgpu::BlendState),
 }
 
 impl PipelineUsage {
+    fn fragment_target(&self) -> wgpu::ColorTargetState {
+        match self {
+            PipelineUsage::FillStencil(_) => wgpu::ColorTargetState {
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                blend: None,
+                write_mask: wgpu::ColorWrites::empty(),
+            },
+            PipelineUsage::FillStroke(blend) | PipelineUsage::FillFinal(blend) => {
+                wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    blend: Some(blend.clone()),
+                    write_mask: wgpu::ColorWrites::ALL,
+                }
+            }
+        }
+    }
+
     fn primitive(&self) -> wgpu::PrimitiveState {
         match self {
             PipelineUsage::FillStencil(_) => wgpu::PrimitiveState {
@@ -21,7 +38,7 @@ impl PipelineUsage {
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
             },
-            PipelineUsage::FillStroke | PipelineUsage::FillFinal => wgpu::PrimitiveState {
+            PipelineUsage::FillStroke(_) | PipelineUsage::FillFinal(_) => wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleStrip,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
@@ -69,7 +86,7 @@ impl PipelineUsage {
                     write_mask: 0xff,
                 },
             },
-            PipelineUsage::FillStroke => wgpu::StencilState {
+            PipelineUsage::FillStroke(_) => wgpu::StencilState {
                 front: wgpu::StencilFaceState {
                     compare: wgpu::CompareFunction::Equal,
                     pass_op: wgpu::StencilOperation::Keep,
@@ -80,7 +97,7 @@ impl PipelineUsage {
                 read_mask: 0xff,
                 write_mask: 0xff,
             },
-            PipelineUsage::FillFinal => wgpu::StencilState {
+            PipelineUsage::FillFinal(_) => wgpu::StencilState {
                 front: wgpu::StencilFaceState {
                     compare: wgpu::CompareFunction::NotEqual,
                     pass_op: wgpu::StencilOperation::Zero,
@@ -95,13 +112,7 @@ impl PipelineUsage {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct PipelineConfig {
-    pub usage: PipelineUsage,
-    pub blend: wgpu::BlendState,
-}
-
-impl PipelineConfig {
+impl PipelineUsage {
     fn make_pipeline(
         &self,
         device: &wgpu::Device,
@@ -109,7 +120,7 @@ impl PipelineConfig {
         pipeline_layout: &wgpu::PipelineLayout,
     ) -> wgpu::RenderPipeline {
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
+            label: Some("NVG Render Pipeline"),
             layout: Some(pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -121,18 +132,14 @@ impl PipelineConfig {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    blend: Some(self.blend),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
+                targets: &[Some(self.fragment_target())],
             }),
-            primitive: self.usage.primitive(),
+            primitive: self.primitive(),
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Stencil8,
                 depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::Always,
-                stencil: self.usage.stencil_state(),
+                stencil: self.stencil_state(),
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState {
@@ -150,12 +157,12 @@ impl PipelineConfig {
 
 pub struct Pipeline {
     pipeline: wgpu::RenderPipeline,
-    config: PipelineConfig,
+    usage: PipelineUsage,
 }
 
 impl Pipeline {
-    pub fn config(&self) -> &PipelineConfig {
-        return &self.config;
+    pub fn usage(&self) -> &PipelineUsage {
+        return &self.usage;
     }
 
     pub fn pipeline(&self) -> &wgpu::RenderPipeline {
@@ -166,7 +173,7 @@ impl Pipeline {
 pub struct PipelineBuilder {
     shader: wgpu::ShaderModule,
     layout: wgpu::PipelineLayout,
-    cache: indexmap::IndexMap<PipelineConfig, wgpu::RenderPipeline>,
+    cache: indexmap::IndexMap<PipelineUsage, wgpu::RenderPipeline>,
 }
 
 impl PipelineBuilder {
@@ -178,60 +185,52 @@ impl PipelineBuilder {
         };
     }
 
-    pub fn create(&self, device: &wgpu::Device, config: PipelineConfig) -> Pipeline {
+    pub fn create(&self, device: &wgpu::Device, usage: PipelineUsage) -> Pipeline {
         return Pipeline {
-            pipeline: config.make_pipeline(device, &self.shader, &self.layout),
-            config,
+            pipeline: usage.make_pipeline(device, &self.shader, &self.layout),
+            usage,
         };
     }
 
     /// Recycle pipeline and find or create a new pipeline
     pub fn update_pipeline(
         &mut self,
-        new_config: PipelineConfig,
+        new_usage: PipelineUsage,
         device: &wgpu::Device,
         pipeline: &mut Pipeline,
     ) {
-        let new_pipeline = if let Some(pipeline) = self.cache.shift_remove(&new_config) {
+        let new_pipeline = if let Some(pipeline) = self.cache.shift_remove(&new_usage) {
             Pipeline {
                 pipeline,
-                config: new_config,
+                usage: new_usage,
             }
         } else {
-            self.create(device, new_config)
+            self.create(device, new_usage)
         };
         let old_pipeline = std::mem::replace(pipeline, new_pipeline);
-        self.cache
-            .insert(old_pipeline.config, old_pipeline.pipeline);
+        self.cache.insert(old_pipeline.usage, old_pipeline.pipeline);
     }
 }
 
 pub struct Pipelines {
     pub fill_stencil: Pipeline,
+    pub fill_stroke: Pipeline,
     pub fill_final: Pipeline,
 }
 
 impl Pipelines {
     pub fn default(builder: &mut PipelineBuilder, device: &wgpu::Device) -> Self {
-        let defaylrt_blend = (&nvg::CompositeOperationState::default()).to_wgpu_blend_state();
-        let fill_stencil = builder.create(
-            &device,
-            PipelineConfig {
-                usage: PipelineUsage::FillStencil(PathFillType::Winding),
-                blend: defaylrt_blend,
-            },
-        );
+        let default_blend = (&nvg::CompositeOperationState::default()).to_wgpu_blend_state();
+        let fill_stencil =
+            builder.create(&device, PipelineUsage::FillStencil(PathFillType::Winding));
 
-        let fill_final = builder.create(
-            &device,
-            PipelineConfig {
-                usage: PipelineUsage::FillFinal,
-                blend: defaylrt_blend,
-            },
-        );
+        let fill_stroke = builder.create(&device, PipelineUsage::FillStroke(default_blend.clone()));
+
+        let fill_final = builder.create(&device, PipelineUsage::FillFinal(default_blend));
 
         return Self {
             fill_stencil,
+            fill_stroke,
             fill_final,
         };
     }

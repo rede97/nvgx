@@ -15,7 +15,7 @@ impl StencilTexture {
         };
 
         let desc = wgpu::TextureDescriptor {
-            label: Some("Stencil Texture"),
+            label: Some("NVG Stencil Texture"),
             size,
             mip_level_count: 1,
             sample_count: 1,
@@ -66,7 +66,7 @@ impl Texture {
         let texture = match texture_type {
             nvg::TextureType::RGBA => {
                 device.create_texture(&wgpu::TextureDescriptor {
-                    label: Some("RGBA Texture"),
+                    label: Some("NVG RGBA Texture"),
                     size,
                     mip_level_count: 1, // mipmap not supported yet
                     sample_count: 1,
@@ -78,7 +78,7 @@ impl Texture {
             }
             nvg::TextureType::Alpha => {
                 device.create_texture(&wgpu::TextureDescriptor {
-                    label: Some("Alpha Texture"),
+                    label: Some("NVG Alpha Texture"),
                     size,
                     mip_level_count: 1, // mipmap not supported yet
                     sample_count: 1,
@@ -93,7 +93,7 @@ impl Texture {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("Sampler"),
+            label: Some("NVG Sampler"),
             address_mode_u: if image_flags.contains(ImageFlags::REPEATX) {
                 wgpu::AddressMode::Repeat
             } else {
@@ -124,7 +124,7 @@ impl Texture {
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Texture Bind Group"),
+            label: Some("NVG Texture Bind Group"),
             layout: &texture_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {

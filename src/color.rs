@@ -3,7 +3,7 @@ use num_traits::AsPrimitive;
 use std::ops::Rem;
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
