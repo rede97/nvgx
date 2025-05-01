@@ -4,6 +4,32 @@ use nvg::{Color, Transform};
 #[allow(unused)]
 extern crate anyhow;
 
+pub struct RenderConfig {
+    antialias: bool,
+    stencil_stroke: bool,
+}
+
+impl RenderConfig {
+    pub fn antialias(mut self, antialias: bool) -> Self {
+        self.antialias = antialias;
+        self
+    }
+
+    pub fn stencil_stroke(mut self, stencil_stroke: bool) -> Self {
+        self.stencil_stroke = stencil_stroke;
+        self
+    }
+}
+
+impl Default for RenderConfig {
+    fn default() -> Self {
+        Self {
+            antialias: true,
+            stencil_stroke: false,
+        }
+    }
+}
+
 cfg_if::cfg_if! {
     if #[cfg(feature="ogl-impl")] {
         /// OpenGL implement of NanoVG

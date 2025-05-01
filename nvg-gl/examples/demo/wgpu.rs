@@ -1,5 +1,6 @@
 use super::Demo;
 use nvg::{Align, Color};
+use nvg_gl::RenderConfig;
 use std::{sync::Arc, time::Instant};
 use winit::{
     application::ApplicationHandler,
@@ -166,6 +167,12 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                     state.context.path_winding(nvg::WindingSolidity::Hole);
                     state.context.fill_paint(Color::rgb(1.0, 0.4, 0.6));
                     state.context.fill().unwrap();
+
+                    state.context.begin_path();
+                    state.context.circle((300, 200), 100.0);
+                    state.context.fill_paint(Color::rgb(0.4, 0.6, 1.0));
+                    state.context.fill().unwrap();
+
                     state.context.end_frame().unwrap();
                 }
 
@@ -214,7 +221,7 @@ impl AppState {
         .unwrap();
 
         let caps = surface.get_capabilities(adapter);
-        let config: wgpu::wgt::SurfaceConfiguration<Vec<wgpu::TextureFormat>> =
+        let surface_config: wgpu::wgt::SurfaceConfiguration<Vec<wgpu::TextureFormat>> =
             wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 format: caps.formats[0],
@@ -225,9 +232,10 @@ impl AppState {
                 view_formats: vec![],
                 desired_maximum_frame_latency: 2,
             };
-        surface.configure(&device, &config);
+        surface.configure(&device, &surface_config);
 
-        let renderer = nvg_gl::Renderer::create(device, queue, surface, config)?;
+        let config = RenderConfig::default();
+        let renderer = nvg_gl::Renderer::create(config, device, queue, surface, surface_config)?;
         let context = nvg::Context::create(renderer)?;
         return Ok(Self { window, context });
     }

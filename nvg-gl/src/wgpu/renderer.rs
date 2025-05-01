@@ -1,11 +1,9 @@
-use std::thread::sleep_ms;
-
 use anyhow::Ok;
 use nvg::Vertex;
 use wgpu::{Extent3d, Origin2d};
 
 use crate::wgpu::{
-    call::{Call, GpuPath, ToBlendState},
+    call::{Call, GpuPath},
     texture,
     unifroms::{RenderCommand, ShaderType},
 };
@@ -14,7 +12,7 @@ use super::{call::CallType, pipeline::PipelineUsage, Renderer};
 
 impl nvg::Renderer for Renderer {
     fn edge_antialias(&self) -> bool {
-        return true;
+        return self.config.antialias;
     }
 
     fn resize(&mut self, _width: u32, _height: u32) -> anyhow::Result<()> {
@@ -97,6 +95,7 @@ impl nvg::Renderer for Renderer {
         Ok(())
     }
 
+    #[inline]
     fn cancel(&mut self) -> anyhow::Result<()> {
         self.calls.clear();
         self.paths.clear();
@@ -166,6 +165,17 @@ impl nvg::Renderer for Renderer {
                         );
                         self.do_fill(call, &mut render_pass);
                     }
+                    CallType::ConvexFill => {
+                        self.pipeline_manager.update_pipeline(
+                            &self.device,
+                            PipelineUsage::FillConvex(call.blend_func.clone()),
+                        );
+                        self.pipeline_manager.update_pipeline(
+                            &self.device,
+                            PipelineUsage::FillStroke(call.blend_func.clone()),
+                        );
+                        self.do_convex_fill(call, &mut render_pass);
+                    }
                     _ => {
                         println!("call: {:?}, todo", call.call_type);
                     }
@@ -222,6 +232,7 @@ impl nvg::Renderer for Renderer {
             triangle_count: 4,
             uniform_offset: self.render_unifrom.value.len(),
             blend_func: composite_operation,
+            #[cfg(feature = "wireframe")]
             wireframe: false,
         };
 
@@ -258,7 +269,57 @@ impl nvg::Renderer for Renderer {
         stroke_width: f32,
         paths: &[nvg::PathInfo],
     ) -> anyhow::Result<()> {
-        todo!()
+        let call = Call {
+            call_type: CallType::Stroke,
+            image: paint.image,
+            path_offset: self.paths.len(),
+            path_count: paths.len(),
+            triangle_offset: 0,
+            triangle_count: 0,
+            uniform_offset: self.render_unifrom.value.len(),
+            blend_func: composite_operation,
+            #[cfg(feature = "wireframe")]
+            wireframe: false,
+        };
+
+        let mut offset = self.mesh.vertices.len();
+        for path in paths {
+            let mut gl_path = GpuPath {
+                fill_offset: 0,
+                fill_count: 0,
+                stroke_offset: 0,
+                stroke_count: 0,
+            };
+
+            let stroke = path.get_stroke();
+            if !stroke.is_empty() {
+                gl_path.stroke_offset = offset;
+                gl_path.stroke_count = stroke.len();
+                self.mesh.vertices.extend(stroke);
+                offset += stroke.len();
+                self.paths.push(gl_path);
+            }
+        }
+
+        if self.config.stencil_stroke {
+            self.render_unifrom.value.push(RenderCommand::new(
+                &self, paint, scissor, fringe, fringe, -1.0,
+            ));
+            self.render_unifrom.value.push(RenderCommand::new(
+                &self,
+                paint,
+                scissor,
+                fringe,
+                fringe,
+                -1.0 - 0.5 / 255.0,
+            ));
+        } else {
+            self.render_unifrom.value.push(RenderCommand::new(
+                &self, paint, scissor, fringe, fringe, -1.0,
+            ));
+        }
+        self.calls.push(call);
+        Ok(())
     }
 
     fn triangles(

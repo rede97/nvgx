@@ -7,6 +7,8 @@ use texture::{StencilTexture, Texture};
 use unifroms::{RenderCommand, Unifrom};
 use wgpu::ShaderStages;
 
+use crate::RenderConfig;
+
 mod call;
 mod mesh;
 mod pipeline;
@@ -15,6 +17,7 @@ mod texture;
 mod unifroms;
 
 pub struct Renderer {
+    config: RenderConfig,
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
@@ -34,6 +37,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn create(
+        config: RenderConfig,
         device: wgpu::Device,
         queue: wgpu::Queue,
         surface: wgpu::Surface<'static>,
@@ -90,6 +94,7 @@ impl Renderer {
         let pipeline_manager = PipelineManager::new(shader, pipeline_layout, &device);
 
         return Ok(Self {
+            config,
             device,
             queue,
             surface,
@@ -164,6 +169,70 @@ impl Renderer {
                 render_pass
                     .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(call.triangle_slice()));
                 render_pass.draw(0..call.triangle_count(), 0..1);
+            }
+        }
+    }
+
+    fn do_convex_fill(&self, call: &Call, render_pass: &mut wgpu::RenderPass<'_>) {
+        let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+        {
+            render_pass.set_pipeline(self.pipeline_manager.fill_convex.pipeline());
+            render_pass.set_stencil_reference(0);
+            render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
+            render_pass.set_bind_group(
+                1,
+                &self.render_unifrom.bind_group,
+                &[call.uniform_offset(0)],
+            );
+            render_pass.set_bind_group(2, &self.place_holder_texture.bind_group, &[]);
+            render_pass
+                .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            for path in paths {
+                render_pass
+                    .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(path.triangle_fan_slice()));
+                render_pass.draw_indexed(0..path.triangle_fan_count() * 3, 0, 0..1);
+            }
+        }
+
+        {
+            render_pass.set_pipeline(self.pipeline_manager.fill_stroke.pipeline());
+            render_pass.set_stencil_reference(0);
+            render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
+            render_pass.set_bind_group(
+                1,
+                &self.render_unifrom.bind_group,
+                &[call.uniform_offset(0)],
+            );
+            render_pass.set_bind_group(2, &self.place_holder_texture.bind_group, &[]);
+            render_pass
+                .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            for path in paths {
+                render_pass
+                    .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(path.stroke_slice()));
+                render_pass.draw(0..path.stroke_count(), 0..1);
+            }
+        }
+    }
+
+    fn do_stroke(&self, call: &Call, render_pass: &mut wgpu::RenderPass<'_>) {
+        let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+        if self.config.stencil_stroke {
+        } else {
+            render_pass.set_pipeline(self.pipeline_manager.fill_stroke.pipeline());
+            render_pass.set_stencil_reference(0);
+            render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
+            render_pass.set_bind_group(
+                1,
+                &self.render_unifrom.bind_group,
+                &[call.uniform_offset(0)],
+            );
+            render_pass.set_bind_group(2, &self.place_holder_texture.bind_group, &[]);
+            render_pass
+                .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            for path in paths {
+                render_pass
+                    .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(path.stroke_slice()));
+                render_pass.draw(0..path.stroke_count(), 0..1);
             }
         }
     }

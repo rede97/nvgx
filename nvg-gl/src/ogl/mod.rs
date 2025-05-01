@@ -3,6 +3,8 @@ pub mod fb;
 use nvg::*;
 use slab::Slab;
 
+use crate::{premul_color, xform_to_3x4, RenderConfig};
+
 mod renderer;
 
 struct Shader {
@@ -174,32 +176,6 @@ struct FragUniforms {
     stroke_thr: f32,
     tex_type: i32,
     type_: i32,
-}
-
-pub struct RenderConfig {
-    antialias: bool,
-    stencil_stroke: bool,
-}
-
-impl RenderConfig {
-    pub fn antialias(mut self, antialias: bool) -> Self {
-        self.antialias = antialias;
-        self
-    }
-
-    pub fn stencil_stroke(mut self, stencil_stroke: bool) -> Self {
-        self.stencil_stroke = stencil_stroke;
-        self
-    }
-}
-
-impl Default for RenderConfig {
-    fn default() -> Self {
-        Self {
-            antialias: true,
-            stencil_stroke: true,
-        }
-    }
 }
 
 pub struct Renderer {
@@ -628,4 +604,3 @@ fn convert_blend_factor(factor: BlendFactor) -> gl::types::GLenum {
         BlendFactor::SrcAlphaSaturate => gl::SRC_ALPHA_SATURATE,
     }
 }
-

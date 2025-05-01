@@ -7,6 +7,7 @@ pub enum PipelineUsage {
     FillStencil(PathFillType),
     FillStroke(CompositeOperationState),
     FillInner(CompositeOperationState),
+    FillConvex(CompositeOperationState),
 }
 
 impl PipelineUsage {
@@ -17,19 +18,19 @@ impl PipelineUsage {
                 blend: None,
                 write_mask: wgpu::ColorWrites::empty(),
             },
-            PipelineUsage::FillStroke(blend) | PipelineUsage::FillInner(blend) => {
-                wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    blend: Some(blend.to_wgpu_blend_state()),
-                    write_mask: wgpu::ColorWrites::ALL,
-                }
-            }
+            PipelineUsage::FillStroke(blend)
+            | PipelineUsage::FillInner(blend)
+            | PipelineUsage::FillConvex(blend) => wgpu::ColorTargetState {
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                blend: Some(blend.to_wgpu_blend_state()),
+                write_mask: wgpu::ColorWrites::ALL,
+            },
         }
     }
 
     fn primitive(&self) -> wgpu::PrimitiveState {
         match self {
-            PipelineUsage::FillStencil(_) => wgpu::PrimitiveState {
+            PipelineUsage::FillStencil(_) | PipelineUsage::FillConvex(_) => wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
@@ -86,7 +87,7 @@ impl PipelineUsage {
                     write_mask: 0xff,
                 },
             },
-            PipelineUsage::FillStroke(_) => wgpu::StencilState {
+            PipelineUsage::FillStroke(_) | PipelineUsage::FillConvex(_) => wgpu::StencilState {
                 front: wgpu::StencilFaceState {
                     compare: wgpu::CompareFunction::Equal,
                     pass_op: wgpu::StencilOperation::Keep,
@@ -213,6 +214,7 @@ pub struct PipelineManager {
     pub fill_stencil: Pipeline,
     pub fill_stroke: Pipeline,
     pub fill_inner: Pipeline,
+    pub fill_convex: Pipeline,
 }
 
 impl PipelineManager {
@@ -227,12 +229,14 @@ impl PipelineManager {
             builder.create(&device, PipelineUsage::FillStencil(PathFillType::Winding));
         let fill_stroke = builder.create(&device, PipelineUsage::FillStroke(default_blend.clone()));
         let fill_inner = builder.create(&device, PipelineUsage::FillInner(default_blend));
+        let fill_convex = builder.create(&device, PipelineUsage::FillConvex(default_blend));
 
         return Self {
             builder,
             fill_stencil,
             fill_stroke,
             fill_inner,
+            fill_convex,
         };
     }
 
@@ -255,6 +259,12 @@ impl PipelineManager {
                 if self.fill_stencil.usage != usage {
                     self.builder
                         .update_pipeline(usage, device, &mut self.fill_inner);
+                }
+            }
+            PipelineUsage::FillConvex(_) => {
+                if self.fill_stencil.usage != usage {
+                    self.builder
+                        .update_pipeline(usage, device, &mut self.fill_convex);
                 }
             }
         }
