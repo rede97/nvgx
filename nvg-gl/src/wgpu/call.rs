@@ -76,9 +76,6 @@ impl GpuPath {
         let end = ((self.fill_offset + self.fill_count) * size_of::<Vertex>()) as u64;
         return start..end;
     }
-    pub fn triangle_fan_indices_range(&self) -> Range<u64> {
-        0..((self.fill_count - 2) * 3 * size_of::<u32>()) as u64
-    }
 
     pub fn triangle_fan_count(&self) -> u32 {
         (self.fill_count - 2) as u32
