@@ -123,7 +123,7 @@ impl nvg::Renderer for Renderer {
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("NVG Fill Stencil Render Pass"),
+                label: Some("NVG Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
@@ -154,14 +154,16 @@ impl nvg::Renderer for Renderer {
             for call in &self.calls {
                 match call.call_type {
                     CallType::Fill(t) => {
-                        let fill_stencil_usage = PipelineUsage::FillStencil(t);
-                        if self.pipelines.fill_stencil.usage() != &fill_stencil_usage {
-                            self.pipeline_builder.update_pipeline(
-                                fill_stencil_usage,
-                                &self.device,
-                                &mut self.pipelines.fill_stencil,
-                            );
-                        }
+                        self.pipeline_manager
+                            .update_pipeline(&self.device, PipelineUsage::FillStencil(t));
+                        self.pipeline_manager.update_pipeline(
+                            &self.device,
+                            PipelineUsage::FillStroke(call.blend_func.clone()),
+                        );
+                        self.pipeline_manager.update_pipeline(
+                            &self.device,
+                            PipelineUsage::FillInner(call.blend_func.clone()),
+                        );
                         self.do_fill(call, &mut render_pass);
                     }
                     _ => {
@@ -219,7 +221,7 @@ impl nvg::Renderer for Renderer {
             triangle_offset: offset,
             triangle_count: 4,
             uniform_offset: self.render_unifrom.value.len(),
-            blend_func: (&composite_operation).to_wgpu_blend_state(),
+            blend_func: composite_operation,
             wireframe: false,
         };
 

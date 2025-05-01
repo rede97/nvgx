@@ -23,7 +23,7 @@ pub(crate) struct Call {
     pub triangle_offset: usize,
     pub triangle_count: usize,
     pub uniform_offset: usize,
-    pub blend_func: wgpu::BlendState,
+    pub blend_func: CompositeOperationState,
     #[cfg(feature = "wireframe")]
     pub wireframe: bool,
 }
@@ -38,7 +38,7 @@ impl Default for Call {
             triangle_offset: 0,
             triangle_count: 0,
             uniform_offset: 0,
-            blend_func: (&CompositeOperationState::default()).to_wgpu_blend_state(),
+            blend_func: CompositeOperationState::default(),
             #[cfg(feature = "wireframe")]
             wireframe: false,
         }

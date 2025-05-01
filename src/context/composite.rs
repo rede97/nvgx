@@ -1,4 +1,4 @@
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum BlendFactor {
     Zero,
     One,
@@ -103,7 +103,7 @@ impl Into<CompositeOperationState> for CompositeOperation {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct CompositeOperationState {
     pub src_rgb: BlendFactor,
     pub dst_rgb: BlendFactor,

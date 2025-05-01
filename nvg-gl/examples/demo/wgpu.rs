@@ -153,6 +153,7 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                     // context.fill().unwrap();
                     // context.restore();
                     // context.end_frame().unwrap();
+                    state.context.clear(Color::rgb(0.3, 0.3, 0.3)).unwrap();
                     state.context.begin_path();
                     // state.context.rect((20, 20, 100, 100));
                     state.context.move_to((20, 20));

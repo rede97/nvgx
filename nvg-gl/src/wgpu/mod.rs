@@ -1,7 +1,7 @@
 use call::{Call, GpuPath};
 use mesh::Mesh;
 use nvg::*;
-use pipeline::{PipelineBuilder, Pipelines};
+use pipeline::PipelineManager;
 use slab::Slab;
 use texture::{StencilTexture, Texture};
 use unifroms::{RenderCommand, Unifrom};
@@ -29,8 +29,7 @@ pub struct Renderer {
     calls: Vec<Call>,
     paths: Vec<GpuPath>,
     mesh: Mesh,
-    pipeline_builder: PipelineBuilder,
-    pipelines: Pipelines,
+    pipeline_manager: PipelineManager,
 }
 
 impl Renderer {
@@ -88,8 +87,7 @@ impl Renderer {
             push_constant_ranges: &[],
         });
 
-        let mut pipeline_builder = PipelineBuilder::new(shader, pipeline_layout);
-        let pipelines = Pipelines::default(&mut pipeline_builder, &device);
+        let pipeline_manager = PipelineManager::new(shader, pipeline_layout, &device);
 
         return Ok(Self {
             device,
@@ -106,17 +104,17 @@ impl Renderer {
             calls: Vec::new(),
             paths: Vec::new(),
             mesh,
-            pipeline_builder,
-            pipelines,
+            pipeline_manager,
         });
     }
 
+    #[inline]
     fn do_fill(&self, call: &Call, render_pass: &mut wgpu::RenderPass<'_>) {
         let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
         {
             {
                 // Fill stencil pass
-                render_pass.set_pipeline(self.pipelines.fill_stencil.pipeline());
+                render_pass.set_pipeline(self.pipeline_manager.fill_stencil.pipeline());
                 render_pass.set_stencil_reference(0);
                 render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
                 render_pass.set_bind_group(
@@ -137,7 +135,7 @@ impl Renderer {
             }
             {
                 // Stroke border pass
-                render_pass.set_pipeline(self.pipelines.fill_stroke.pipeline());
+                render_pass.set_pipeline(self.pipeline_manager.fill_stroke.pipeline());
                 render_pass.set_stencil_reference(0);
                 render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
                 render_pass.set_bind_group(
@@ -154,7 +152,7 @@ impl Renderer {
             }
             {
                 // Fill Content pass
-                render_pass.set_pipeline(self.pipelines.fill_final.pipeline());
+                render_pass.set_pipeline(self.pipeline_manager.fill_inner.pipeline());
                 render_pass.set_stencil_reference(0);
                 render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
                 render_pass.set_bind_group(
