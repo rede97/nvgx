@@ -8,6 +8,7 @@ pub enum PipelineUsage {
     FillStroke(CompositeOperationState),
     FillInner(CompositeOperationState),
     FillConvex(CompositeOperationState),
+    Triangles(CompositeOperationState),
 }
 
 impl PipelineUsage {
@@ -20,7 +21,8 @@ impl PipelineUsage {
             },
             PipelineUsage::FillStroke(blend)
             | PipelineUsage::FillInner(blend)
-            | PipelineUsage::FillConvex(blend) => wgpu::ColorTargetState {
+            | PipelineUsage::FillConvex(blend)
+            | PipelineUsage::Triangles(blend) => wgpu::ColorTargetState {
                 format: wgpu::TextureFormat::Rgba8UnormSrgb,
                 blend: Some(blend.to_wgpu_blend_state()),
                 write_mask: wgpu::ColorWrites::ALL,
@@ -30,7 +32,9 @@ impl PipelineUsage {
 
     fn primitive(&self) -> wgpu::PrimitiveState {
         match self {
-            PipelineUsage::FillStencil(_) | PipelineUsage::FillConvex(_) => wgpu::PrimitiveState {
+            PipelineUsage::FillStencil(_)
+            | PipelineUsage::FillConvex(_)
+            | PipelineUsage::Triangles(_) => wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
@@ -105,6 +109,12 @@ impl PipelineUsage {
                     fail_op: wgpu::StencilOperation::Zero,
                     depth_fail_op: wgpu::StencilOperation::Zero,
                 },
+                back: wgpu::StencilFaceState::IGNORE,
+                read_mask: 0xff,
+                write_mask: 0xff,
+            },
+            PipelineUsage::Triangles(_) => wgpu::StencilState {
+                front: wgpu::StencilFaceState::IGNORE,
                 back: wgpu::StencilFaceState::IGNORE,
                 read_mask: 0xff,
                 write_mask: 0xff,
@@ -215,6 +225,7 @@ pub struct PipelineManager {
     pub fill_stroke: Pipeline,
     pub fill_inner: Pipeline,
     pub fill_convex: Pipeline,
+    pub triangles: Pipeline,
 }
 
 impl PipelineManager {
@@ -230,13 +241,14 @@ impl PipelineManager {
         let fill_stroke = builder.create(&device, PipelineUsage::FillStroke(default_blend.clone()));
         let fill_inner = builder.create(&device, PipelineUsage::FillInner(default_blend));
         let fill_convex = builder.create(&device, PipelineUsage::FillConvex(default_blend));
-
+        let triangles = builder.create(&device, PipelineUsage::Triangles(default_blend));
         return Self {
             builder,
             fill_stencil,
             fill_stroke,
             fill_inner,
             fill_convex,
+            triangles,
         };
     }
 
@@ -250,21 +262,27 @@ impl PipelineManager {
                 }
             }
             PipelineUsage::FillStroke(_) => {
-                if self.fill_stencil.usage != usage {
+                if self.fill_stroke.usage != usage {
                     self.builder
                         .update_pipeline(usage, device, &mut self.fill_stroke);
                 }
             }
             PipelineUsage::FillInner(_) => {
-                if self.fill_stencil.usage != usage {
+                if self.fill_inner.usage != usage {
                     self.builder
                         .update_pipeline(usage, device, &mut self.fill_inner);
                 }
             }
             PipelineUsage::FillConvex(_) => {
-                if self.fill_stencil.usage != usage {
+                if self.fill_convex.usage != usage {
                     self.builder
                         .update_pipeline(usage, device, &mut self.fill_convex);
+                }
+            }
+            PipelineUsage::Triangles(_) => {
+                if self.triangles.usage != usage {
+                    self.builder
+                        .update_pipeline(usage, device, &mut self.triangles);
                 }
             }
         }

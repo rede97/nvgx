@@ -1,9 +1,8 @@
 use std::ops::Range;
 
-use nvg::{BlendFactor, Color, CompositeOperationState, PathFillType, Vertex};
-use wgpu::BlendComponent;
+use nvg::{BlendFactor, CompositeOperationState, PathFillType, Vertex};
 
-use super::{pipeline::PipelineUsage, unifroms::RenderCommand};
+use super::unifroms::RenderCommand;
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum CallType {
@@ -68,12 +67,12 @@ pub(crate) trait ToBlendState: AsRef<CompositeOperationState> {
     fn to_wgpu_blend_state(&self) -> wgpu::BlendState {
         let value = self.as_ref();
         return wgpu::BlendState {
-            color: BlendComponent {
+            color: wgpu::BlendComponent {
                 src_factor: convert_blend_factor(value.src_rgb),
                 dst_factor: convert_blend_factor(value.dst_rgb),
                 operation: wgpu::BlendOperation::Add,
             },
-            alpha: BlendComponent {
+            alpha: wgpu::BlendComponent {
                 src_factor: convert_blend_factor(value.src_alpha),
                 dst_factor: convert_blend_factor(value.dst_alpha),
                 operation: wgpu::BlendOperation::Add,

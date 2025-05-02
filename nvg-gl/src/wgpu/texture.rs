@@ -1,13 +1,14 @@
-use nvg::ImageFlags;
-use wgpu::Extent3d;
+use nvg::{ImageFlags, TextureType};
+use slab::Slab;
 
-pub struct StencilTexture {
-    pub texture: wgpu::Texture,
-    pub view: wgpu::TextureView,
+#[allow(unused)]
+struct StencilTexture {
+    texture: wgpu::Texture,
+    view: wgpu::TextureView,
 }
 
 impl StencilTexture {
-    pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Self {
+    fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Self {
         let size = wgpu::Extent3d {
             width: config.width,
             height: config.height,
@@ -45,7 +46,7 @@ impl Texture {
     ) -> Self {
         return Self::new(
             device,
-            Extent3d {
+            wgpu::Extent3d {
                 width: 1,
                 height: 1,
                 depth_or_array_layers: 1,
@@ -55,7 +56,7 @@ impl Texture {
             texture_bind_group_layout,
         );
     }
-    
+
     pub fn new(
         device: &wgpu::Device,
         size: wgpu::Extent3d,
@@ -178,7 +179,7 @@ impl Texture {
     }
 
     #[inline]
-    pub fn size(&self) -> Extent3d {
+    pub fn size(&self) -> wgpu::Extent3d {
         self.texture.size()
     }
 
@@ -194,3 +195,102 @@ impl Texture {
     }
 }
 
+pub struct TextureManager {
+    pub stencil_texture: StencilTexture,
+    pub textures: Slab<Texture>,
+    pub place_holder_texture: Texture,
+    pub layout: wgpu::BindGroupLayout,
+}
+
+impl TextureManager {
+    pub fn new(device: &wgpu::Device, surface_config: &wgpu::SurfaceConfiguration) -> Self {
+        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("NVG Texture Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+
+        let place_holder_texture = Texture::placeholder_texture(&device, &layout);
+
+        return Self {
+            stencil_texture: StencilTexture::new(device, surface_config),
+            textures: Slab::new(),
+            place_holder_texture,
+            layout,
+        };
+    }
+
+    #[inline]
+    pub fn configure_stencil(
+        &mut self,
+        device: &wgpu::Device,
+        surface_config: &wgpu::SurfaceConfiguration,
+    ) {
+        self.stencil_texture = StencilTexture::new(device, surface_config);
+    }
+
+    #[inline]
+    pub fn stencil_view(&self) -> &wgpu::TextureView {
+        return &self.stencil_texture.view;
+    }
+
+    #[inline]
+    pub fn create(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        size: wgpu::Extent3d,
+        flags: ImageFlags,
+        texture_type: TextureType,
+        data: Option<&[u8]>,
+    ) -> usize {
+        let texture = Texture::new(&device, size, flags, texture_type, &self.layout);
+        if let Some(data) = data {
+            texture.update(&queue, data, wgpu::Origin2d::ZERO, size);
+        }
+        return self.textures.insert(texture);
+    }
+
+    #[inline]
+    pub fn get(&self, id: usize) -> Option<&Texture> {
+        self.textures.get(id)
+    }
+
+    #[inline]
+    pub fn get_mut(&mut self, id: usize) -> Option<&mut Texture> {
+        self.textures.get_mut(id)
+    }
+
+    #[inline]
+    pub fn remove(&mut self, id: usize) -> Texture {
+        self.textures.remove(id)
+    }
+
+    #[inline]
+    pub fn get_bindgroup(&self, id: Option<usize>) -> &wgpu::BindGroup {
+        if let Some(id) = id {
+            return &self
+                .get(id)
+                .unwrap_or(&self.place_holder_texture)
+                .bind_group;
+        } else {
+            return &self.place_holder_texture.bind_group;
+        }
+    }
+}

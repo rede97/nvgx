@@ -171,8 +171,10 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                     state.context.begin_path();
                     state.context.circle((300, 200), 100.0);
                     state.context.fill_paint(Color::rgb(0.4, 0.6, 1.0));
+                    state.context.stroke_paint(Color::rgb(0.4, 0.8, 0.2));
+                    state.context.stroke_width(8.0);
+                    state.context.stroke().unwrap();
                     state.context.fill().unwrap();
-
                     state.context.end_frame().unwrap();
                 }
 

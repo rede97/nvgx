@@ -1,7 +1,7 @@
 use std::num::NonZero;
 
 use nvg::{Color, Extent, ImageFlags, PaintPattern, Scissor, TextureType, Transform};
-use wgpu::{Buffer, Device};
+use wgpu::Device;
 
 use crate::{premul_color, xform_to_3x4};
 
@@ -72,7 +72,7 @@ impl RenderCommand {
         let mut invxform = Transform::default();
 
         if let Some(img) = paint.image {
-            if let Some(texture) = render.textures.get(img) {
+            if let Some(texture) = render.texture_manager.textures.get(img) {
                 if texture.image_flags.contains(ImageFlags::FLIPY) {
                     let m1 = Transform::translate(0.0, frag.extent[1] * 0.5) * paint.xform;
                     let m2 = Transform::scale(1.0, -1.0) * m1;
@@ -104,6 +104,11 @@ impl RenderCommand {
         frag.paint_mat = xform_to_3x4(invxform);
 
         frag
+    }
+
+    pub fn set_type(mut self, render_type: ShaderType) -> Self {
+        self.render_type = render_type as u32;
+        self
     }
 }
 
