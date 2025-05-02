@@ -70,7 +70,7 @@ impl nvg::Renderer for Renderer {
             Extent3d {
                 width: width,
                 height: height,
-                depth_or_array_layers: 0,
+                depth_or_array_layers: 1,
             },
         );
         Ok(())

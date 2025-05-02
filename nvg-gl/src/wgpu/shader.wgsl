@@ -83,8 +83,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         var color = textureSample(frag_texture, frag_sampler, pt);
         if (render_uniform.texture_type == 1) {
             color = vec4(color.xyz * color.w, color.w);
-        }
-        if (render_uniform.texture_type == 2) {
+        } else if (render_uniform.texture_type == 2) {
             color = vec4(color.x);
         }
         return color * render_uniform.inner_color * stroke_alpha * scissor;
@@ -92,8 +91,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         var color = textureSample(frag_texture, frag_sampler, in.ftcoord);
         if (render_uniform.texture_type == 1) {
             color = vec4(color.xyz * color.w, color.w);
-        }
-        if (render_uniform.texture_type == 2) { 
+        } else if (render_uniform.texture_type == 2) { 
             color = vec4(color.x);
         }
         return color * scissor * render_uniform.inner_color;
