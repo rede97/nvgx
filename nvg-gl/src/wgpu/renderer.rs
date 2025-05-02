@@ -70,7 +70,7 @@ impl nvg::Renderer for Renderer {
             Extent3d {
                 width: width,
                 height: height,
-                depth_or_array_layers: 1,
+                depth_or_array_layers: 0,
             },
         );
         Ok(())
@@ -239,7 +239,7 @@ impl nvg::Renderer for Renderer {
             path_count: paths.len(),
             triangle_offset: offset,
             triangle_count: 4,
-            uniform_offset: self.render_unifrom.value.len(),
+            uniform_offset: self.render_unifrom.offset(),
             blend_func: composite_operation,
             #[cfg(feature = "wireframe")]
             wireframe: false,
@@ -283,7 +283,7 @@ impl nvg::Renderer for Renderer {
             image: paint.image,
             path_offset: self.paths.len(),
             path_count: paths.len(),
-            uniform_offset: self.render_unifrom.value.len(),
+            uniform_offset: self.render_unifrom.offset(),
             blend_func: composite_operation,
             ..Default::default()
         };
@@ -326,11 +326,11 @@ impl nvg::Renderer for Renderer {
         vertexes: &[nvg::Vertex],
     ) -> anyhow::Result<()> {
         let call = Call {
-            call_type: CallType::Stroke,
+            call_type: CallType::Triangles,
             image: paint.image,
             triangle_offset: self.mesh.vertices.len(),
             triangle_count: vertexes.len(),
-            uniform_offset: self.render_unifrom.value.len(),
+            uniform_offset: self.render_unifrom.offset(),
             blend_func: composite_operation,
             ..Default::default()
         };

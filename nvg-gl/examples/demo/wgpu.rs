@@ -51,9 +51,9 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
 
         let mut app_state = AppState::new(window).unwrap();
         let scale_factor = app_state.window.scale_factor() as f32;
-        // self.demo
-        //     .init(&mut app_state.context, scale_factor)
-        //     .unwrap();
+        self.demo
+            .init(&mut app_state.context, scale_factor)
+            .unwrap();
         self.start_time = Instant::now();
         assert!(self.state.replace(app_state).is_none());
     }
@@ -112,7 +112,7 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                 let state = unsafe { self.state.as_mut().unwrap_unchecked() };
                 {
                     let context = &mut state.context;
-                    // self.demo.before_frame(context).unwrap();
+                    self.demo.before_frame(context).unwrap();
 
                     let window_size = state.window.inner_size();
                     let scale_factor = state.window.scale_factor() as f32;
@@ -125,57 +125,35 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                             scale_factor,
                         )
                         .unwrap();
-                    // context.clear(Color::rgb(0.1, 0.1, 0.1)).unwrap();
+                    context.clear(Color::rgb(0.1, 0.1, 0.1)).unwrap();
 
-                    // context.save();
-                    // self.demo
-                    //     .update(window_size.width as f32, window_size.height as f32, context)
-                    //     .unwrap();
-                    // context.restore();
+                    context.save();
+                    self.demo
+                        .update(window_size.width as f32, window_size.height as f32, context)
+                        .unwrap();
+                    context.restore();
 
-                    // context.save();
-                    // let duration = Instant::now() - self.start_time;
-                    // if duration.as_millis() > 20 {
-                    //     self.fps = format!(
-                    //         "FPS: {:.2}",
-                    //         (self.frame_count as f32) / duration.as_secs_f32()
-                    //     );
-                    //     self.start_time = Instant::now();
-                    //     self.frame_count = 0;
-                    // } else {
-                    //     self.frame_count += 1;
-                    // }
-                    // context.begin_path();
-                    // context.fill_paint(Color::rgb(1.0, 0.0, 0.0));
-                    // context.font("roboto");
-                    // context.font_size(20.0);
-                    // context.text_align(Align::TOP | Align::LEFT);
-                    // context.text((10, 10), &self.fps).unwrap();
-                    // context.fill().unwrap();
-                    // context.restore();
-                    // context.end_frame().unwrap();
-                    state.context.clear(Color::rgb(0.3, 0.3, 0.3)).unwrap();
-                    state.context.begin_path();
-                    // state.context.rect((20, 20, 100, 100));
-                    state.context.move_to((20, 20));
-                    state.context.line_to((150, 100));
-                    state.context.line_to((10, 100));
-                    state.context.close_path();
-                    state.context.path_winding(nvg::WindingSolidity::Solid);
-
-                    state.context.rect((50, 50, 100, 100));
-                    state.context.path_winding(nvg::WindingSolidity::Hole);
-                    state.context.fill_paint(Color::rgb(1.0, 0.4, 0.6));
-                    state.context.fill().unwrap();
-
-                    state.context.begin_path();
-                    state.context.circle((300, 200), 100.0);
-                    state.context.fill_paint(Color::rgb(0.4, 0.6, 1.0));
-                    state.context.stroke_paint(Color::rgb(0.4, 0.8, 0.2));
-                    state.context.stroke_width(8.0);
-                    state.context.stroke().unwrap();
-                    state.context.fill().unwrap();
-                    state.context.end_frame().unwrap();
+                    context.save();
+                    let duration = Instant::now() - self.start_time;
+                    if duration.as_millis() > 20 {
+                        self.fps = format!(
+                            "FPS: {:.2}",
+                            (self.frame_count as f32) / duration.as_secs_f32()
+                        );
+                        self.start_time = Instant::now();
+                        self.frame_count = 0;
+                    } else {
+                        self.frame_count += 1;
+                    }
+                    context.begin_path();
+                    context.fill_paint(Color::rgb(1.0, 0.0, 0.0));
+                    context.font("roboto");
+                    context.font_size(20.0);
+                    context.text_align(Align::TOP | Align::LEFT);
+                    context.text((10, 10), &self.fps).unwrap();
+                    context.fill().unwrap();
+                    context.restore();
+                    context.end_frame().unwrap();
                 }
 
                 {

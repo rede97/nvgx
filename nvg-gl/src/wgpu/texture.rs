@@ -31,6 +31,7 @@ impl StencilTexture {
     }
 }
 
+#[allow(unused)]
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -164,7 +165,7 @@ impl Texture {
         queue.write_texture(
             wgpu::TexelCopyTextureInfo {
                 texture: &self.texture,
-                mip_level: 1,
+                mip_level: 0,
                 origin: origin.to_3d(0),
                 aspect: wgpu::TextureAspect::All,
             },
@@ -196,7 +197,7 @@ impl Texture {
 }
 
 pub struct TextureManager {
-    pub stencil_texture: StencilTexture,
+    stencil_texture: StencilTexture,
     pub textures: Slab<Texture>,
     pub place_holder_texture: Texture,
     pub layout: wgpu::BindGroupLayout,

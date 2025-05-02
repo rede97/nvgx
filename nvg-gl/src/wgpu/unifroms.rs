@@ -195,11 +195,20 @@ impl<T: WgpuUnifromContent> Unifrom<T> {
         }
         queue.write_buffer(&self.buffer, 0, self.value.as_contents());
     }
+
+    #[inline]
+    pub fn offset(&self) -> usize {
+        self.value.offset()
+    }
 }
 
 pub trait WgpuUnifromContent: Default {
     fn elem_size() -> usize;
     fn as_contents(&self) -> &[u8];
+    #[inline]
+    fn offset(&self) -> usize {
+        0
+    }
 }
 
 impl WgpuUnifromContent for Vec<RenderCommand> {
@@ -209,6 +218,10 @@ impl WgpuUnifromContent for Vec<RenderCommand> {
 
     fn as_contents(&self) -> &[u8] {
         return bytemuck::cast_slice(self.as_slice());
+    }
+
+    fn offset(&self) -> usize {
+        return self.len();
     }
 }
 
