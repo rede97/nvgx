@@ -115,10 +115,13 @@ impl Renderer {
                     &[call.uniform_offset(1)],
                 );
                 render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
+                render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
                 for path in paths {
-                    render_pass
-                        .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(path.stroke_slice()));
-                    render_pass.draw(0..path.stroke_count(), 0..1);
+                    render_pass.draw(
+                        (path.stroke_offset as u32)
+                            ..((path.stroke_offset + path.stroke_count) as u32),
+                        0..1,
+                    );
                 }
             }
             {
@@ -170,10 +173,12 @@ impl Renderer {
                 &[call.uniform_offset(0)],
             );
             render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
+            render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
             for path in paths {
-                render_pass
-                    .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(path.stroke_slice()));
-                render_pass.draw(0..path.stroke_count(), 0..1);
+                render_pass.draw(
+                    (path.stroke_offset as u32)..((path.stroke_offset + path.stroke_count) as u32),
+                    0..1,
+                );
             }
         }
     }
@@ -189,9 +194,12 @@ impl Renderer {
             &[call.uniform_offset(0)],
         );
         render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
+        render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
         for path in paths {
-            render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(path.stroke_slice()));
-            render_pass.draw(0..path.stroke_count(), 0..1);
+            render_pass.draw(
+                (path.stroke_offset as u32)..((path.stroke_offset + path.stroke_count) as u32),
+                0..1,
+            );
         }
     }
 
