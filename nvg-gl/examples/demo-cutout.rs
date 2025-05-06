@@ -189,7 +189,7 @@ fn render_cutout<R: Renderer>(
     ctx.fill().unwrap();
 
     ctx.begin_path();
-    // ctx.move_to((0, 0));
+    ctx.move_to((0, 0));
     ctx.circle((mx, my), base_circle_size + circle_thickness);
     ctx.circle((mx, my), base_circle_size);
     ctx.path_winding(WindingSolidity::Hole);
@@ -198,7 +198,7 @@ fn render_cutout<R: Renderer>(
     ctx.fill().unwrap();
 
     ctx.begin_path();
-    // ctx.move_to((0, 0));
+    ctx.move_to((0, 0));
     ctx.circle((mx, my), base_circle_size);
     ctx.circle((mx, my), base_circle_size - circle_thickness);
     ctx.path_winding(WindingSolidity::Hole);

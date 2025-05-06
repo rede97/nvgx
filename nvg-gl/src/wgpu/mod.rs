@@ -97,11 +97,14 @@ impl Renderer {
                 render_pass
                     .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                 for path in paths {
-                    render_pass.set_vertex_buffer(
-                        0,
-                        self.mesh.vertex_buffer.slice(path.triangle_fan_slice()),
-                    );
-                    render_pass.draw_indexed(0..path.triangle_fan_count() * 3, 0, 0..1);
+                    let count = path.triangle_fan_count();
+                    if count != 0 {
+                        render_pass.set_vertex_buffer(
+                            0,
+                            self.mesh.vertex_buffer.slice(path.triangle_fan_slice()),
+                        );
+                        render_pass.draw_indexed(0..(count * 3), 0, 0..1);
+                    }
                 }
             }
             {
@@ -116,9 +119,14 @@ impl Renderer {
                 );
                 render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
                 for path in paths {
-                    render_pass
-                        .set_vertex_buffer(0, self.mesh.vertex_buffer.slice(path.stroke_slice()));
-                    render_pass.draw(0..path.stroke_count(), 0..1);
+                    let count = path.stroke_count();
+                    if count >= 3 {
+                        render_pass.set_vertex_buffer(
+                            0,
+                            self.mesh.vertex_buffer.slice(path.stroke_slice()),
+                        );
+                        render_pass.draw(0..count, 0..1);
+                    }
                 }
             }
             {
