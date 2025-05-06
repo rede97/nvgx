@@ -466,16 +466,16 @@ impl nvg::RendererDevice for Renderer {
 
         let mut offset = self.vertexes.len();
         for path in paths {
-            let lines = path.get_lines();
-            if !lines.is_empty() {
+            let line = path.get_line();
+            if !line.is_empty() {
                 let gl_path = GLPath {
                     fill_offset: 0,
                     fill_count: 0,
                     stroke_offset: offset,
-                    stroke_count: lines.len(),
+                    stroke_count: line.len(),
                 };
-                self.vertexes.extend(lines);
-                offset += lines.len();
+                self.vertexes.extend(line);
+                offset += line.len();
                 self.paths.push(gl_path);
             }
         }
