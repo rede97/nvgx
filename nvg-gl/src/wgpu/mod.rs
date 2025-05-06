@@ -101,6 +101,7 @@ impl RenderResource {
         }
     }
 
+    #[inline]
     fn do_convex_fill(
         &self,
         call: &Call,
@@ -147,6 +148,7 @@ impl RenderResource {
         }
     }
 
+    #[inline]
     fn do_stroke(
         &self,
         call: &Call,
@@ -172,6 +174,7 @@ impl RenderResource {
         }
     }
 
+    #[inline]
     fn do_triangles(
         &self,
         call: &Call,
@@ -190,6 +193,7 @@ impl RenderResource {
         render_pass.draw(0..call.triangle_count(), 0..1);
     }
 
+    #[inline]
     fn do_lines(
         &self,
         call: &Call,
