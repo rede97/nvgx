@@ -15,7 +15,7 @@ pub fn run<D: Demo<nvg_gl::Renderer>>(demo: D, title: &str) {
     let event_loop = EventLoop::new().unwrap();
     let attributes = Window::default_attributes()
         .with_inner_size(winit::dpi::LogicalSize::new(1024, 768))
-        .with_title(title);
+        .with_title(format!("{} (WGPU)", title));
     let mut app = App::new(demo, attributes);
     event_loop.run_app(&mut app).expect("failed to run app");
     app.exit_state.unwrap();
@@ -207,7 +207,7 @@ impl AppState {
             .formats
             .iter()
             .position(|f| f == &TextureFormat::Rgba8Unorm)
-            .expect("Surface texture format: `Rgba8UnormSrgb` not support");
+            .expect("Surface texture format: `Rgba8Unorm` not support");
         let surface_config: wgpu::wgt::SurfaceConfiguration<Vec<wgpu::TextureFormat>> =
             wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,

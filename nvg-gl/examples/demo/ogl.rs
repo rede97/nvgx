@@ -31,8 +31,9 @@ pub fn run<D: Demo<nvg_gl::Renderer>>(demo: D, title: &str) {
         .with_alpha_size(8)
         .with_transparency(true);
 
-    let display_builder =
-        DisplayBuilder::new().with_window_attributes(Some(window_attributes().with_title(title)));
+    let display_builder = DisplayBuilder::new().with_window_attributes(Some(
+        window_attributes().with_title(format!("{} (OpenGL)", title)),
+    ));
 
     let mut app = App::new(template, display_builder, demo);
     event_loop.run_app(&mut app).unwrap();
