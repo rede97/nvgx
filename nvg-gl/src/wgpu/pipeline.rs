@@ -9,6 +9,7 @@ pub enum PipelineUsage {
     FillInner(CompositeOperationState),
     FillConvex(CompositeOperationState),
     Triangles(CompositeOperationState),
+    Lines(CompositeOperationState),
 }
 
 impl PipelineUsage {
@@ -22,7 +23,8 @@ impl PipelineUsage {
             PipelineUsage::FillStroke(blend)
             | PipelineUsage::FillInner(blend)
             | PipelineUsage::FillConvex(blend)
-            | PipelineUsage::Triangles(blend) => wgpu::ColorTargetState {
+            | PipelineUsage::Triangles(blend)
+            | PipelineUsage::Lines(blend) => wgpu::ColorTargetState {
                 format: wgpu::TextureFormat::Rgba8Unorm,
                 blend: Some(blend.to_wgpu_blend_state()),
                 write_mask: wgpu::ColorWrites::ALL,
@@ -50,6 +52,15 @@ impl PipelineUsage {
                 cull_mode: Some(wgpu::Face::Back),
                 unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
+                conservative: false,
+            },
+            PipelineUsage::Lines(_) => wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::LineStrip,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Line,
                 conservative: false,
             },
         }
@@ -113,7 +124,7 @@ impl PipelineUsage {
                 read_mask: 0xff,
                 write_mask: 0xff,
             },
-            PipelineUsage::Triangles(_) => wgpu::StencilState {
+            PipelineUsage::Triangles(_) | PipelineUsage::Lines(_) => wgpu::StencilState {
                 front: wgpu::StencilFaceState::IGNORE,
                 back: wgpu::StencilFaceState::IGNORE,
                 read_mask: 0xff,
@@ -226,6 +237,7 @@ pub struct PipelineManager {
     pub fill_inner: Pipeline,
     pub fill_convex: Pipeline,
     pub triangles: Pipeline,
+    pub wirelines: Pipeline,
 }
 
 impl PipelineManager {
@@ -242,6 +254,7 @@ impl PipelineManager {
         let fill_inner = builder.create(&device, PipelineUsage::FillInner(default_blend));
         let fill_convex = builder.create(&device, PipelineUsage::FillConvex(default_blend));
         let triangles = builder.create(&device, PipelineUsage::Triangles(default_blend));
+        let wirelines = builder.create(&device, PipelineUsage::Lines(default_blend));
         return Self {
             builder,
             fill_stencil,
@@ -249,6 +262,7 @@ impl PipelineManager {
             fill_inner,
             fill_convex,
             triangles,
+            wirelines,
         };
     }
 
@@ -283,6 +297,12 @@ impl PipelineManager {
                 if self.triangles.usage != usage {
                     self.builder
                         .update_pipeline(usage, device, &mut self.triangles);
+                }
+            }
+            PipelineUsage::Lines(_) => {
+                if self.wirelines.usage != usage {
+                    self.builder
+                        .update_pipeline(usage, device, &mut self.wirelines);
                 }
             }
         }

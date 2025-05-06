@@ -52,7 +52,6 @@ pub trait RendererDevice {
 
     fn flush(&mut self) -> anyhow::Result<()>;
 
-    
     fn fill(
         &mut self,
         paint: &PaintPattern,
@@ -87,10 +86,10 @@ pub trait RendererDevice {
     #[cfg(feature = "wirelines")]
     fn wirelines(
         &mut self,
-        _paint: &PaintPattern,
-        _composite_operation: CompositeOperationState,
-        _scissor: &Scissor,
-        _path: &[PathInfo],
+        paint: &PaintPattern,
+        composite_operation: CompositeOperationState,
+        scissor: &Scissor,
+        paths: &[PathInfo],
     ) -> anyhow::Result<()>;
 }
 

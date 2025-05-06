@@ -93,7 +93,7 @@ impl PathInfo {
     }
 
     #[cfg(feature = "wirelines")]
-    pub fn get_lines(&self) -> &[Vertex] {
+    pub fn get_line(&self) -> &[Vertex] {
         if self.lines.is_null() {
             &[]
         } else {

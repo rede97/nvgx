@@ -73,13 +73,13 @@ impl RenderResource {
                 render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
                 render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
                 for path in paths {
-                    let count = path.stroke_count();
+                    let count = path.stroke_count;
                     if count >= 3 {
-                        render_pass.set_vertex_buffer(
-                            0,
-                            self.mesh.vertex_buffer.slice(path.stroke_slice()),
+                        render_pass.draw(
+                            (path.stroke_offset as u32)
+                                ..((path.stroke_offset + path.stroke_count) as u32),
+                            0..1,
                         );
-                        render_pass.draw(0..count, 0..1);
                     }
                 }
             }
@@ -190,6 +190,30 @@ impl RenderResource {
         render_pass.draw(0..call.triangle_count(), 0..1);
     }
 
+    fn do_lines(
+        &self,
+        call: &Call,
+        render_pass: &mut wgpu::RenderPass<'_>,
+        pipeline_manager: &PipelineManager,
+    ) {
+        let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+        render_pass.set_pipeline(pipeline_manager.wirelines.pipeline());
+        render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
+        render_pass.set_bind_group(
+            1,
+            &self.render_unifrom.bind_group,
+            &[call.uniform_offset(0)],
+        );
+        render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
+        render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
+        for path in paths {
+            render_pass.draw(
+                (path.stroke_offset as u32)..((path.stroke_offset + path.stroke_count) as u32),
+                0..1,
+            );
+        }
+    }
+
     fn render(
         &self,
         device: &wgpu::Device,
@@ -262,8 +286,10 @@ impl RenderResource {
                             .update_pipeline(&device, PipelineUsage::Triangles(call.blend_func));
                         self.do_triangles(call, &mut render_pass, &pipeline_manager);
                     }
-                    _ => {
-                        println!("call: {:?}, todo", call.call_type);
+                    CallType::Lines => {
+                        pipeline_manager
+                            .update_pipeline(&device, PipelineUsage::Lines(call.blend_func));
+                        self.do_lines(call, &mut render_pass, &pipeline_manager);
                     }
                 }
             }
@@ -281,7 +307,6 @@ pub struct Renderer {
     pipeline_manager: PipelineManager,
     target_fb: Option<(ImageId, TextureView)>,
     resources: RenderResource,
-    
 }
 
 impl Renderer {

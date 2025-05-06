@@ -10,7 +10,6 @@ pub(crate) enum CallType {
     ConvexFill,
     Stroke,
     Triangles,
-    #[cfg(feature = "wirelines")]
     Lines,
 }
 
@@ -118,17 +117,5 @@ impl GpuPath {
         } else {
             return (self.fill_count - 2) as u32;
         }
-    }
-
-    #[inline]
-    pub fn stroke_slice(&self) -> Range<u64> {
-        let start = (self.stroke_offset * size_of::<Vertex>()) as u64;
-        let end = ((self.stroke_offset + self.stroke_count) * size_of::<Vertex>()) as u64;
-        return start..end;
-    }
-
-    #[inline]
-    pub fn stroke_count(&self) -> u32 {
-        self.stroke_count as u32
     }
 }

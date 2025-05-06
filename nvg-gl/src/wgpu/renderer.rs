@@ -1,4 +1,3 @@
-use anyhow::Ok;
 use nvg::Vertex;
 use wgpu::{Extent3d, Origin2d};
 
@@ -297,11 +296,42 @@ impl nvg::RendererDevice for Renderer {
 
     fn wirelines(
         &mut self,
-        _paint: &nvg::PaintPattern,
-        _composite_operation: nvg::CompositeOperationState,
-        _scissor: &nvg::Scissor,
-        _path: &[nvg::PathInfo],
+        paint: &nvg::PaintPattern,
+        composite_operation: nvg::CompositeOperationState,
+        scissor: &nvg::Scissor,
+        paths: &[nvg::PathInfo],
     ) -> anyhow::Result<()> {
+        let call = Call {
+            call_type: CallType::Lines,
+            image: paint.image,
+            path_offset: self.resources.paths.len(),
+            path_count: paths.len(),
+            uniform_offset: self.resources.render_unifrom.offset(),
+            blend_func: composite_operation,
+            ..Default::default()
+        };
+
+        let mut offset = self.resources.mesh.vertices.len();
+        for path in paths {
+            let line = path.get_line();
+            if !line.is_empty() {
+                let gl_path = GpuPath {
+                    stroke_offset: offset,
+                    stroke_count: line.len(),
+                    ..Default::default()
+                };
+                self.resources.mesh.vertices.extend(line);
+                offset += line.len();
+                self.resources.paths.push(gl_path);
+            }
+        }
+
+        self.resources.calls.push(call);
+
+        self.resources
+            .render_unifrom
+            .value
+            .push(RenderCommand::new(&self, paint, scissor, 1.0, 1.0, -1.0));
         Ok(())
     }
 }
