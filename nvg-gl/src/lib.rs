@@ -29,6 +29,7 @@ cfg_if::cfg_if! {
         mod ogl;
         pub use ogl::*;
     } else if #[cfg(feature="wgpu-impl")] {
+        /// WGPu implement of NanoVG
         mod wgpu;
         pub use wgpu::*;
     }
