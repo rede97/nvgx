@@ -178,6 +178,12 @@ struct FragUniforms {
     type_: i32,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct DefaultFBO {
+    fbo: gl::types::GLint,
+    rbo: gl::types::GLint,
+}
+
 pub struct Renderer {
     shader: Shader,
     textures: Slab<Texture>,
@@ -191,6 +197,7 @@ pub struct Renderer {
     vertexes: Vec<Vertex>,
     uniforms: Vec<u8>,
     config: RenderConfig,
+    default_fbo: DefaultFBO,
     #[cfg(feature = "wireframe")]
     wireframe: bool,
 }
@@ -228,6 +235,11 @@ impl Renderer {
 
             gl::Finish();
 
+            let mut default_fbo: gl::types::GLint = 0;
+            let mut default_rbo: gl::types::GLint = 0;
+            gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut default_fbo as *mut _);
+            gl::GetIntegerv(gl::RENDERBUFFER_BINDING, &mut default_rbo as *mut _);
+
             Ok(Renderer {
                 shader,
                 textures: Default::default(),
@@ -241,6 +253,10 @@ impl Renderer {
                 vertexes: Default::default(),
                 uniforms: Default::default(),
                 config,
+                default_fbo: DefaultFBO {
+                    fbo: default_fbo,
+                    rbo: default_rbo,
+                },
                 #[cfg(feature = "wireframe")]
                 wireframe: false,
             })
@@ -283,11 +299,13 @@ impl Renderer {
         }
         gl::Disable(gl::CULL_FACE);
         for path in paths {
-            gl::DrawArrays(
-                gl::TRIANGLE_FAN,
-                path.fill_offset as i32,
-                path.fill_count as i32,
-            );
+            if path.fill_count >= 3 {
+                gl::DrawArrays(
+                    gl::TRIANGLE_FAN,
+                    path.fill_offset as i32,
+                    path.fill_count as i32,
+                );
+            }
         }
         gl::Enable(gl::CULL_FACE);
 
@@ -298,11 +316,13 @@ impl Renderer {
         gl::StencilFunc(gl::EQUAL, 0x00, 0xff);
         gl::StencilOp(gl::KEEP, gl::KEEP, gl::KEEP);
         for path in paths {
-            gl::DrawArrays(
-                gl::TRIANGLE_STRIP,
-                path.stroke_offset as i32,
-                path.stroke_count as i32,
-            );
+            if path.stroke_count >= 3 {
+                gl::DrawArrays(
+                    gl::TRIANGLE_STRIP,
+                    path.stroke_offset as i32,
+                    path.stroke_count as i32,
+                );
+            }
         }
 
         gl::StencilFunc(gl::NOTEQUAL, 0x00, 0xff);

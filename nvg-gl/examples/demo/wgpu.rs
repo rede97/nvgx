@@ -2,6 +2,7 @@ use super::Demo;
 use nvg::{Align, Color};
 use nvg_gl::RenderConfig;
 use std::{sync::Arc, time::Instant};
+use wgpu::TextureFormat;
 use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
@@ -201,10 +202,16 @@ impl AppState {
         .unwrap();
 
         let caps = surface.get_capabilities(adapter);
+
+        let pos = caps
+            .formats
+            .iter()
+            .position(|f| f == &TextureFormat::Rgba8Unorm)
+            .expect("Surface texture format: `Rgba8UnormSrgb` not support");
         let surface_config: wgpu::wgt::SurfaceConfiguration<Vec<wgpu::TextureFormat>> =
             wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                format: caps.formats[0],
+                format: caps.formats[pos],
                 width: size.width,
                 height: size.height,
                 present_mode: wgpu::PresentMode::AutoNoVsync,

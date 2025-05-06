@@ -73,7 +73,7 @@ impl Texture {
                     mip_level_count: 1, // mipmap not supported yet
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
                     usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                     view_formats: &[],
                 })
@@ -157,7 +157,7 @@ impl Texture {
         size: wgpu::Extent3d,
     ) {
         let bytes_per_row = match self.texture.format() {
-            wgpu::TextureFormat::Rgba8UnormSrgb => 4,
+            wgpu::TextureFormat::Rgba8Unorm => 4,
             wgpu::TextureFormat::R8Unorm => 1,
             _ => panic!("Unsupported texture format"),
         } * size.width;
@@ -187,7 +187,7 @@ impl Texture {
     #[inline]
     pub fn texture_type(&self) -> nvg::TextureType {
         match self.texture.format() {
-            wgpu::TextureFormat::Rgba8UnormSrgb => nvg::TextureType::RGBA,
+            wgpu::TextureFormat::Rgba8Unorm => nvg::TextureType::RGBA,
             wgpu::TextureFormat::R8Unorm => nvg::TextureType::Alpha,
             _ => {
                 panic!("unsupport texture format: {:?}", self.texture.format())

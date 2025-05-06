@@ -2,6 +2,7 @@ use crate::renderer::TextureType;
 
 mod composite;
 mod core;
+mod core_fb;
 mod core_font;
 mod core_image;
 mod core_path;

@@ -80,7 +80,7 @@ impl Shape {
         self.rotation = self.rotation + dt * self.speed;
     }
 
-    fn draw<R: Renderer>(&self, ctx: &mut nvg::Context<R>, (x, y): (f32, f32), size: f32) {
+    fn draw<R: RendererDevice>(&self, ctx: &mut nvg::Context<R>, (x, y): (f32, f32), size: f32) {
         let margin = size * 0.2;
         let x = x + margin;
         let y = y + margin;
@@ -97,7 +97,7 @@ impl Shape {
         };
     }
 
-    fn render_polygon<R: Renderer>(
+    fn render_polygon<R: RendererDevice>(
         ctx: &mut Context<R>,
         (cx, cy): (f32, f32),
         diameter: f32,
@@ -123,7 +123,7 @@ impl Shape {
         ctx.fill().unwrap();
     }
 
-    fn render_squiggle<R: Renderer>(
+    fn render_squiggle<R: RendererDevice>(
         ctx: &mut Context<R>,
         (cx, cy): (f32, f32),
         (w, h): (f32, f32),
@@ -171,7 +171,7 @@ fn get_elapsed(instant: &Instant) -> f32 {
     elapsed as f32
 }
 
-fn render_cutout<R: Renderer>(
+fn render_cutout<R: RendererDevice>(
     ctx: &mut Context<R>,
     (x, y): (f32, f32),
     (w, h): (f32, f32),
@@ -207,7 +207,7 @@ fn render_cutout<R: Renderer>(
     // ctx.fill().unwrap();
 }
 
-fn render_rectangle<R: Renderer>(
+fn render_rectangle<R: RendererDevice>(
     ctx: &mut Context<R>,
     (x, y): (f32, f32),
     (w, h): (f32, f32),
@@ -243,7 +243,7 @@ impl Default for DemoCutout {
     }
 }
 
-impl<R: Renderer> demo::Demo<R> for DemoCutout {
+impl<R: RendererDevice> demo::Demo<R> for DemoCutout {
     fn update(&mut self, width: f32, height: f32, ctx: &mut Context<R>) -> Result<(), Error> {
         let elapsed = get_elapsed(&self.start_time);
         let delta_time = elapsed - self.prev_time;

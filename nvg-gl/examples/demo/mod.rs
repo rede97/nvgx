@@ -1,4 +1,4 @@
-use nvg::{Context, Renderer};
+use nvg::{Context, RendererDevice};
 use winit;
 
 cfg_if::cfg_if! {
@@ -11,7 +11,7 @@ cfg_if::cfg_if! {
     }
 }
 
-pub trait Demo<R: Renderer> {
+pub trait Demo<R: RendererDevice> {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> anyhow::Result<()> {
         ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
         Ok(())

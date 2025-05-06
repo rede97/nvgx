@@ -4,7 +4,7 @@ use super::Renderer;
 use super::{Call, CallType, FragUniforms, GLPath, ShaderType, Texture};
 use nvg::*;
 
-impl nvg::Renderer for Renderer {
+impl nvg::RendererDevice for Renderer {
     fn edge_antialias(&self) -> bool {
         #[cfg(feature = "wireframe")]
         if self.wireframe {

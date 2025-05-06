@@ -16,7 +16,7 @@ pub struct Scissor {
     pub extent: Extent,
 }
 
-pub trait Renderer {
+pub trait RendererDevice {
     fn edge_antialias(&self) -> bool;
 
     fn resize(&mut self, _width: u32, _height: u32) -> anyhow::Result<()> {
@@ -94,4 +94,18 @@ pub trait Renderer {
         _scissor: &Scissor,
         _path: &[PathInfo],
     ) -> anyhow::Result<()>;
+}
+
+pub trait FrameBufferDevice {
+    fn size(&self) -> Extent;
+
+    fn image(&self) -> ImageId;
+}
+
+pub trait RenderFramebuffer: RendererDevice {
+    type FB: FrameBufferDevice;
+    fn create_fb(&mut self, width: u32, height: u32, image: ImageId) -> anyhow::Result<Self::FB>;
+    fn delete_fb(&mut self, fb: Self::FB) -> anyhow::Result<()>;
+    fn bind(&self, fb: &Self::FB) -> anyhow::Result<()>;
+    fn unbind(&self) -> anyhow::Result<()>;
 }

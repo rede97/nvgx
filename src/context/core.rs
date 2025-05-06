@@ -3,7 +3,7 @@ use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
 use crate::path::Path;
 use crate::renderer::Scissor;
-use crate::{Extent, Paint, PathFillType, Point, Rect, Renderer, Transform};
+use crate::{Extent, Paint, PathFillType, Point, Rect, RendererDevice, Transform};
 
 #[derive(Clone)]
 pub(super) struct State {
@@ -42,7 +42,7 @@ impl Default for State {
     }
 }
 
-pub struct Context<R: Renderer> {
+pub struct Context<R: RendererDevice> {
     pub(super) renderer: R,
     pub(super) path: Path,
     pub(super) states: Vec<State>,
@@ -58,7 +58,7 @@ pub struct Context<R: Renderer> {
     pub(super) text_triangles_count: usize,
 }
 
-impl<R: Renderer> Context<R> {
+impl<R: RendererDevice> Context<R> {
     pub fn create(mut renderer: R) -> anyhow::Result<Context<R>> {
         let fonts = Fonts::new(&mut renderer)?;
         Ok(Context {

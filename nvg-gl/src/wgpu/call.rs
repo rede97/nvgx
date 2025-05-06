@@ -117,7 +117,11 @@ impl GpuPath {
 
     #[inline]
     pub fn triangle_fan_count(&self) -> u32 {
-        (self.fill_count - 2) as u32
+        if self.fill_count < 2 {
+            return 0;
+        } else {
+            return (self.fill_count - 2) as u32;
+        }
     }
 
     #[inline]

@@ -27,7 +27,7 @@ impl Default for DemoCutout {
 impl DemoCutout {
     pub fn render_fb(&mut self, ctx: &mut Context<Renderer>) -> Result<(), Error> {
         let dt = Instant::now().duration_since(self.start_time).as_secs_f32();
-        self.fb.bind();
+        ctx.bind(self.fb);
         ctx.begin_frame((self.fb.width, self.fb.height), self.scale_factor)?;
         ctx.clear(Color::gray(0.2))?;
         ctx.begin_path();
@@ -45,11 +45,11 @@ impl demo::Demo<Renderer> for DemoCutout {
         ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
 
         self.scale_factor = scale_factor;
-        self.fb = FrameBuffer::new(
-            ctx,
+        self.fb = ctx.create_fb(
             (100.0 * scale_factor) as u32,
             (100.0 * scale_factor) as u32,
             ImageFlags::REPEATX | ImageFlags::REPEATY,
+            None,
         )?;
         self.render_fb(ctx)?;
 
@@ -70,7 +70,7 @@ impl demo::Demo<Renderer> for DemoCutout {
         {
             // draw background
             let pattern = ImagePattern {
-                img: self.fb.image,
+                img: self.fb.image(),
                 angle: 0.0,
                 alpha: 1.0,
                 size: self.fb.size(),
