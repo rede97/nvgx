@@ -7,6 +7,7 @@ use unifroms::{RenderCommand, Unifrom};
 
 use crate::RenderConfig;
 
+mod fb;
 mod call;
 mod mesh;
 mod pipeline;

@@ -18,7 +18,7 @@ impl ControlPoint {
         };
     }
 
-    pub fn draw<R: Renderer>(&self, ctx: &mut Context<R>) -> Result<(), Error> {
+    pub fn draw<R: RendererDevice>(&self, ctx: &mut Context<R>) -> Result<(), Error> {
         ctx.begin_path();
         if self.clicked {
             ctx.circle(self.p, 6.0);
@@ -66,7 +66,7 @@ impl ControlBezier {
         };
     }
 
-    pub fn draw<R: Renderer>(&self, ctx: &mut Context<R>) -> Result<(), Error> {
+    pub fn draw<R: RendererDevice>(&self, ctx: &mut Context<R>) -> Result<(), Error> {
         ctx.save();
         ctx.begin_path();
         ctx.move_to(self.control_points[0].p);
@@ -138,7 +138,7 @@ impl Triangle {
         };
     }
 
-    pub fn draw<R: Renderer>(
+    pub fn draw<R: RendererDevice>(
         &mut self,
         ctx: &mut Context<R>,
         wirelines: bool,
@@ -204,7 +204,7 @@ impl ArcTo {
         };
     }
 
-    pub fn draw<R: Renderer>(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
+    pub fn draw<R: RendererDevice>(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
         let mut path = Path::new();
         path.move_to(self.control_points[0].p);
         path.line_to(self.control_points[1].p);
@@ -255,7 +255,7 @@ struct DemoDraw {
     wirelines: bool,
 }
 
-impl<R: Renderer> demo::Demo<R> for DemoDraw {
+impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> Result<(), Error> {
         ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
         self.img = Some(ctx.create_image_from_file(

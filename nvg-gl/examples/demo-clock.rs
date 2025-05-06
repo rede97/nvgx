@@ -6,7 +6,7 @@ mod demo;
 
 struct DemoClock;
 
-impl<R: Renderer> demo::Demo<R> for DemoClock {
+impl<R: RendererDevice> demo::Demo<R> for DemoClock {
     fn update(&mut self, width: f32, height: f32, ctx: &mut Context<R>) -> anyhow::Result<()> {
         let dt: DateTime<Local> = Local::now();
         let hour = dt.hour();

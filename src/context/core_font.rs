@@ -2,9 +2,9 @@ use super::Context;
 use super::{Align, TextMetrics};
 use crate::fonts::FontId;
 use crate::path::cache::Vertex;
-use crate::{Extent, Point, Renderer};
+use crate::{Extent, Point, RendererDevice};
 
-impl<R: Renderer> Context<R> {
+impl<R: RendererDevice> Context<R> {
     pub fn create_font_from_file<N: Into<String>, P: AsRef<std::path::Path>>(
         &mut self,
         name: N,

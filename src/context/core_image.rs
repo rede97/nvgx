@@ -1,7 +1,7 @@
 use super::{Context, ImageFlags, ImageId, TextureType};
-use crate::Renderer;
+use crate::RendererDevice;
 
-impl<R: Renderer> Context<R> {
+impl<R: RendererDevice> Context<R> {
     pub fn create_image<D: AsRef<[u8]>>(
         &mut self,
         flags: ImageFlags,

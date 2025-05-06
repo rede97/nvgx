@@ -15,7 +15,7 @@ struct DemoDraw {
 }
 
 impl DemoDraw {
-    fn demo_lines<R: Renderer>(
+    fn demo_lines<R: RendererDevice>(
         &mut self,
         _width: f32,
         _height: f32,
@@ -64,7 +64,7 @@ impl DemoDraw {
     }
 }
 
-impl<R: Renderer> demo::Demo<R> for DemoDraw {
+impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> Result<(), Error> {
         ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
         self.img = Some(ctx.create_image_from_file(

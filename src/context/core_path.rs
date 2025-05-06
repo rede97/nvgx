@@ -1,11 +1,11 @@
 use crate::{renderer::Scissor, PaintPattern, Path};
 use crate::{Color, LineJoin, Paint};
-use crate::{PaintStyle, PathDir, Point, Rect, Renderer};
+use crate::{PaintStyle, PathDir, Point, Rect, RendererDevice};
 
 use super::*;
 use clamped::Clamp;
 
-impl<R: Renderer> Context<R> {
+impl<R: RendererDevice> Context<R> {
     #[inline]
     pub fn move_to<P: Into<Point>>(&mut self, pt: P) {
         self.path.xform = self.state_mut().xform;

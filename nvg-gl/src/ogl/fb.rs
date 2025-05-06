@@ -1,42 +1,38 @@
 use super::Renderer;
-use nvg::{Context, Extent, ImageFlags, ImageId};
+use nvg::{Extent, FrameBufferDevice, ImageId, RenderFramebuffer, RendererDevice};
 
 #[allow(unused)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct FrameBuffer {
-    default_fbo: gl::types::GLint,
-    pub fbo: gl::types::GLuint,
-    pub rbo: gl::types::GLuint,
-    pub texture: gl::types::GLuint,
-    pub image: ImageId,
-    pub width: u32,
-    pub height: u32,
+    fbo: gl::types::GLuint,
+    rbo: gl::types::GLuint,
+    image: ImageId,
+    width: u32,
+    height: u32,
 }
 
-#[allow(unused)]
-impl FrameBuffer {
-    pub fn new(
-        ctx: &mut Context<Renderer>,
-        width: u32,
-        height: u32,
-        flags: ImageFlags,
-    ) -> anyhow::Result<Self> {
+impl FrameBufferDevice for FrameBuffer {
+    fn size(&self) -> Extent {
+        Extent {
+            width: self.width as f32,
+            height: self.height as f32,
+        }
+    }
+
+    fn image(&self) -> ImageId {
+        return self.image;
+    }
+}
+
+impl RenderFramebuffer for Renderer {
+    type FB = FrameBuffer;
+
+    fn create_fb(&mut self, width: u32, height: u32, image: ImageId) -> anyhow::Result<Self::FB> {
         let mut fbo = 0;
         let mut rbo = 0;
-        let image: ImageId = ctx.create_image_rgba(
-            width,
-            height,
-            flags | ImageFlags::FLIPY | ImageFlags::PREMULTIPLIED,
-            None,
-        )?;
-        let texture = ctx.renderer().textures.get(image).unwrap().tex;
+        let texture = self.textures.get(image).unwrap().tex;
 
         unsafe {
-            let mut default_fbo: gl::types::GLint = 0;
-            let mut default_rbo: gl::types::GLint = 0;
-            gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut default_fbo as *mut _);
-            gl::GetIntegerv(gl::RENDERBUFFER_BINDING, &mut default_rbo as *mut _);
-
             // framebuffer object
             gl::GenFramebuffers(1, &mut fbo);
             gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
@@ -67,22 +63,22 @@ impl FrameBuffer {
                 rbo,
             );
 
+            let default_fbo = self.default_fbo.clone();
+
             if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                gl::BindFramebuffer(gl::FRAMEBUFFER, default_fbo as gl::types::GLuint);
-                gl::BindRenderbuffer(gl::RENDERBUFFER, default_rbo as gl::types::GLuint);
-                ctx.delete_image(image)?;
+                gl::BindFramebuffer(gl::FRAMEBUFFER, default_fbo.fbo as gl::types::GLuint);
+                gl::BindRenderbuffer(gl::RENDERBUFFER, default_fbo.rbo as gl::types::GLuint);
+
                 gl::DeleteFramebuffers(1, &mut fbo);
                 gl::DeleteRenderbuffers(1, &mut rbo);
                 return Err(anyhow!("Failed to create framebuffer"));
             }
 
-            gl::BindFramebuffer(gl::FRAMEBUFFER, default_fbo as gl::types::GLuint);
-            gl::BindRenderbuffer(gl::RENDERBUFFER, default_rbo as gl::types::GLuint);
-            return Ok(Self {
-                default_fbo,
+            gl::BindFramebuffer(gl::FRAMEBUFFER, default_fbo.fbo as gl::types::GLuint);
+            gl::BindRenderbuffer(gl::RENDERBUFFER, default_fbo.rbo as gl::types::GLuint);
+            return Ok(Self::FB {
                 fbo,
                 rbo,
-                texture,
                 image,
                 width: width as u32,
                 height: height as u32,
@@ -90,31 +86,25 @@ impl FrameBuffer {
         }
     }
 
-    pub fn size(&self) -> Extent {
-        Extent {
-            width: self.width as f32,
-            height: self.height as f32,
+    fn delete_fb(&mut self, mut fb: Self::FB) -> anyhow::Result<()> {
+        unsafe {
+            gl::DeleteFramebuffers(1, &mut fb.fbo);
+            gl::DeleteRenderbuffers(1, &mut fb.rbo);
         }
+        return Ok(());
     }
 
-    pub fn bind(&self) {
+    fn bind(&mut self, fb: &Self::FB) -> anyhow::Result<()> {
         unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, self.fbo);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, fb.fbo);
         }
+        Ok(())
     }
 
-    pub fn unbind(&self) {
+    fn unbind(&mut self) -> anyhow::Result<()> {
         unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, self.default_fbo as gl::types::GLuint);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, self.default_fbo.fbo as gl::types::GLuint);
         }
-    }
-
-    pub fn delete(&mut self, ctx: &mut Context<Renderer>) -> anyhow::Result<()> {
-        unsafe {
-            gl::DeleteFramebuffers(1, &mut self.fbo);
-            gl::DeleteRenderbuffers(1, &mut self.rbo);
-        }
-        ctx.delete_image(self.image)?;
         Ok(())
     }
 }
