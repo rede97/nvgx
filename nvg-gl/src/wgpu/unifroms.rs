@@ -72,7 +72,7 @@ impl RenderCommand {
         let mut invxform = Transform::default();
 
         if let Some(img) = paint.image {
-            if let Some(texture) = render.texture_manager.textures.get(img) {
+            if let Some(texture) = render.resources.texture_manager.textures.get(img) {
                 if texture.image_flags.contains(ImageFlags::FLIPY) {
                     let m1 = Transform::translate(0.0, frag.extent[1] * 0.5) * paint.xform;
                     let m2 = Transform::scale(1.0, -1.0) * m1;

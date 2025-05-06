@@ -1,41 +1,51 @@
-use nvg::{Context, Extent, ImageFlags, ImageId};
-use wgpu::Extent3d;
+use nvg::{Extent, FrameBufferDevice, ImageId, RenderFrameBufferDevice};
 
-use super::Renderer;
+use super::{texture::StencilTexture, Renderer};
 
 pub struct FrameBuffer {
+    stencil: StencilTexture,
     image: ImageId,
-    size: Extent3d,
+    width: u32,
+    height: u32,
 }
 
-#[allow(unused)]
-impl FrameBuffer {
-    pub fn new(
-        ctx: &mut Context<Renderer>,
-        width: u32,
-        height: u32,
-        flags: ImageFlags,
-    ) -> anyhow::Result<Self> {
-        let mut fbo = 0;
-        let mut rbo = 0;
-        let image: ImageId = ctx.create_image_rgba(
-            width,
-            height,
-            flags | ImageFlags::FLIPY | ImageFlags::PREMULTIPLIED,
-            None,
-        )?;
-        let texture = ctx.renderer().texture_manager.get(image).unwrap();
-        let size = texture.texture.size();
-
-        return Ok(Self { image, size });
+impl FrameBufferDevice for FrameBuffer {
+    fn image(&self) -> ImageId {
+        return self.image;
     }
 
-    pub fn size(&self) -> Extent {
+    fn size(&self) -> Extent {
         Extent {
-            width: self.size.width as f32,
-            height: self.size.height as f32,
+            width: self.width as f32,
+            height: self.height as f32,
         }
     }
+}
 
-    
+impl RenderFrameBufferDevice for Renderer {
+    type FB = FrameBuffer;
+
+    fn create_fb(&mut self, width: u32, height: u32, image: ImageId) -> anyhow::Result<Self::FB> {
+        let stencil = StencilTexture::new(&self.device, width, height);
+        Ok(FrameBuffer {
+            stencil,
+            image,
+            width,
+            height,
+        })
+    }
+
+    fn delete_fb(&mut self, _fb: Self::FB) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn bind(&mut self, fb: &Self::FB) -> anyhow::Result<()> {
+        self.target_fb = Some((fb.image(), fb.stencil.view.clone()));
+        Ok(())
+    }
+
+    fn unbind(&mut self) -> anyhow::Result<()> {
+        self.target_fb = None;
+        Ok(())
+    }
 }

@@ -2,7 +2,7 @@ use super::Renderer;
 use nvg::{Extent, FrameBufferDevice, ImageId, RenderFrameBufferDevice};
 
 #[allow(unused)]
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone)]
 pub struct FrameBuffer {
     fbo: gl::types::GLuint,
     rbo: gl::types::GLuint,

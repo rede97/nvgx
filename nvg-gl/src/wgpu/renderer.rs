@@ -7,9 +7,9 @@ use crate::wgpu::{
     unifroms::{RenderCommand, ShaderType},
 };
 
-use super::{call::CallType, pipeline::PipelineUsage, Renderer};
+use super::{call::CallType, Renderer};
 
-impl nvg::Renderer for Renderer {
+impl nvg::RendererDevice for Renderer {
     fn edge_antialias(&self) -> bool {
         return self.config.antialias;
     }
@@ -18,7 +18,8 @@ impl nvg::Renderer for Renderer {
         self.surface_config.width = _width;
         self.surface_config.height = _height;
         self.surface.configure(&self.device, &self.surface_config);
-        self.texture_manager
+        self.resources
+            .texture_manager
             .configure_stencil(&self.device, &self.surface_config);
         Ok(())
     }
@@ -31,7 +32,7 @@ impl nvg::Renderer for Renderer {
         flags: nvg::ImageFlags,
         data: Option<&[u8]>,
     ) -> anyhow::Result<nvg::ImageId> {
-        Ok(self.texture_manager.create(
+        Ok(self.resources.texture_manager.create(
             &self.device,
             &self.queue,
             wgpu::Extent3d {
@@ -46,7 +47,7 @@ impl nvg::Renderer for Renderer {
     }
 
     fn delete_texture(&mut self, img: nvg::ImageId) -> anyhow::Result<()> {
-        self.texture_manager.remove(img as usize);
+        self.resources.texture_manager.remove(img as usize);
         Ok(())
     }
 
@@ -60,6 +61,7 @@ impl nvg::Renderer for Renderer {
         data: &[u8],
     ) -> anyhow::Result<()> {
         let texture = self
+            .resources
             .texture_manager
             .get_mut(img as usize)
             .ok_or_else(|| anyhow::anyhow!("Texture not found"))?;
@@ -78,6 +80,7 @@ impl nvg::Renderer for Renderer {
 
     fn texture_size(&self, img: nvg::ImageId) -> anyhow::Result<(u32, u32)> {
         let texture = self
+            .resources
             .texture_manager
             .get(img as usize)
             .ok_or_else(|| anyhow::anyhow!("Texture not found"))?;
@@ -86,113 +89,52 @@ impl nvg::Renderer for Renderer {
     }
 
     fn viewport(&mut self, extent: nvg::Extent, _device_pixel_ratio: f32) -> anyhow::Result<()> {
-        self.viewsize_uniform.value = extent;
+        self.resources.viewsize_uniform.value = extent;
         Ok(())
     }
 
     #[inline]
     fn cancel(&mut self) -> anyhow::Result<()> {
-        self.calls.clear();
-        self.paths.clear();
-        self.mesh.clear();
-        self.render_unifrom.value.clear();
+        self.resources.calls.clear();
+        self.resources.paths.clear();
+        self.resources.mesh.clear();
+        self.resources.render_unifrom.value.clear();
         Ok(())
     }
 
     fn flush(&mut self) -> anyhow::Result<()> {
-        self.mesh.update_buffer(&self.device, &self.queue);
-        self.viewsize_uniform
+        self.resources.mesh.update_buffer(&self.device, &self.queue);
+        self.resources
+            .viewsize_uniform
             .update_buffer(&self.device, &self.queue);
-        self.render_unifrom.update_buffer(&self.device, &self.queue);
+        self.resources
+            .render_unifrom
+            .update_buffer(&self.device, &self.queue);
 
-        let output = self.surface.get_current_texture().unwrap();
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Nvg Flush Render Encoder"),
-            });
+        if let Some((image, stencil_view)) = self.target_fb.as_ref() {
+            let texture = self.resources.texture_manager.get(*image).unwrap();
+            self.resources.render(
+                &self.device,
+                &self.queue,
+                &texture.view,
+                &stencil_view,
+                &mut self.pipeline_manager,
+            );
+        } else {
+            let output = self.surface.get_current_texture().unwrap();
+            let view = output
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("NVG Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: if let Some(color) = self.clear_cmd {
-                            wgpu::LoadOp::Clear(color)
-                        } else {
-                            wgpu::LoadOp::Load
-                        },
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.texture_manager.stencil_view(),
-                    stencil_ops: Some(wgpu::Operations {
-                        load: if self.clear_cmd.is_some() {
-                            wgpu::LoadOp::Clear(0)
-                        } else {
-                            wgpu::LoadOp::Load
-                        },
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    depth_ops: None,
-                }),
-                ..Default::default()
-            });
-            for call in &self.calls {
-                match call.call_type {
-                    CallType::Fill(t) => {
-                        self.pipeline_manager
-                            .update_pipeline(&self.device, PipelineUsage::FillStencil(t));
-                        self.pipeline_manager.update_pipeline(
-                            &self.device,
-                            PipelineUsage::FillStroke(call.blend_func.clone()),
-                        );
-                        self.pipeline_manager.update_pipeline(
-                            &self.device,
-                            PipelineUsage::FillInner(call.blend_func),
-                        );
-                        self.do_fill(call, &mut render_pass);
-                    }
-                    CallType::ConvexFill => {
-                        self.pipeline_manager.update_pipeline(
-                            &self.device,
-                            PipelineUsage::FillConvex(call.blend_func.clone()),
-                        );
-                        self.pipeline_manager.update_pipeline(
-                            &self.device,
-                            PipelineUsage::FillStroke(call.blend_func),
-                        );
-                        self.do_convex_fill(call, &mut render_pass);
-                    }
-                    CallType::Stroke => {
-                        self.pipeline_manager.update_pipeline(
-                            &self.device,
-                            PipelineUsage::FillStroke(call.blend_func),
-                        );
-                        self.do_stroke(call, &mut render_pass);
-                    }
-                    CallType::Triangles => {
-                        self.pipeline_manager.update_pipeline(
-                            &self.device,
-                            PipelineUsage::Triangles(call.blend_func),
-                        );
-                        self.do_triangles(call, &mut render_pass);
-                    }
-                    _ => {
-                        println!("call: {:?}, todo", call.call_type);
-                    }
-                }
-            }
-        }
-        self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
+            self.resources.render(
+                &self.device,
+                &self.queue,
+                &view,
+                self.resources.texture_manager.stencil_view(),
+                &mut self.pipeline_manager,
+            );
+            output.present();
+        };
         return self.cancel();
     }
 
@@ -206,15 +148,15 @@ impl nvg::Renderer for Renderer {
         bounds: nvg::Bounds,
         paths: &[nvg::PathInfo],
     ) -> anyhow::Result<()> {
-        let path_offset = self.paths.len();
-        let mut offset = self.mesh.vertices.len();
+        let path_offset = self.resources.paths.len();
+        let mut offset = self.resources.mesh.vertices.len();
         for path in paths {
             let fill = path.get_fill();
             let mut wgpu_path = GpuPath::default();
             if !fill.is_empty() {
                 wgpu_path.fill_offset = offset;
                 wgpu_path.fill_count = fill.len();
-                self.mesh.vertices.extend(fill);
+                self.resources.mesh.vertices.extend(fill);
                 offset += fill.len()
             }
 
@@ -222,10 +164,10 @@ impl nvg::Renderer for Renderer {
             if !stroke.is_empty() {
                 wgpu_path.stroke_offset = offset;
                 wgpu_path.stroke_count = stroke.len();
-                self.mesh.vertices.extend(stroke);
+                self.resources.mesh.vertices.extend(stroke);
                 offset += stroke.len();
             }
-            self.paths.push(wgpu_path);
+            self.resources.paths.push(wgpu_path);
         }
 
         let call = Call {
@@ -239,33 +181,33 @@ impl nvg::Renderer for Renderer {
             path_count: paths.len(),
             triangle_offset: offset,
             triangle_count: 4,
-            uniform_offset: self.render_unifrom.offset(),
+            uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
             #[cfg(feature = "wireframe")]
             wireframe: false,
         };
 
         if let CallType::Fill(_) = call.call_type {
-            self.mesh.vertices.extend([
+            self.resources.mesh.vertices.extend([
                 Vertex::new(bounds.max.x, bounds.max.y, 0.5, 1.0),
                 Vertex::new(bounds.max.x, bounds.min.y, 0.5, 1.0),
                 Vertex::new(bounds.min.x, bounds.max.y, 0.5, 1.0),
                 Vertex::new(bounds.min.x, bounds.min.y, 0.5, 1.0),
             ]);
-            self.render_unifrom.value.push(RenderCommand {
+            self.resources.render_unifrom.value.push(RenderCommand {
                 stroke_thr: -1.0,
                 render_type: ShaderType::Simple as u32,
                 ..Default::default()
             });
-            self.render_unifrom.value.push(RenderCommand::new(
+            self.resources.render_unifrom.value.push(RenderCommand::new(
                 &self, paint, scissor, fringe, fringe, -1.0,
             ));
         } else {
-            self.render_unifrom.value.push(RenderCommand::new(
+            self.resources.render_unifrom.value.push(RenderCommand::new(
                 &self, paint, scissor, fringe, fringe, -1.0,
             ));
         }
-        self.calls.push(call);
+        self.resources.calls.push(call);
         Ok(())
     }
 
@@ -281,14 +223,14 @@ impl nvg::Renderer for Renderer {
         let call = Call {
             call_type: CallType::Stroke,
             image: paint.image,
-            path_offset: self.paths.len(),
+            path_offset: self.resources.paths.len(),
             path_count: paths.len(),
-            uniform_offset: self.render_unifrom.offset(),
+            uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
             ..Default::default()
         };
 
-        let mut offset = self.mesh.vertices.len();
+        let mut offset = self.resources.mesh.vertices.len();
         for path in paths {
             let mut gl_path = GpuPath {
                 fill_offset: 0,
@@ -301,12 +243,12 @@ impl nvg::Renderer for Renderer {
             if !stroke.is_empty() {
                 gl_path.stroke_offset = offset;
                 gl_path.stroke_count = stroke.len();
-                self.mesh.vertices.extend(stroke);
+                self.resources.mesh.vertices.extend(stroke);
                 offset += stroke.len();
-                self.paths.push(gl_path);
+                self.resources.paths.push(gl_path);
             }
         }
-        self.render_unifrom.value.push(RenderCommand::new(
+        self.resources.render_unifrom.value.push(RenderCommand::new(
             &self,
             paint,
             scissor,
@@ -314,7 +256,7 @@ impl nvg::Renderer for Renderer {
             fringe,
             -1.0,
         ));
-        self.calls.push(call);
+        self.resources.calls.push(call);
         Ok(())
     }
 
@@ -328,17 +270,17 @@ impl nvg::Renderer for Renderer {
         let call = Call {
             call_type: CallType::Triangles,
             image: paint.image,
-            triangle_offset: self.mesh.vertices.len(),
+            triangle_offset: self.resources.mesh.vertices.len(),
             triangle_count: vertexes.len(),
-            uniform_offset: self.render_unifrom.offset(),
+            uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
             ..Default::default()
         };
 
-        self.calls.push(call);
-        self.mesh.vertices.extend(vertexes);
+        self.resources.calls.push(call);
+        self.resources.mesh.vertices.extend(vertexes);
 
-        self.render_unifrom.value.push(
+        self.resources.render_unifrom.value.push(
             RenderCommand::new(&self, paint, scissor, 1.0, 1.0, -1.0).set_type(ShaderType::Image),
         );
         Ok(())
@@ -346,7 +288,7 @@ impl nvg::Renderer for Renderer {
 
     fn clear(&mut self, color: nvg::Color) -> anyhow::Result<()> {
         self.cancel()?;
-        self.clear_cmd = Some(wgpu::Color {
+        self.resources.clear_cmd = Some(wgpu::Color {
             r: color.r as f64,
             g: color.g as f64,
             b: color.b as f64,

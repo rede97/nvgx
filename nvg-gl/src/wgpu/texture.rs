@@ -2,16 +2,16 @@ use nvg::{ImageFlags, TextureType};
 use slab::Slab;
 
 #[allow(unused)]
-struct StencilTexture {
-    texture: wgpu::Texture,
-    view: wgpu::TextureView,
+pub struct StencilTexture {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
 }
 
 impl StencilTexture {
-    fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Self {
+    pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
         let size = wgpu::Extent3d {
-            width: config.width,
-            height: config.height,
+            width,
+            height,
             depth_or_array_layers: 1,
         };
 
@@ -74,7 +74,9 @@ impl Texture {
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
                     format: wgpu::TextureFormat::Rgba8Unorm,
-                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING
+                        | wgpu::TextureUsages::COPY_DST
+                        | wgpu::TextureUsages::RENDER_ATTACHMENT,
                     view_formats: &[],
                 })
             }
@@ -230,7 +232,11 @@ impl TextureManager {
         let place_holder_texture = Texture::placeholder_texture(&device, &layout);
 
         return Self {
-            stencil_texture: StencilTexture::new(device, surface_config),
+            stencil_texture: StencilTexture::new(
+                device,
+                surface_config.width,
+                surface_config.height,
+            ),
             textures: Slab::new(),
             place_holder_texture,
             layout,
@@ -243,7 +249,8 @@ impl TextureManager {
         device: &wgpu::Device,
         surface_config: &wgpu::SurfaceConfiguration,
     ) {
-        self.stencil_texture = StencilTexture::new(device, surface_config);
+        self.stencil_texture =
+            StencilTexture::new(device, surface_config.width, surface_config.height);
     }
 
     #[inline]
