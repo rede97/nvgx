@@ -52,6 +52,7 @@ pub trait RendererDevice {
 
     fn flush(&mut self) -> anyhow::Result<()>;
 
+    
     fn fill(
         &mut self,
         paint: &PaintPattern,
@@ -82,9 +83,6 @@ pub trait RendererDevice {
     ) -> anyhow::Result<()>;
 
     fn clear(&mut self, color: Color) -> anyhow::Result<()>;
-
-    #[cfg(feature = "wireframe")]
-    fn wireframe(&mut self, _enable: bool) -> anyhow::Result<()>;
 
     #[cfg(feature = "wirelines")]
     fn wirelines(

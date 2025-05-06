@@ -135,8 +135,6 @@ struct Call {
     triangle_count: usize,
     uniform_offset: usize,
     blend_func: Blend,
-    #[cfg(feature = "wireframe")]
-    wireframe: bool,
 }
 
 struct Texture {
@@ -198,8 +196,6 @@ pub struct Renderer {
     uniforms: Vec<u8>,
     config: RenderConfig,
     default_fbo: DefaultFBO,
-    #[cfg(feature = "wireframe")]
-    wireframe: bool,
 }
 
 impl Drop for Renderer {
@@ -257,8 +253,6 @@ impl Renderer {
                     fbo: default_fbo,
                     rbo: default_rbo,
                 },
-                #[cfg(feature = "wireframe")]
-                wireframe: false,
             })
         }
     }
@@ -390,51 +384,6 @@ impl Renderer {
                 path.stroke_offset as i32,
                 path.stroke_count as i32,
             );
-        }
-    }
-
-    #[cfg(feature = "wireframe")]
-    #[inline]
-    unsafe fn do_wireframe(&self, call: &Call) {
-        match call.call_type {
-            CallType::Fill(_) => {
-                self.set_uniforms(call.uniform_offset + 1, call.image);
-                gl::Disable(gl::CULL_FACE);
-                let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
-                for path in paths {
-                    gl::DrawArrays(
-                        gl::TRIANGLE_FAN,
-                        path.fill_offset as i32,
-                        path.fill_count as i32,
-                    );
-                }
-                gl::Enable(gl::CULL_FACE);
-            }
-            CallType::ConvexFill => {
-                let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
-                self.set_uniforms(call.uniform_offset, call.image);
-                for path in paths {
-                    gl::DrawArrays(
-                        gl::TRIANGLE_FAN,
-                        path.fill_offset as i32,
-                        path.fill_count as i32,
-                    );
-                }
-            }
-            CallType::Stroke => {
-                let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
-                self.set_uniforms(call.uniform_offset, call.image);
-                for path in paths {
-                    gl::DrawArrays(
-                        gl::TRIANGLE_STRIP,
-                        path.stroke_offset as i32,
-                        path.stroke_count as i32,
-                    );
-                }
-            }
-            CallType::Triangles => self.do_triangles(call),
-            #[cfg(feature = "wirelines")]
-            CallType::Lines => self.do_lines(call),
         }
     }
 

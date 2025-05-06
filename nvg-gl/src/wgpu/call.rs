@@ -23,8 +23,6 @@ pub(crate) struct Call {
     pub triangle_count: usize,
     pub uniform_offset: usize,
     pub blend_func: CompositeOperationState,
-    #[cfg(feature = "wireframe")]
-    pub wireframe: bool,
 }
 
 impl Default for Call {
@@ -38,8 +36,6 @@ impl Default for Call {
             triangle_count: 0,
             uniform_offset: 0,
             blend_func: CompositeOperationState::default(),
-            #[cfg(feature = "wireframe")]
-            wireframe: false,
         }
     }
 }

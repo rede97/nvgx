@@ -8,7 +8,6 @@
 - [x] 修复Cutout DEMO的错误显示问题(绘制字体时错误的ctx状态切换)
 - [x] 支持常规的winding模式和奇偶模式
 - [x] 支持Framebuffer(OpenGL Mode)
-- [x] 支持wireframe(PolygonMode为LINE)的`wireframe`features(用于调试)
 - [x] 原生单像素方式(OpenGL LINE_STRIP)的`wirelines`features，低开销占用或者CAD场景使用
 - [x] 支持独立的Path对象，不是每次都重新将绘图命令进行路径细分，降低CPU占用
 - [x] 修复arc_to的bug

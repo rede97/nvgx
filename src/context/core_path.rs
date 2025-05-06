@@ -149,11 +149,6 @@ impl<R: RendererDevice> Context<R> {
         return self.renderer.clear(color);
     }
 
-    #[cfg(feature = "wireframe")]
-    pub fn wireframe(&mut self, enable: bool) -> anyhow::Result<()> {
-        return self.renderer.wireframe(enable);
-    }
-
     #[cfg(feature = "wirelines")]
     #[inline]
     fn wirelines_path(

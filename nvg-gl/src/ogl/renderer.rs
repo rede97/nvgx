@@ -6,10 +6,6 @@ use nvg::*;
 
 impl nvg::RendererDevice for Renderer {
     fn edge_antialias(&self) -> bool {
-        #[cfg(feature = "wireframe")]
-        if self.wireframe {
-            return false;
-        }
         self.config.antialias
     }
 
@@ -273,17 +269,6 @@ impl nvg::RendererDevice for Renderer {
                         blend.dst_alpha,
                     );
 
-                    #[cfg(feature = "wireframe")]
-                    {
-                        if call.wireframe {
-                            gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
-                            self.do_wireframe(&call);
-                            continue;
-                        } else {
-                            gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
-                        }
-                    }
-
                     match call.call_type {
                         CallType::Fill(ft) => self.do_fill(&call, ft),
                         CallType::ConvexFill => self.do_convex_fill(&call),
@@ -330,8 +315,6 @@ impl nvg::RendererDevice for Renderer {
             triangle_count: 4,
             uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
-            #[cfg(feature = "wireframe")]
-            wireframe: self.wireframe,
         };
 
         if paths.len() == 1 && paths[0].convex {
@@ -409,8 +392,6 @@ impl nvg::RendererDevice for Renderer {
             triangle_count: 0,
             uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
-            #[cfg(feature = "wireframe")]
-            wireframe: self.wireframe,
         };
 
         let mut offset = self.vertexes.len();
@@ -453,8 +434,6 @@ impl nvg::RendererDevice for Renderer {
             triangle_count: vertexes.len(),
             uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
-            #[cfg(feature = "wireframe")]
-            wireframe: self.wireframe,
         };
 
         self.calls.push(call);
@@ -483,8 +462,6 @@ impl nvg::RendererDevice for Renderer {
             triangle_count: 0,
             uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
-            #[cfg(feature = "wireframe")]
-            wireframe: self.wireframe,
         };
 
         let mut offset = self.vertexes.len();
@@ -515,12 +492,6 @@ impl nvg::RendererDevice for Renderer {
             gl::ClearColor(clear_color.r, clear_color.g, clear_color.b, clear_color.a);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
         }
-        Ok(())
-    }
-
-    #[cfg(feature = "wireframe")]
-    fn wireframe(&mut self, enable: bool) -> anyhow::Result<()> {
-        self.wireframe = enable;
         Ok(())
     }
 }

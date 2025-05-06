@@ -23,7 +23,6 @@ bytemuck = {version = "1.23.0", features = ["derive"]}
 
 [features]
 default = []
-wireframe = []
 wirelines = []
 
 [workspace]

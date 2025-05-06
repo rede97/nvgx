@@ -183,8 +183,6 @@ impl nvg::RendererDevice for Renderer {
             triangle_count: 4,
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            #[cfg(feature = "wireframe")]
-            wireframe: false,
         };
 
         if let CallType::Fill(_) = call.call_type {
@@ -294,10 +292,6 @@ impl nvg::RendererDevice for Renderer {
             b: color.b as f64,
             a: color.a as f64,
         });
-        Ok(())
-    }
-
-    fn wireframe(&mut self, _enable: bool) -> anyhow::Result<()> {
         Ok(())
     }
 

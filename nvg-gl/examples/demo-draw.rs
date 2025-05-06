@@ -10,7 +10,6 @@ struct DemoDraw {
     start_time: Instant,
     close: bool,
     wirelines: bool,
-    wireframe: bool,
     fill: bool,
 }
 
@@ -22,12 +21,10 @@ impl DemoDraw {
         ctx: &mut Context<R>,
     ) -> Result<(), Error> {
         ctx.text_align(nvg::Align::LEFT);
-        ctx.text((10, 60), "key W: wireframe")?;
         ctx.text((10, 70), "key L: wirelines")?;
         ctx.text((10, 80), "key C: close path")?;
         ctx.text((10, 90), "key F: Fill path")?;
 
-        ctx.wireframe(self.wireframe)?;
         ctx.global_composite_operation(CompositeOperation::Basic(BasicCompositeOperation::SrcOver));
         ctx.reset_transform();
         ctx.translate(_width / 2.0, 0.0);
@@ -59,7 +56,6 @@ impl DemoDraw {
             }
         }
 
-        ctx.wireframe(false)?;
         Ok(())
     }
 }
@@ -152,11 +148,6 @@ impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
                     self.close = !self.close;
                 }
             }
-            winit::keyboard::KeyCode::KeyW => {
-                if state == winit::event::ElementState::Pressed {
-                    self.wireframe = !self.wireframe;
-                }
-            }
             winit::keyboard::KeyCode::KeyL => {
                 if state == winit::event::ElementState::Pressed {
                     self.wirelines = !self.wirelines;
@@ -178,7 +169,6 @@ fn main() {
             img: None,
             start_time: Instant::now(),
             close: false,
-            wireframe: false,
             wirelines: false,
             fill: false,
         },

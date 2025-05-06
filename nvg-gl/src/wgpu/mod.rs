@@ -1,10 +1,8 @@
-use std::cell::RefCell;
-
 use call::{Call, CallType, GpuPath};
 use mesh::Mesh;
 use nvg::*;
 use pipeline::{PipelineManager, PipelineUsage};
-use texture::{StencilTexture, TextureManager};
+use texture::TextureManager;
 use unifroms::{RenderCommand, Unifrom};
 use wgpu::TextureView;
 
@@ -283,6 +281,7 @@ pub struct Renderer {
     pipeline_manager: PipelineManager,
     target_fb: Option<(ImageId, TextureView)>,
     resources: RenderResource,
+    
 }
 
 impl Renderer {
