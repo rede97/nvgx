@@ -1,5 +1,5 @@
 use super::Renderer;
-use nvg::{Extent, FrameBufferDevice, ImageId, RenderFramebuffer, RendererDevice};
+use nvg::{Extent, FrameBufferDevice, ImageId, RenderFrameBufferDevice};
 
 #[allow(unused)]
 #[derive(Debug, Copy, Clone, Default)]
@@ -24,7 +24,7 @@ impl FrameBufferDevice for FrameBuffer {
     }
 }
 
-impl RenderFramebuffer for Renderer {
+impl RenderFrameBufferDevice for Renderer {
     type FB = FrameBuffer;
 
     fn create_fb(&mut self, width: u32, height: u32, image: ImageId) -> anyhow::Result<Self::FB> {

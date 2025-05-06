@@ -27,15 +27,16 @@ impl Default for DemoCutout {
 impl DemoCutout {
     pub fn render_fb(&mut self, ctx: &mut Context<Renderer>) -> Result<(), Error> {
         let dt = Instant::now().duration_since(self.start_time).as_secs_f32();
-        ctx.bind(self.fb);
-        ctx.begin_frame((self.fb.width, self.fb.height), self.scale_factor)?;
-        ctx.clear(Color::gray(0.2))?;
-        ctx.begin_path();
-        ctx.circle((50, 50), 40.0 + 10.0 * f32::sin(dt));
-        ctx.fill_paint(nvg::Color::rgb(0.5, 0.4, 0.8));
-        ctx.fill()?;
-        ctx.end_frame()?;
-        self.fb.unbind();
+        let mut fb_ctx = ctx.bind(&self.fb)?;
+        {
+            fb_ctx.begin_frame(self.fb.size(), self.scale_factor)?;
+            fb_ctx.clear(Color::gray(0.2))?;
+            fb_ctx.begin_path();
+            fb_ctx.circle((50, 50), 40.0 + 10.0 * f32::sin(dt));
+            fb_ctx.fill_paint(nvg::Color::rgb(0.5, 0.4, 0.8));
+            fb_ctx.fill()?;
+            fb_ctx.end_frame()?;
+        }
         Ok(())
     }
 }

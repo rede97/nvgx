@@ -1,8 +1,47 @@
-use crate::{FrameBufferDevice, RenderFramebuffer};
+use std::{
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+};
+
+use crate::{FrameBufferDevice, RenderFrameBufferDevice};
 
 use super::{Context, ImageFlags};
 
-impl<R: RenderFramebuffer> Context<R> {
+pub struct FrameBufferContext<'a, 'b, R: RenderFrameBufferDevice> {
+    context: &'a mut Context<R>,
+    _fb_marker: std::marker::PhantomData<&'b R::FB>,
+}
+
+impl<'a, 'b, R: RenderFrameBufferDevice> FrameBufferContext<'a, 'b, R> {
+    fn new(context: &'a mut Context<R>, fb: &'b R::FB) -> anyhow::Result<Self> {
+        context.renderer.bind(fb)?;
+        return Ok(FrameBufferContext {
+            context,
+            _fb_marker: PhantomData::default(),
+        });
+    }
+}
+
+impl<'a, 'b, R: RenderFrameBufferDevice> Drop for FrameBufferContext<'a, 'b, R> {
+    fn drop(&mut self) {
+        self.context.renderer.unbind().unwrap();
+    }
+}
+
+impl<'a, 'b, R: RenderFrameBufferDevice> Deref for FrameBufferContext<'a, 'b, R> {
+    type Target = Context<R>;
+    fn deref(&self) -> &Self::Target {
+        return self.context;
+    }
+}
+
+impl<'a, 'b, R: RenderFrameBufferDevice> DerefMut for FrameBufferContext<'a, 'b, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        return self.context;
+    }
+}
+
+impl<R: RenderFrameBufferDevice> Context<R> {
     #[inline]
     pub fn create_fb(
         &mut self,
@@ -36,12 +75,10 @@ impl<R: RenderFramebuffer> Context<R> {
     }
 
     #[inline]
-    pub fn bind(&self, fb: &R::FB) -> anyhow::Result<()> {
-        return self.renderer.bind(fb);
-    }
-
-    #[inline]
-    pub fn unbind(&self) -> anyhow::Result<()> {
-        return self.renderer.unbind();
+    pub fn bind<'a, 'b>(
+        &'a mut self,
+        fb: &'b R::FB,
+    ) -> anyhow::Result<FrameBufferContext<'a, 'b, R>> {
+        return FrameBufferContext::new(self, fb);
     }
 }
