@@ -15,7 +15,7 @@ impl PipelineUsage {
     fn fragment_target(&self) -> wgpu::ColorTargetState {
         match self {
             PipelineUsage::FillStencil(_) => wgpu::ColorTargetState {
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                format: wgpu::TextureFormat::Rgba8Unorm,
                 blend: None,
                 write_mask: wgpu::ColorWrites::empty(),
             },
@@ -23,7 +23,7 @@ impl PipelineUsage {
             | PipelineUsage::FillInner(blend)
             | PipelineUsage::FillConvex(blend)
             | PipelineUsage::Triangles(blend) => wgpu::ColorTargetState {
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                format: wgpu::TextureFormat::Rgba8Unorm,
                 blend: Some(blend.to_wgpu_blend_state()),
                 write_mask: wgpu::ColorWrites::ALL,
             },

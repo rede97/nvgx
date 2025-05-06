@@ -275,7 +275,7 @@ impl<R: Renderer> demo::Demo<R> for DemoCutout {
         }
 
         ctx.reset_transform();
-        render_cutout(ctx, (0.0, 0.0), (width, height), self.smoothed_mouse);
+        // render_cutout(ctx, (0.0, 0.0), (width, height), self.smoothed_mouse);
         Ok(())
     }
 
