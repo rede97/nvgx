@@ -1,20 +1,22 @@
 use cache::PathCache;
 
-use crate::{Point, Transform, Vector2D};
+use crate::{BufferId, Point, Transform, Vector2D};
 use core::f32;
-use std::{cell::RefCell, ops::Add};
+use std::{
+    cell::RefCell,
+    ops::{Add, Deref, DerefMut},
+};
 
 use crate::Rect;
 pub(crate) mod cache;
-#[allow(unused)]
-pub(crate) mod effect;
 mod transform;
 
 pub const KAPPA90: f32 = 0.5522847493;
 pub const PI: f32 = std::f32::consts::PI;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
 pub enum PathDir {
+    #[default]
     CCW,
     CW,
 }
@@ -52,7 +54,6 @@ pub(crate) enum Command {
 pub struct Path {
     pub(crate) last_position: Point,
     pub(super) commands: Vec<Command>,
-    pub(crate) cache: RefCell<PathCache>,
     pub(crate) fill_type: PathFillType,
     pub(crate) xform: Transform,
     pub(crate) xforms: Vec<Transform>,
@@ -63,7 +64,6 @@ impl Path {
         return Self {
             last_position: Point { x: 0.0, y: 0.0 },
             commands: Vec::new(),
-            cache: Default::default(),
             fill_type: PathFillType::Winding,
             xform: Transform::identity(),
             xforms: Vec::new(),
@@ -373,8 +373,37 @@ impl Path {
         self.fill_type = fill_type;
     }
 
+    #[inline]
     pub(crate) fn clear(&mut self) {
         self.commands.clear();
-        self.cache.borrow_mut().clear();
+    }
+}
+
+pub struct PathWithCache {
+    pub(crate) path: Path,
+    pub(crate) cache: RefCell<PathCache>,
+    pub(crate) vertex_buffer: BufferId,
+}
+
+impl PathWithCache {
+    pub(crate) fn new(buffer: BufferId) -> Self {
+        return PathWithCache {
+            path: Path::new(),
+            cache: RefCell::new(Default::default()),
+            vertex_buffer: buffer,
+        };
+    }
+}
+
+impl Deref for PathWithCache {
+    type Target = Path;
+    fn deref(&self) -> &Self::Target {
+        return &self.path;
+    }
+}
+
+impl DerefMut for PathWithCache {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        return &mut self.path;
     }
 }

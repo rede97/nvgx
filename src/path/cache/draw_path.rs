@@ -7,6 +7,15 @@ use rawpointer::ptrdistance;
 use std::f32::consts::PI;
 
 impl PathCache {
+    /// clear path and vertexes
+    #[inline]
+    pub fn reset(&mut self) {
+        self.clear();
+        self.vertexes.clear();
+    }
+
+    /// only clear path
+    #[inline]
     pub fn clear(&mut self) {
         self.points.clear();
         self.paths.clear();
@@ -19,14 +28,9 @@ impl PathCache {
             closed: false,
             num_bevel: 0,
             windding: PathDir::CCW,
-            fill: std::ptr::null_mut(),
+            offset: 0,
             num_fill: 0,
-            stroke: std::ptr::null_mut(),
             num_stroke: 0,
-            #[cfg(feature = "wirelines")]
-            lines: std::ptr::null_mut(),
-            #[cfg(feature = "wirelines")]
-            num_lines: 0,
             convex: false,
         });
         self.paths.last_mut().unwrap()
@@ -66,12 +70,16 @@ impl PathCache {
         }
     }
 
-    unsafe fn alloc_temp_vertexes(&mut self, count: usize) -> *mut Vertex {
-        self.vertexes.resize(count, Default::default());
+    unsafe fn alloc_temp_vertexes(&mut self, count: usize) -> (*const Vertex, *mut Vertex) {
+        let offset = self.vertexes.len();
+        self.vertexes.resize(offset + count, Default::default());
         if self.vertexes.is_empty() {
-            return std::ptr::null_mut();
+            return (std::ptr::null(), std::ptr::null_mut());
         }
-        &mut self.vertexes[0] as *mut Vertex
+        (
+            &self.vertexes[0] as *const Vertex,
+            &mut self.vertexes[offset] as *mut Vertex,
+        )
     }
 
     fn tesselate_bezier(
@@ -326,20 +334,17 @@ impl PathCache {
         }
 
         unsafe {
-            let mut vertexes = self.alloc_temp_vertexes(cverts);
+            let (origin, mut vertexes) = self.alloc_temp_vertexes(cverts);
             if vertexes.is_null() {
                 return;
             }
 
             for path in self.paths.iter_mut() {
                 let pts = &mut self.points[path.first] as *mut VPoint;
-
-                path.fill = std::ptr::null_mut();
-                path.num_fill = 0;
-
                 let loop_ = path.closed;
                 let mut dst = vertexes;
-                path.stroke = dst;
+                path.offset = ptrdistance(origin, dst);
+                path.num_fill = 0;
 
                 let (mut p0, mut p1, s, e) = if loop_ {
                     (pts.offset(path.count as isize - 1), pts, 0, path.count)
@@ -509,13 +514,14 @@ impl PathCache {
         line_join: LineJoin,
         miter_limit: f32,
         fringe_width: f32,
-    ) {
+    ) -> Option<usize> {
         let aa = fringe_width;
         let fringe = w > 0.0;
 
         self.calculate_joins(w, line_join, miter_limit);
 
-        let mut cverts = 0;
+        let convex = self.paths.len() == 1 && self.paths[0].convex;
+        let mut cverts = if convex { 0 } else { 4 };
         for path in &self.paths {
             cverts += path.count + path.num_bevel + 1;
             if fringe {
@@ -524,19 +530,17 @@ impl PathCache {
         }
 
         unsafe {
-            let mut vertexes = self.alloc_temp_vertexes(cverts);
+            let (origin, mut vertexes) = self.alloc_temp_vertexes(cverts);
             if vertexes.is_null() {
-                return;
+                return None;
             }
-
-            let convex = self.paths.len() == 1 && self.paths[0].convex;
 
             for path in self.paths.iter_mut() {
                 let pts = &mut self.points[path.first] as *mut VPoint;
                 let woff = 0.5 * aa;
                 let mut dst = vertexes;
 
-                path.fill = dst;
+                path.offset = ptrdistance(origin, dst);
 
                 if fringe {
                     let mut p0 = pts.offset(path.count as isize - 1);
@@ -594,8 +598,6 @@ impl PathCache {
                     let mut lu = 0.0;
                     let ru = 1.0;
                     let mut dst = vertexes;
-                    path.stroke = dst;
-
                     if convex {
                         lw = woff;
                         lu = 0.5;
@@ -651,39 +653,47 @@ impl PathCache {
                     path.num_stroke = ptrdistance(vertexes, dst);
                     vertexes = dst;
                 } else {
-                    path.stroke = std::ptr::null_mut();
                     path.num_stroke = 0;
                 }
             }
+            if !convex {
+                // add bounds to vertexes
+                *vertexes = Vertex::new(self.bounds.max.x, self.bounds.max.y, 0.5, 1.0);
+                *vertexes.add(1) = Vertex::new(self.bounds.max.x, self.bounds.min.y, 0.5, 1.0);
+                *vertexes.add(2) = Vertex::new(self.bounds.min.x, self.bounds.max.y, 0.5, 1.0);
+                *vertexes.add(3) = Vertex::new(self.bounds.min.x, self.bounds.min.y, 0.5, 1.0);
+                return Some(ptrdistance(origin, vertexes));
+            }
+            return None;
         }
     }
 
     #[cfg(feature = "wirelines")]
     pub(crate) fn expand_lines(&mut self) {
-        unsafe {
-            let cverts = self.paths.iter().fold(0, |acc, e| acc + e.count);
-            let mut vertexes = self.alloc_temp_vertexes(cverts);
-            if vertexes.is_null() {
-                return;
-            }
+        //     unsafe {
+        //         let cverts = self.paths.iter().fold(0, |acc, e| acc + e.count);
+        //         let mut vertexes = self.alloc_temp_vertexes(cverts);
+        //         if vertexes.is_null() {
+        //             return;
+        //         }
 
-            for path in self.paths.iter_mut() {
-                let pts = &self.points[path.first..path.first + path.count];
-                let mut dst = vertexes;
-                path.lines = dst;
-                for pt in pts {
-                    *dst = Vertex::new(pt.xy.x, pt.xy.y, 0.5, 1.0);
-                    dst = dst.add(1);
-                }
-                if path.closed {
-                    let v0 = &*vertexes;
-                    *dst = Vertex::new(v0.x, v0.y, 0.5, 1.0);
-                    dst = dst.add(1);
-                }
-                path.num_lines = ptrdistance(vertexes, dst);
-                vertexes = dst;
-            }
-        }
+        //         for path in self.paths.iter_mut() {
+        //             let pts = &self.points[path.first..path.first + path.count];
+        //             let mut dst = vertexes;
+        //             path.lines = dst;
+        //             for pt in pts {
+        //                 *dst = Vertex::new(pt.xy.x, pt.xy.y, 0.5, 1.0);
+        //                 dst = dst.add(1);
+        //             }
+        //             if path.closed {
+        //                 let v0 = &*vertexes;
+        //                 *dst = Vertex::new(v0.x, v0.y, 0.5, 1.0);
+        //                 dst = dst.add(1);
+        //             }
+        //             path.num_lines = ptrdistance(vertexes, dst);
+        //             vertexes = dst;
+        //         }
+        //     }
     }
 }
 

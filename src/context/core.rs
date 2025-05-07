@@ -1,9 +1,8 @@
 use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState};
 use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
-use crate::path::Path;
 use crate::renderer::Scissor;
-use crate::{Extent, Paint, PathFillType, Point, Rect, RendererDevice, Transform};
+use crate::{Extent, Paint, PathFillType, PathWithCache, Point, Rect, RendererDevice, Transform};
 
 #[derive(Clone)]
 pub(super) struct State {
@@ -44,7 +43,7 @@ impl Default for State {
 
 pub struct Context<R: RendererDevice> {
     pub(super) renderer: R,
-    pub(super) path: Path,
+    pub(super) path: PathWithCache,
     pub(super) states: Vec<State>,
     pub(super) tess_tol: f32,
     pub(super) dist_tol: f32,
@@ -62,8 +61,8 @@ impl<R: RendererDevice> Context<R> {
     pub fn create(mut renderer: R) -> anyhow::Result<Context<R>> {
         let fonts = Fonts::new(&mut renderer)?;
         Ok(Context {
+            path: PathWithCache::new(renderer.create_vertex_buffer(10 * 1024)?),
             renderer,
-            path: Path::new(),
             states: vec![Default::default()],
             tess_tol: 0.0,
             dist_tol: 0.0,
@@ -121,7 +120,11 @@ impl<R: RendererDevice> Context<R> {
     }
 
     pub fn end_frame(&mut self) -> anyhow::Result<()> {
+        let mut cache = self.path.cache.borrow_mut();
+        self.renderer
+            .update_vertex_buffer(self.path.vertex_buffer, &cache.vertexes)?;
         self.renderer.flush()?;
+        cache.reset();
         Ok(())
     }
 

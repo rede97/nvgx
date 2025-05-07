@@ -1,4 +1,4 @@
-use crate::{renderer::Scissor, PaintPattern, Path};
+use crate::{renderer::Scissor, PaintPattern, PathWithCache};
 use crate::{Color, LineJoin, Paint};
 use crate::{PaintStyle, PathDir, Point, Rect, RendererDevice};
 
@@ -153,7 +153,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     fn wirelines_path(
         renderer: &mut R,
-        path: &Path,
+        path: &PathWithCache,
         stroke: &PaintPattern,
         dist_tol: f32,
         tess_tol: f32,
@@ -164,7 +164,13 @@ impl<R: RendererDevice> Context<R> {
         cache.flatten_paths(&path.commands, dist_tol, tess_tol);
         cache.expand_lines();
 
-        renderer.wirelines(&stroke, composite_operation, &scissor, &cache.paths)?;
+        renderer.wirelines(
+            path.vertex_buffer,
+            &stroke,
+            composite_operation,
+            &scissor,
+            &cache.paths,
+        )?;
 
         let mut draw_call_count = 0;
         for _path in &cache.paths {
@@ -192,7 +198,7 @@ impl<R: RendererDevice> Context<R> {
     #[cfg(feature = "wirelines")]
     pub fn draw_wirelines_path(
         &mut self,
-        path: &Path,
+        path: &PathWithCache,
         stroke: &PaintPattern,
     ) -> anyhow::Result<()> {
         let state = self.states.last().unwrap();
@@ -212,7 +218,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     fn stroke_path(
         renderer: &mut R,
-        path: &Path,
+        path: &PathWithCache,
         paint: &Paint,
         average_scale: f32,
         device_pixel_ratio: f32,
@@ -259,6 +265,7 @@ impl<R: RendererDevice> Context<R> {
         }
 
         renderer.stroke(
+            path.vertex_buffer,
             &stroke_paint,
             composite_operation,
             &scissor,
@@ -279,7 +286,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     fn fill_path(
         renderer: &mut R,
-        path: &Path,
+        path: &PathWithCache,
         paint: &Paint,
         dist_tol: f32,
         tess_tol: f32,
@@ -291,22 +298,23 @@ impl<R: RendererDevice> Context<R> {
         let mut cache = path.cache.borrow_mut();
 
         cache.flatten_paths(&path.commands, dist_tol, tess_tol);
-        if paint.antialias && paint.antialias {
-            cache.expand_fill(fringe_width, LineJoin::Miter, 2.4, fringe_width);
+        let bounds_offset = if paint.antialias && paint.antialias {
+            cache.expand_fill(fringe_width, LineJoin::Miter, 2.4, fringe_width)
         } else {
-            cache.expand_fill(0.0, LineJoin::Miter, 2.4, fringe_width);
-        }
+            cache.expand_fill(0.0, LineJoin::Miter, 2.4, fringe_width)
+        };
 
         fill_paint.inner_color.a *= paint.alpha;
         fill_paint.outer_color.a *= paint.alpha;
 
         renderer.fill(
+            path.vertex_buffer,
             &fill_paint,
             composite_operation,
             path.fill_type,
             &scissor,
             fringe_width,
-            cache.bounds,
+            bounds_offset,
             &cache.paths,
         )?;
 
@@ -325,7 +333,7 @@ impl<R: RendererDevice> Context<R> {
         Ok((draw_call_count, fill_triangles_count))
     }
 
-    pub fn draw_path(&mut self, path: &Path, paint: &Paint) -> anyhow::Result<()> {
+    pub fn draw_path(&mut self, path: &PathWithCache, paint: &Paint) -> anyhow::Result<()> {
         let state = self.states.last().unwrap();
         match paint.style {
             PaintStyle::Stroke => {
@@ -387,6 +395,8 @@ impl<R: RendererDevice> Context<R> {
                 self.fill_triangles_count += fill_triangles_count;
             }
         };
+        self.renderer
+            .update_vertex_buffer(path.vertex_buffer, &path.cache.borrow().vertexes)?;
         Ok(())
     }
 }

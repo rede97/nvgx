@@ -57,47 +57,37 @@ impl Vertex {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
+pub struct VertexSlice {
+    pub offset: usize,
+    pub count: usize,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
 pub struct PathInfo {
     pub(crate) first: usize,
     pub(crate) count: usize,
     pub(crate) closed: bool,
     pub(crate) num_bevel: usize,
     pub(crate) windding: PathDir,
-    pub(crate) fill: *mut Vertex,
+    pub(crate) offset: usize,
     pub(crate) num_fill: usize,
-    pub(crate) stroke: *mut Vertex,
     pub(crate) num_stroke: usize,
-    #[cfg(feature = "wirelines")]
-    pub(crate) lines: *mut Vertex,
-    #[cfg(feature = "wirelines")]
-    pub(crate) num_lines: usize,
     pub convex: bool,
 }
 
 impl PathInfo {
-    pub fn get_fill(&self) -> &[Vertex] {
-        if self.fill.is_null() {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts_mut(self.fill, self.num_fill) }
+    pub fn get_fill(&self) -> VertexSlice {
+        VertexSlice {
+            offset: self.offset,
+            count: self.num_fill,
         }
     }
 
-    pub fn get_stroke(&self) -> &[Vertex] {
-        if self.stroke.is_null() {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts_mut(self.stroke, self.num_stroke) }
-        }
-    }
-
-    #[cfg(feature = "wirelines")]
-    pub fn get_line(&self) -> &[Vertex] {
-        if self.lines.is_null() {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts_mut(self.lines, self.num_lines) }
+    pub fn get_stroke(&self) -> VertexSlice {
+        VertexSlice {
+            offset: self.offset + self.num_fill,
+            count: self.num_stroke,
         }
     }
 }

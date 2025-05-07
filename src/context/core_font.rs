@@ -81,8 +81,7 @@ impl<R: RendererDevice> Context<R> {
             &mut self.layout_chars,
         )?;
 
-        cache.vertexes.clear();
-
+        let offset = cache.vertexes.len();
         for lc in &self.layout_chars {
             let lt = xform.transform_point(Point::new(
                 lc.bounds.min.x * invscale,
@@ -128,10 +127,14 @@ impl<R: RendererDevice> Context<R> {
         paint.outer_color.a *= state.paint.alpha;
 
         self.renderer.triangles(
+            self.path.vertex_buffer,
             &paint,
             state.composite_operation,
             &state.scissor,
-            &cache.vertexes,
+            crate::VertexSlice {
+                offset,
+                count: cache.vertexes.len() - offset,
+            },
         )?;
         Ok(())
     }
