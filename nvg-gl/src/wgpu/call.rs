@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use nvg::{BlendFactor, BufferId, CompositeOperationState, PathFillType, Vertex, VertexSlice};
+use nvg::{BlendFactor, BufferId, CompositeOperationState, PathFillType, VertexSlice};
 
 use super::unifroms::RenderCommand;
 

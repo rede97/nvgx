@@ -2,7 +2,7 @@ use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperati
 use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
 use crate::renderer::Scissor;
-use crate::{Extent, Paint, Path, PathFillType, Point, Rect, RendererDevice, Transform};
+use crate::{Extent, Paint, PathWithCache, PathFillType, Point, Rect, RendererDevice, Transform};
 
 pub(super) const INIT_VERTEX_BUFF_SIZE: usize = 10 * 1024;
 
@@ -45,7 +45,7 @@ impl Default for State {
 
 pub struct Context<R: RendererDevice> {
     pub(super) renderer: R,
-    pub(super) path: Path,
+    pub(super) path: PathWithCache,
     pub(super) states: Vec<State>,
     pub(super) tess_tol: f32,
     pub(super) dist_tol: f32,
@@ -63,7 +63,7 @@ impl<R: RendererDevice> Context<R> {
     pub fn create(mut renderer: R) -> anyhow::Result<Context<R>> {
         let fonts = Fonts::new(&mut renderer)?;
         Ok(Context {
-            path: Path {
+            path: PathWithCache {
                 vertex_buffer: renderer.create_vertex_buffer(INIT_VERTEX_BUFF_SIZE)?,
                 ..Default::default()
             },

@@ -143,7 +143,7 @@ impl Triangle {
         ctx: &mut Context<R>,
         wirelines: bool,
     ) -> anyhow::Result<()> {
-        let mut path = Path::new();
+        let mut path = PathWithCache::new();
         path.move_to(self.control_points[0].p);
         path.line_to(self.control_points[1].p);
         path.line_to(self.control_points[2].p);
@@ -205,12 +205,12 @@ impl ArcTo {
     }
 
     pub fn draw<R: RendererDevice>(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
-        let mut path = Path::new();
+        let mut path = PathWithCache::new();
         path.move_to(self.control_points[0].p);
         path.line_to(self.control_points[1].p);
         path.line_to(self.control_points[2].p);
         ctx.draw_wirelines_path(&path, &nvg::Color::rgba(0.2, 0.4, 0.6, 0.7).into())?;
-        let mut path = Path::new();
+        let mut path = PathWithCache::new();
         path.move_to(self.control_points[0].p);
         path.arc_to(
             self.control_points[1].p,

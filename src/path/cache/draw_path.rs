@@ -670,30 +670,33 @@ impl PathCache {
 
     #[cfg(feature = "wirelines")]
     pub(crate) fn expand_lines(&mut self) {
-        //     unsafe {
-        //         let cverts = self.paths.iter().fold(0, |acc, e| acc + e.count);
-        //         let mut vertexes = self.alloc_temp_vertexes(cverts);
-        //         if vertexes.is_null() {
-        //             return;
-        //         }
-
-        //         for path in self.paths.iter_mut() {
-        //             let pts = &self.points[path.first..path.first + path.count];
-        //             let mut dst = vertexes;
-        //             path.lines = dst;
-        //             for pt in pts {
-        //                 *dst = Vertex::new(pt.xy.x, pt.xy.y, 0.5, 1.0);
-        //                 dst = dst.add(1);
-        //             }
-        //             if path.closed {
-        //                 let v0 = &*vertexes;
-        //                 *dst = Vertex::new(v0.x, v0.y, 0.5, 1.0);
-        //                 dst = dst.add(1);
-        //             }
-        //             path.num_lines = ptrdistance(vertexes, dst);
-        //             vertexes = dst;
-        //         }
-        //     }
+        unsafe {
+            let cverts = self
+                .paths
+                .iter()
+                .fold(0, |acc, e| acc + e.count + (e.closed as usize));
+            let (origin, mut vertexes) = self.alloc_temp_vertexes(cverts);
+            if vertexes.is_null() {
+                return;
+            }
+            for path in self.paths.iter_mut() {
+                let pts = &self.points[path.first..path.first + path.count];
+                let mut dst = vertexes;
+                path.offset = ptrdistance(origin, dst);
+                path.num_fill = 0;
+                for pt in pts {
+                    *dst = Vertex::new(pt.xy.x, pt.xy.y, 0.5, 1.0);
+                    dst = dst.add(1);
+                }
+                if path.closed {
+                    let v0 = &*vertexes;
+                    *dst = Vertex::new(v0.x, v0.y, 0.5, 1.0);
+                    dst = dst.add(1);
+                }
+                path.num_stroke = ptrdistance(vertexes, dst);
+                vertexes = dst;
+            }
+        }
     }
 }
 

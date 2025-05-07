@@ -1,5 +1,5 @@
 use nvg::{BufferId, Vertex, VertexSlice};
-use wgpu::{Buffer, Extent3d, Origin2d};
+use wgpu::{Extent3d, Origin2d};
 
 use crate::wgpu::{
     call::{Call, GpuPath},
@@ -309,37 +309,33 @@ impl nvg::RendererDevice for Renderer {
         scissor: &nvg::Scissor,
         paths: &[nvg::PathInfo],
     ) -> anyhow::Result<()> {
-        //     let call = Call {
-        //         call_type: CallType::Lines,
-        //         image: paint.image,
-        //         path_offset: self.resources.paths.len(),
-        //         path_count: paths.len(),
-        //         uniform_offset: self.resources.render_unifrom.offset(),
-        //         blend_func: composite_operation,
-        //         ..Default::default()
-        //     };
+        let path_offset = self.resources.paths.len();
 
-        //     let mut offset = self.resources.mesh.vertices.len();
-        //     for path in paths {
-        //         let line = path.get_line();
-        //         if !line.is_empty() {
-        //             let gl_path = GpuPath {
-        //                 stroke_offset: offset,
-        //                 stroke_count: line.len(),
-        //                 ..Default::default()
-        //             };
-        //             self.resources.mesh.vertices.extend(line);
-        //             offset += line.len();
-        //             self.resources.paths.push(gl_path);
-        //         }
-        //     }
+        self.resources.paths.extend(paths.iter().filter_map(|p| {
+            let stroke = p.get_stroke();
+            Some(GpuPath {
+                stroke: stroke,
+                ..Default::default()
+            })
+        }));
 
-        //     self.resources.calls.push(call);
+        let call = Call {
+            call_type: CallType::Lines,
+            image: paint.image,
+            path_start: path_offset,
+            path_end: self.resources.paths.len(),
+            uniform_offset: self.resources.render_unifrom.offset(),
+            blend_func: composite_operation,
+            vertex_buffer,
+            ..Default::default()
+        };
 
-        //     self.resources
-        //         .render_unifrom
-        //         .value
-        //         .push(RenderCommand::new(&self, paint, scissor, 1.0, 1.0, -1.0));
+        self.resources.calls.push(call);
+
+        self.resources
+            .render_unifrom
+            .value
+            .push(RenderCommand::new(&self, paint, scissor, 1.0, 1.0, -1.0));
         Ok(())
     }
 }

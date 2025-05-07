@@ -2,10 +2,7 @@ use cache::PathCache;
 
 use crate::{BufferId, Point, Transform, Vector2D};
 use core::f32;
-use std::{
-    cell::RefCell,
-    ops::{Add, Deref, DerefMut},
-};
+use std::ops::Add;
 
 use crate::Rect;
 pub(crate) mod cache;
@@ -382,22 +379,9 @@ impl PathCommands {
     }
 }
 
-#[derive(Default)]
-pub struct Path {
-    pub(crate) path: PathCommands,
-    pub(crate) cache: RefCell<PathCache>,
-    pub(crate) vertex_buffer: BufferId,
-}
-
-impl Deref for Path {
-    type Target = PathCommands;
-    fn deref(&self) -> &Self::Target {
-        return &self.path;
-    }
-}
-
-impl DerefMut for Path {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        return &mut self.path;
-    }
+/// Todo
+pub(crate) enum PathInner {
+    Commands(PathCommands),
+    /// save vertex draw call
+    Lock(PathCache, BufferId),
 }

@@ -1,4 +1,4 @@
-use crate::renderer::TextureType;
+use crate::{cache::PathCache, renderer::TextureType, BufferId, PathCommands};
 
 mod composite;
 mod core;
@@ -9,6 +9,10 @@ mod core_path;
 
 pub use composite::*;
 pub use core::*;
+use std::{
+    cell::RefCell,
+    ops::{Deref, DerefMut},
+};
 
 pub type ImageId = usize;
 
@@ -51,5 +55,25 @@ pub struct TextMetrics {
 impl TextMetrics {
     pub fn line_height(&self) -> f32 {
         self.ascender - self.descender + self.line_gap
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct PathWithCache {
+    pub path: PathCommands,
+    pub cache: RefCell<PathCache>,
+    pub vertex_buffer: BufferId,
+}
+
+impl Deref for PathWithCache {
+    type Target = PathCommands;
+    fn deref(&self) -> &Self::Target {
+        return &self.path;
+    }
+}
+
+impl DerefMut for PathWithCache {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        return &mut self.path;
     }
 }
