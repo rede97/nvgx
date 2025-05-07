@@ -2,7 +2,8 @@ use clamped::Clamp;
 use num_traits::AsPrimitive;
 use std::ops::Rem;
 
-#[derive(Debug, Copy, Clone, Default)]
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -66,6 +67,14 @@ impl Color {
 
     pub fn hsl(h: f32, s: f32, l: f32) -> Color {
         Self::hsla(h, s, l, 1.0)
+    }
+
+    pub fn gray(g: f32) -> Color {
+        return Color::rgb(g, g, g);
+    }
+
+    pub fn gray_i(g: u8) -> Color {
+        return Color::rgb_i(g, g, g);
     }
 }
 

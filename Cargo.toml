@@ -19,6 +19,11 @@ slab = "0.4.2"
 num-traits = "0.2.8"
 clamped = "1.0.0"
 rawpointer = "0.2.1"
+bytemuck = {version = "1.23.0", features = ["derive"]}
+
+[features]
+default = []
+wirelines = []
 
 [workspace]
 members = [

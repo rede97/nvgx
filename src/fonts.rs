@@ -1,17 +1,16 @@
 use crate::context::{ImageId, TextMetrics};
 use crate::renderer::TextureType;
-use crate::{Align, Bounds, Extent, ImageFlags, Renderer};
+use crate::{Align, Bounds, Extent, ImageFlags, RendererDevice};
 use bitflags::_core::borrow::Borrow;
 use rusttype::gpu_cache::Cache;
 use rusttype::{Font, Glyph, Point, PositionedGlyph, Scale};
 use slab::Slab;
 use std::collections::HashMap;
 
-const TEX_WIDTH: usize = 1024;
-const TEX_HEIGHT: usize = 1024;
+const TEX_WIDTH: u32 = 1024;
+const TEX_HEIGHT: u32 = 1024;
 
 pub type FontId = usize;
-
 
 #[allow(unused)]
 #[derive(Debug)]
@@ -39,7 +38,7 @@ pub struct Fonts {
 }
 
 impl Fonts {
-    pub fn new<R: Renderer>(renderer: &mut R) -> anyhow::Result<Fonts> {
+    pub fn new<R: RendererDevice>(renderer: &mut R) -> anyhow::Result<Fonts> {
         Ok(Fonts {
             fonts: Default::default(),
             fonts_by_name: Default::default(),
@@ -103,16 +102,16 @@ impl Fonts {
         }
     }
 
-    fn render_texture<R: Renderer>(&mut self, renderer: &mut R) -> anyhow::Result<()> {
+    fn render_texture<R: RendererDevice>(&mut self, renderer: &mut R) -> anyhow::Result<()> {
         let img = self.img.clone();
         self.cache.cache_queued(move |rect, data| {
             renderer
                 .update_texture(
                     img.clone(),
-                    rect.min.x as usize,
-                    rect.min.y as usize,
-                    (rect.max.x - rect.min.x) as usize,
-                    (rect.max.y - rect.min.y) as usize,
+                    rect.min.x,
+                    rect.min.y,
+                    rect.max.x - rect.min.x,
+                    rect.max.y - rect.min.y,
                     data,
                 )
                 .unwrap();
@@ -174,7 +173,7 @@ impl Fonts {
         }
     }
 
-    pub fn layout_text<R: Renderer>(
+    pub fn layout_text<R: RendererDevice>(
         &mut self,
         renderer: &mut R,
         text: &str,

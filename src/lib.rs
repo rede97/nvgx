@@ -1,18 +1,18 @@
 #[macro_use]
 extern crate bitflags;
 
-mod cache;
 mod color;
 mod context;
 mod fonts;
 mod math;
-pub mod renderer;
+mod paint;
+mod path;
+mod renderer;
 
 pub use color::*;
-pub use context::{
-    Align, BasicCompositeOperation, BlendFactor, CompositeOperation, Context, Gradient, ImageFlags,
-    ImageId, ImagePattern, LineCap, LineJoin, Paint, PathDir, WindingSolidity, TextMetrics, FillType
-};
-pub use fonts::FontId;
+pub use context::*;
+pub use fonts::*;
 pub use math::*;
-pub use renderer::Renderer;
+pub use paint::*;
+pub use path::*;
+pub use renderer::*;

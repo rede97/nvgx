@@ -4,7 +4,7 @@ mod demo;
 
 struct DemoText;
 
-impl<R: Renderer> demo::Demo<R> for DemoText {
+impl<R: RendererDevice> demo::Demo<R> for DemoText {
     fn update(&mut self, _width: f32, _height: f32, ctx: &mut Context<R>) -> anyhow::Result<()> {
         ctx.begin_path();
         ctx.move_to((150, 20));
