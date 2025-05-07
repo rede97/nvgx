@@ -24,6 +24,7 @@ impl DemoDraw {
         ctx.text((10, 70), "key L: wirelines")?;
         ctx.text((10, 80), "key C: close path")?;
         ctx.text((10, 90), "key F: Fill path")?;
+        ctx.fill()?;
 
         ctx.global_composite_operation(CompositeOperation::Basic(BasicCompositeOperation::SrcOver));
         ctx.reset_transform();

@@ -41,15 +41,10 @@ impl Default for Call {
 
 impl Call {
     #[inline]
-    pub fn triangle_slice(&self) -> Range<u64> {
-        let start = (self.triangle.offset * size_of::<Vertex>()) as u64;
-        let end = ((self.triangle.offset + self.triangle.count) * size_of::<Vertex>()) as u64;
+    pub fn triangle_vert(&self) -> Range<u32> {
+        let start = self.triangle.offset as u32;
+        let end = (self.triangle.offset + self.triangle.count) as u32;
         return start..end;
-    }
-
-    #[inline]
-    pub fn triangle_count(&self) -> u32 {
-        self.triangle.count as u32
     }
 
     #[inline]
@@ -110,5 +105,12 @@ impl GpuPath {
     pub fn triangle_fan_count(&self) -> u32 {
         assert!(self.fill.count > 2);
         return (self.fill.count - 2) as u32;
+    }
+
+    #[inline]
+    pub fn stroke_vert(&self) -> Range<u32> {
+        let start = self.stroke.offset as u32;
+        let end = (self.stroke.offset + self.stroke.count) as u32;
+        return start..end;
     }
 }

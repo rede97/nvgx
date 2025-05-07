@@ -101,6 +101,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     pub fn begin_path(&mut self) {
         self.path.clear();
+        self.path.cache.borrow_mut().clear();
     }
 
     #[inline]

@@ -36,6 +36,7 @@ impl RenderResource {
     ) {
         let paths = &self.paths[call.path_start..call.path_end];
         {
+            let vertex_buffer = self.mesh.get_buffer(call.vertex_buffer);
             {
                 // Fill stencil pass
                 render_pass.set_pipeline(pipeline_manager.fill_stencil.pipeline());
@@ -49,8 +50,7 @@ impl RenderResource {
                 render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
                 render_pass
                     .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                render_pass
-                    .set_vertex_buffer(0, self.mesh.get_buffer(call.vertex_buffer).slice(..));
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                 for path in paths {
                     let count = path.triangle_fan_count();
                     render_pass.draw_indexed(0..(count * 3), path.triangle_fan_offset(), 0..1);
@@ -67,14 +67,9 @@ impl RenderResource {
                     &[call.uniform_offset(1)],
                 );
                 render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
-                render_pass
-                    .set_vertex_buffer(0, self.mesh.get_buffer(call.vertex_buffer).slice(..));
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                 for path in paths {
-                    render_pass.draw(
-                        (path.stroke.offset as u32)
-                            ..((path.stroke.offset + path.stroke.count) as u32),
-                        0..1,
-                    );
+                    render_pass.draw(path.stroke_vert(), 0..1);
                 }
             }
             {
@@ -88,9 +83,8 @@ impl RenderResource {
                     &[call.uniform_offset(1)],
                 );
                 render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
-                render_pass
-                    .set_vertex_buffer(0, self.mesh.get_buffer(call.vertex_buffer).slice(..));
-                render_pass.draw(0..call.triangle_count(), 0..1);
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                render_pass.draw(call.triangle_vert(), 0..1);
             }
         }
     }
@@ -115,9 +109,8 @@ impl RenderResource {
             render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
             render_pass
                 .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.set_vertex_buffer(0, self.mesh.get_buffer(call.vertex_buffer).slice(..));
             for path in paths {
-                render_pass
-                    .set_vertex_buffer(0, self.mesh.get_buffer(call.vertex_buffer).slice(..));
                 render_pass.draw_indexed(
                     0..path.triangle_fan_count() * 3,
                     path.triangle_fan_offset(),
@@ -138,10 +131,7 @@ impl RenderResource {
             render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
             render_pass.set_vertex_buffer(0, self.mesh.get_buffer(call.vertex_buffer).slice(..));
             for path in paths {
-                render_pass.draw(
-                    (path.stroke.offset as u32)..((path.stroke.offset + path.stroke.count) as u32),
-                    0..1,
-                );
+                render_pass.draw(path.stroke_vert(), 0..1);
             }
         }
     }
@@ -165,10 +155,7 @@ impl RenderResource {
         render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
         render_pass.set_vertex_buffer(0, self.mesh.get_buffer(call.vertex_buffer).slice(..));
         for path in paths {
-            render_pass.draw(
-                (path.stroke.offset as u32)..((path.stroke.offset + path.stroke.count) as u32),
-                0..1,
-            );
+            render_pass.draw(path.stroke_vert(), 0..1);
         }
     }
 
@@ -188,7 +175,7 @@ impl RenderResource {
         );
         render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
         render_pass.set_vertex_buffer(0, self.mesh.get_buffer(call.vertex_buffer).slice(..));
-        render_pass.draw(0..call.triangle_count(), 0..1);
+        render_pass.draw(call.triangle_vert(), 0..1);
     }
 
     #[inline]
@@ -209,10 +196,7 @@ impl RenderResource {
         render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
         render_pass.set_vertex_buffer(0, self.mesh.get_buffer(call.vertex_buffer).slice(..));
         for path in paths {
-            render_pass.draw(
-                (path.stroke.offset as u32)..((path.stroke.offset + path.stroke.count) as u32),
-                0..1,
-            );
+            render_pass.draw(path.stroke_vert(), 0..1);
         }
     }
 
