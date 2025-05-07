@@ -1,5 +1,5 @@
-use crate::{renderer::Scissor, PaintPattern, PathWithCache};
-use crate::{Color, LineJoin, Paint};
+use crate::{renderer::Scissor, PaintPattern, Path};
+use crate::{Color, LineJoin, Paint, PathCommands};
 use crate::{PaintStyle, PathDir, Point, Rect, RendererDevice};
 
 use super::*;
@@ -154,7 +154,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     fn wirelines_path(
         renderer: &mut R,
-        path: &PathWithCache,
+        path: &Path,
         stroke: &PaintPattern,
         dist_tol: f32,
         tess_tol: f32,
@@ -199,7 +199,7 @@ impl<R: RendererDevice> Context<R> {
     #[cfg(feature = "wirelines")]
     pub fn draw_wirelines_path(
         &mut self,
-        path: &PathWithCache,
+        path: &Path,
         stroke: &PaintPattern,
     ) -> anyhow::Result<()> {
         let state = self.states.last().unwrap();
@@ -219,7 +219,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     fn stroke_path(
         renderer: &mut R,
-        path: &PathWithCache,
+        path: &Path,
         paint: &Paint,
         average_scale: f32,
         device_pixel_ratio: f32,
@@ -287,7 +287,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     fn fill_path(
         renderer: &mut R,
-        path: &PathWithCache,
+        path: &Path,
         paint: &Paint,
         dist_tol: f32,
         tess_tol: f32,
@@ -334,7 +334,7 @@ impl<R: RendererDevice> Context<R> {
         Ok((draw_call_count, fill_triangles_count))
     }
 
-    pub fn draw_path(&mut self, path: &PathWithCache, paint: &Paint) -> anyhow::Result<()> {
+    pub fn draw_path(&mut self, path: &Path, paint: &Paint) -> anyhow::Result<()> {
         let state = self.states.last().unwrap();
         match paint.style {
             PaintStyle::Stroke => {
@@ -399,5 +399,26 @@ impl<R: RendererDevice> Context<R> {
         self.renderer
             .update_vertex_buffer(path.vertex_buffer, &path.cache.borrow().vertexes)?;
         Ok(())
+    }
+
+    pub fn create_path(&mut self) -> anyhow::Result<Path> {
+        let buffer = self.renderer.create_vertex_buffer(INIT_VERTEX_BUFF_SIZE)?;
+        return Ok(Path{
+            vertex_buffer: buffer,
+            ..Default::default()
+        });
+    }
+
+    pub fn create_path_from_commands(&mut self, path: PathCommands) -> anyhow::Result<Path> {
+        let buffer = self.renderer.create_vertex_buffer(INIT_VERTEX_BUFF_SIZE)?;
+        return Ok(Path {
+            path,
+            cache: Default::default(),
+            vertex_buffer: buffer,
+        });
+    }
+
+    pub fn delete_path(&mut self, path: Path) -> anyhow::Result<()> {
+        return self.renderer.delete_vertex_buffer(path.vertex_buffer);
     }
 }

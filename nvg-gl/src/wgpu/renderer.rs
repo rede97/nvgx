@@ -31,8 +31,9 @@ impl nvg::RendererDevice for Renderer {
         Ok(())
     }
 
-    fn delete_vertex_buffer(&mut self, buffer: BufferId) {
+    fn delete_vertex_buffer(&mut self, buffer: BufferId) -> anyhow::Result<()> {
         self.resources.mesh.delete_buffer(buffer);
+        Ok(())
     }
 
     fn resize(&mut self, _width: u32, _height: u32) -> anyhow::Result<()> {
@@ -138,6 +139,7 @@ impl nvg::RendererDevice for Renderer {
                 &texture.view,
                 &stencil_view,
                 &mut self.pipeline_manager,
+                self.clear_cmd.take(),
             );
         } else {
             let output = self.surface.get_current_texture().unwrap();
@@ -151,6 +153,7 @@ impl nvg::RendererDevice for Renderer {
                 &view,
                 self.resources.texture_manager.stencil_view(),
                 &mut self.pipeline_manager,
+                self.clear_cmd.take(),
             );
             output.present();
         };
@@ -289,7 +292,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn clear(&mut self, color: nvg::Color) -> anyhow::Result<()> {
         self.cancel()?;
-        self.resources.clear_cmd = Some(wgpu::Color {
+        self.clear_cmd = Some(wgpu::Color {
             r: color.r as f64,
             g: color.g as f64,
             b: color.b as f64,

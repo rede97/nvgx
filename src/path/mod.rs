@@ -42,7 +42,7 @@ impl Into<PathDir> for WindingSolidity {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Command {
     MoveTo(Point),
     LineTo(Point),
@@ -51,7 +51,8 @@ pub(crate) enum Command {
     Winding(PathDir),
 }
 
-pub struct Path {
+#[derive(Debug, Clone)]
+pub struct PathCommands {
     pub(crate) last_position: Point,
     pub(super) commands: Vec<Command>,
     pub(crate) fill_type: PathFillType,
@@ -59,8 +60,8 @@ pub struct Path {
     pub(crate) xforms: Vec<Transform>,
 }
 
-impl Path {
-    pub fn new() -> Self {
+impl Default for PathCommands {
+    fn default() -> Self {
         return Self {
             last_position: Point { x: 0.0, y: 0.0 },
             commands: Vec::new(),
@@ -69,7 +70,9 @@ impl Path {
             xforms: Vec::new(),
         };
     }
+}
 
+impl PathCommands {
     fn append_command(&mut self, cmd: Command) {
         let xform = &self.xform;
         match cmd {
@@ -379,30 +382,21 @@ impl Path {
     }
 }
 
-pub struct PathWithCache {
-    pub(crate) path: Path,
+#[derive(Default)]
+pub struct Path {
+    pub(crate) path: PathCommands,
     pub(crate) cache: RefCell<PathCache>,
     pub(crate) vertex_buffer: BufferId,
 }
 
-impl PathWithCache {
-    pub(crate) fn new(buffer: BufferId) -> Self {
-        return PathWithCache {
-            path: Path::new(),
-            cache: RefCell::new(Default::default()),
-            vertex_buffer: buffer,
-        };
-    }
-}
-
-impl Deref for PathWithCache {
-    type Target = Path;
+impl Deref for Path {
+    type Target = PathCommands;
     fn deref(&self) -> &Self::Target {
         return &self.path;
     }
 }
 
-impl DerefMut for PathWithCache {
+impl DerefMut for Path {
     fn deref_mut(&mut self) -> &mut Self::Target {
         return &mut self.path;
     }

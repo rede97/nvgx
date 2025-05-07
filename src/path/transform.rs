@@ -1,6 +1,6 @@
 use super::*;
 
-impl Path {
+impl PathCommands {
     pub fn identity(&mut self) {
         self.xform = Transform::identity();
     }

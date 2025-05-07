@@ -20,7 +20,6 @@ pub struct RenderResource {
     mesh: Mesh,
     paths: Vec<GpuPath>,
     calls: Vec<Call>,
-    clear_cmd: Option<wgpu::Color>,
     viewsize_uniform: Unifrom<Extent>,
     render_unifrom: Unifrom<Vec<RenderCommand>>,
     texture_manager: TextureManager,
@@ -207,6 +206,7 @@ impl RenderResource {
         color_view: &TextureView,
         stencil_view: &TextureView,
         pipeline_manager: &mut PipelineManager,
+        clear_cmd: Option<wgpu::Color>,
     ) {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Nvg Flush Render Encoder"),
@@ -214,23 +214,10 @@ impl RenderResource {
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("NVG Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: color_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: if let Some(color) = self.clear_cmd {
-                            wgpu::LoadOp::Clear(color)
-                        } else {
-                            wgpu::LoadOp::Load
-                        },
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: stencil_view,
                     stencil_ops: Some(wgpu::Operations {
-                        load: if self.clear_cmd.is_some() {
+                        load: if clear_cmd.is_some() {
                             wgpu::LoadOp::Clear(0)
                         } else {
                             wgpu::LoadOp::Load
@@ -239,6 +226,19 @@ impl RenderResource {
                     }),
                     depth_ops: None,
                 }),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: color_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: if let Some(color) = clear_cmd {
+                            wgpu::LoadOp::Clear(color)
+                        } else {
+                            wgpu::LoadOp::Load
+                        },
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+
                 ..Default::default()
             });
             for call in &self.calls {
@@ -292,6 +292,7 @@ pub struct Renderer {
     surface_config: wgpu::SurfaceConfiguration,
     pipeline_manager: PipelineManager,
     target_fb: Option<(ImageId, TextureView)>,
+    clear_cmd: Option<wgpu::Color>,
     resources: RenderResource,
 }
 
@@ -335,9 +336,9 @@ impl Renderer {
             surface_config,
             target_fb: None,
             pipeline_manager,
+            clear_cmd: None,
             resources: RenderResource {
                 mesh,
-                clear_cmd: None,
                 paths: Vec::new(),
                 calls: Vec::new(),
                 viewsize_uniform,

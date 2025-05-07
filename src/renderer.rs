@@ -29,7 +29,7 @@ pub trait RendererDevice {
     fn update_vertex_buffer(&mut self, buffer: BufferId, vertexes: &[Vertex])
         -> anyhow::Result<()>;
 
-    fn delete_vertex_buffer(&mut self, buffer: BufferId);
+    fn delete_vertex_buffer(&mut self, buffer: BufferId) -> anyhow::Result<()>;
 
     fn create_texture(
         &mut self,
