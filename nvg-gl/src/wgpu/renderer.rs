@@ -304,6 +304,7 @@ impl nvg::RendererDevice for Renderer {
         Ok(())
     }
 
+    #[cfg(feature = "wirelines")]
     fn wirelines(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,

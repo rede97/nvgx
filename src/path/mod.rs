@@ -9,12 +9,12 @@ mod transform;
 
 pub use commands::*;
 
-
 #[derive(Debug, Clone, Default)]
 pub(crate) struct DrawInfo {
     fill: Vec<PathSlice>,
     bounds_offset: Option<usize>,
     stroke: Vec<PathSlice>,
+    lines: Vec<PathSlice>,
 }
 
 pub(crate) enum PathInner {

@@ -199,6 +199,7 @@ impl RenderResource {
     }
 
     #[inline]
+    #[cfg(feature = "wirelines")]
     fn do_lines(
         &self,
         call: &Call,
@@ -298,6 +299,7 @@ impl RenderResource {
                             .update_pipeline(&device, PipelineUsage::Triangles(call.blend_func));
                         self.do_triangles(call, &mut render_pass, &pipeline_manager);
                     }
+                    #[cfg(feature = "wirelines")]
                     CallType::Lines => {
                         pipeline_manager
                             .update_pipeline(&device, PipelineUsage::Lines(call.blend_func));

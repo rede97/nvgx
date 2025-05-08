@@ -11,7 +11,7 @@ homepage = "https://github.com/sunli829/nvg"
 repository = "https://github.com/sunli829/nvg"
 
 [features]
-default = ["wirelines", "wgpu-impl"]
+default = ["wgpu-impl"]
 wirelines = ["nvg/wirelines"]
 wgpu-impl = ["pollster", "wgpu", "indexmap"]
 ogl-impl = ["gl", "glutin", "glutin-winit"]

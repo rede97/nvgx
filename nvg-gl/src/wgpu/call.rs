@@ -10,6 +10,7 @@ pub(crate) enum CallType {
     ConvexFill,
     Stroke,
     Triangles,
+    #[cfg(feature = "wirelines")]
     Lines,
 }
 

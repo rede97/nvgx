@@ -1,4 +1,6 @@
-use crate::{renderer::Scissor, PaintPattern};
+use crate::renderer::Scissor;
+#[cfg(feature = "wirelines")]
+use crate::PaintPattern;
 use crate::{Color, LineJoin, Paint};
 use crate::{PathDir, Point, Rect, RendererDevice};
 

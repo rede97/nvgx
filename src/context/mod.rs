@@ -1,5 +1,5 @@
 use crate::{
-    cache::PathCache, renderer::TextureType, Command, LineCap, LineJoin, PathCommands, PathSlice,
+    cache::PathCache, renderer::TextureType, LineCap, LineJoin, PathCommands, PathSlice,
 };
 
 mod composite;
@@ -78,10 +78,12 @@ pub(crate) trait FlattenExpandPath {
         miter_limit: f32,
         fringe_width: f32,
     ) -> Option<usize>;
+    #[cfg(feature = "wirelines")]
     fn expand_lines(&mut self);
 
     fn get_fill_slice(&self) -> &[PathSlice];
     fn get_stroke_slice(&self) -> &[PathSlice];
+    #[cfg(feature = "wirelines")]
     fn get_lines_slice(&self) -> &[PathSlice];
 }
 
@@ -143,6 +145,7 @@ impl FlattenExpandPath for PathCommandsWithCache {
     }
 
     #[inline]
+    #[cfg(feature = "wirelines")]
     fn expand_lines(&mut self) {
         self.cache.expand_lines(&mut self.draw_paths_slice);
     }
@@ -158,6 +161,7 @@ impl FlattenExpandPath for PathCommandsWithCache {
     }
 
     #[inline]
+    #[cfg(feature = "wirelines")]
     fn get_lines_slice(&self) -> &[PathSlice] {
         return &self.draw_paths_slice;
     }
