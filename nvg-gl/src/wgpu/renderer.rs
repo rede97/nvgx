@@ -1,4 +1,6 @@
-use nvg::{BufferId, Vertex, VertexSlice};
+use std::sync::Arc;
+
+use nvg::{Vertex, VertexSlice};
 use wgpu::{Extent3d, Origin2d};
 
 use crate::wgpu::{
@@ -6,33 +8,36 @@ use crate::wgpu::{
     unifroms::{RenderCommand, ShaderType},
 };
 
-use super::{call::CallType, Renderer};
+use super::{call::CallType, mesh::Mesh, Renderer};
 
 impl nvg::RendererDevice for Renderer {
+    type VertexBuffer = Arc<wgpu::Buffer>;
+
     fn edge_antialias(&self) -> bool {
         return self.config.antialias;
     }
 
-    fn create_vertex_buffer(&mut self, init_num_vertex: usize) -> anyhow::Result<BufferId> {
-        return Ok(self
-            .resources
-            .mesh
-            .create_buffer(&self.device, init_num_vertex));
+    fn create_vertex_buffer(
+        &mut self,
+        init_num_vertex: usize,
+    ) -> anyhow::Result<Self::VertexBuffer> {
+        return Ok(Arc::new(Mesh::create_buffer(&self.device, init_num_vertex)));
     }
 
     fn update_vertex_buffer(
         &mut self,
-        buffer: BufferId,
+        buffer: Option<&Self::VertexBuffer>,
         vertexes: &[Vertex],
     ) -> anyhow::Result<()> {
-        self.resources
-            .mesh
-            .update_buffer(&self.device, &self.queue, buffer, vertexes);
-        Ok(())
-    }
-
-    fn delete_vertex_buffer(&mut self, buffer: BufferId) -> anyhow::Result<()> {
-        self.resources.mesh.delete_buffer(buffer);
+        if let Some(buffer) = buffer {
+            self.resources
+                .mesh
+                .update_buffer(&self.device, &self.queue, buffer, vertexes)?;
+        } else {
+            self.resources
+                .mesh
+                .update_inner_buffer(&self.device, &self.queue, vertexes);
+        };
         Ok(())
     }
 
@@ -162,14 +167,14 @@ impl nvg::RendererDevice for Renderer {
 
     fn fill(
         &mut self,
-        vertex_buffer: BufferId,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         fill_type: nvg::PathFillType,
         scissor: &nvg::Scissor,
         fringe: f32,
         bounds_offset: Option<usize>,
-        paths: &[nvg::PathInfo],
+        paths: &[nvg::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.resources.paths.len();
         self.resources.paths.extend(paths.iter().filter_map(|p| {
@@ -191,8 +196,7 @@ impl nvg::RendererDevice for Renderer {
                 crate::wgpu::call::CallType::ConvexFill
             },
             image: paint.image,
-            path_start: path_offset,
-            path_end: self.resources.paths.len(),
+            path_range: path_offset..self.resources.paths.len(),
             triangle: if let Some(offset) = bounds_offset {
                 VertexSlice { offset, count: 4 }
             } else {
@@ -200,7 +204,7 @@ impl nvg::RendererDevice for Renderer {
             },
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            vertex_buffer: vertex_buffer,
+            vertex_buffer,
         };
 
         if let CallType::Fill(_) = call.call_type {
@@ -223,13 +227,13 @@ impl nvg::RendererDevice for Renderer {
 
     fn stroke(
         &mut self,
-        vertex_buffer: BufferId,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
         fringe: f32,
         stroke_width: f32,
-        paths: &[nvg::PathInfo],
+        paths: &[nvg::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.resources.paths.len();
 
@@ -244,12 +248,11 @@ impl nvg::RendererDevice for Renderer {
         let call = Call {
             call_type: CallType::Stroke,
             image: paint.image,
-            path_start: path_offset,
-            path_end: self.resources.paths.len(),
+            path_range: path_offset..self.resources.paths.len(),
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            vertex_buffer: vertex_buffer,
-            ..Default::default()
+            vertex_buffer,
+            triangle: VertexSlice::default(),
         };
 
         self.resources.render_unifrom.value.push(RenderCommand::new(
@@ -266,7 +269,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn triangles(
         &mut self,
-        vertex_buffer: BufferId,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -276,10 +279,10 @@ impl nvg::RendererDevice for Renderer {
             call_type: CallType::Triangles,
             image: paint.image,
             triangle: slice,
+            path_range: 0..0,
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            vertex_buffer: vertex_buffer,
-            ..Default::default()
+            vertex_buffer,
         };
 
         self.resources.calls.push(call);
@@ -303,11 +306,11 @@ impl nvg::RendererDevice for Renderer {
 
     fn wirelines(
         &mut self,
-        vertex_buffer: BufferId,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
-        paths: &[nvg::PathInfo],
+        paths: &[nvg::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.resources.paths.len();
 
@@ -322,12 +325,11 @@ impl nvg::RendererDevice for Renderer {
         let call = Call {
             call_type: CallType::Lines,
             image: paint.image,
-            path_start: path_offset,
-            path_end: self.resources.paths.len(),
+            path_range: path_offset..self.resources.paths.len(),
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
             vertex_buffer,
-            ..Default::default()
+            triangle: VertexSlice::default(),
         };
 
         self.resources.calls.push(call);

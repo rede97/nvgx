@@ -64,19 +64,23 @@ pub struct VertexSlice {
 }
 
 #[derive(Debug, Copy, Clone, Default)]
-pub struct PathInfo {
-    pub(crate) first: usize,
-    pub(crate) count: usize,
-    pub(crate) closed: bool,
-    pub(crate) num_bevel: usize,
-    pub(crate) windding: PathDir,
-    pub(crate) offset: usize,
-    pub(crate) num_fill: usize,
-    pub(crate) num_stroke: usize,
+pub(crate) struct PathInfo {
+    pub first: usize,
+    pub count: usize,
+    pub closed: bool,
+    pub num_bevel: usize,
+    pub windding: PathDir,
     pub convex: bool,
 }
 
-impl PathInfo {
+#[derive(Debug, Copy, Clone, Default)]
+pub struct PathSlice {
+    pub offset: usize,
+    pub num_fill: usize,
+    pub num_stroke: usize,
+}
+
+impl PathSlice {
     pub fn get_fill(&self) -> VertexSlice {
         VertexSlice {
             offset: self.offset,

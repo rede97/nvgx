@@ -1,4 +1,6 @@
-use crate::{cache::PathCache, renderer::TextureType, BufferId, PathCommands};
+use crate::{
+    cache::PathCache, renderer::TextureType, Command, LineCap, LineJoin, PathCommands, PathSlice,
+};
 
 mod composite;
 mod core;
@@ -9,10 +11,7 @@ mod core_path;
 
 pub use composite::*;
 pub use core::*;
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 pub type ImageId = usize;
 
@@ -58,21 +57,120 @@ impl TextMetrics {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct PathWithCache {
-    pub path: PathCommands,
-    pub cache: RefCell<PathCache>,
-    pub vertex_buffer: BufferId,
+pub(crate) trait FlattenExpandPath {
+    fn path_commands(&self) -> &PathCommands;
+
+    fn flatten_paths(&mut self, dist_tol: f32, tess_tol: f32);
+
+    fn expand_stroke(
+        &mut self,
+        w: f32,
+        fringe: f32,
+        line_cap: LineCap,
+        line_join: LineJoin,
+        miter_limit: f32,
+        tess_tol: f32,
+    );
+    fn expand_fill(
+        &mut self,
+        w: f32,
+        line_join: LineJoin,
+        miter_limit: f32,
+        fringe_width: f32,
+    ) -> Option<usize>;
+    fn expand_lines(&mut self);
+
+    fn get_fill_slice(&self) -> &[PathSlice];
+    fn get_stroke_slice(&self) -> &[PathSlice];
+    fn get_lines_slice(&self) -> &[PathSlice];
 }
 
-impl Deref for PathWithCache {
+#[derive(Default)]
+pub(crate) struct PathCommandsWithCache {
+    pub path: PathCommands,
+    pub cache: PathCache,
+    pub draw_paths_slice: Vec<PathSlice>,
+}
+
+impl FlattenExpandPath for PathCommandsWithCache {
+    #[inline]
+    fn path_commands(&self) -> &PathCommands {
+        return &self.path;
+    }
+
+    #[inline]
+    fn flatten_paths(&mut self, dist_tol: f32, tess_tol: f32) {
+        self.cache
+            .flatten_paths(&self.path.commands, dist_tol, tess_tol);
+    }
+
+    #[inline]
+    fn expand_fill(
+        &mut self,
+        w: f32,
+        line_join: LineJoin,
+        miter_limit: f32,
+        fringe_width: f32,
+    ) -> Option<usize> {
+        return self.cache.expand_fill(
+            w,
+            line_join,
+            miter_limit,
+            fringe_width,
+            &mut self.draw_paths_slice,
+        );
+    }
+
+    #[inline]
+    fn expand_stroke(
+        &mut self,
+        w: f32,
+        fringe: f32,
+        line_cap: LineCap,
+        line_join: LineJoin,
+        miter_limit: f32,
+        tess_tol: f32,
+    ) {
+        self.cache.expand_stroke(
+            w,
+            fringe,
+            line_cap,
+            line_join,
+            miter_limit,
+            tess_tol,
+            &mut self.draw_paths_slice,
+        );
+    }
+
+    #[inline]
+    fn expand_lines(&mut self) {
+        self.cache.expand_lines(&mut self.draw_paths_slice);
+    }
+
+    #[inline]
+    fn get_fill_slice(&self) -> &[PathSlice] {
+        return &self.draw_paths_slice;
+    }
+
+    #[inline]
+    fn get_stroke_slice(&self) -> &[PathSlice] {
+        return &self.draw_paths_slice;
+    }
+
+    #[inline]
+    fn get_lines_slice(&self) -> &[PathSlice] {
+        return &self.draw_paths_slice;
+    }
+}
+
+impl Deref for PathCommandsWithCache {
     type Target = PathCommands;
     fn deref(&self) -> &Self::Target {
         return &self.path;
     }
 }
 
-impl DerefMut for PathWithCache {
+impl DerefMut for PathCommandsWithCache {
     fn deref_mut(&mut self) -> &mut Self::Target {
         return &mut self.path;
     }

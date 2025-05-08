@@ -1,4 +1,4 @@
-use super::cap_join::*;
+use super::{cap_join::*, PathSlice};
 use super::{PathCache, PointFlags, VPoint};
 use super::{PathInfo, Vertex};
 use crate::paint::{LineCap, LineJoin};
@@ -28,9 +28,6 @@ impl PathCache {
             closed: false,
             num_bevel: 0,
             windding: PathDir::CCW,
-            offset: 0,
-            num_fill: 0,
-            num_stroke: 0,
             convex: false,
         });
         self.paths.last_mut().unwrap()
@@ -301,6 +298,7 @@ impl PathCache {
         line_join: LineJoin,
         miter_limit: f32,
         tess_tol: f32,
+        paths_slice: &mut Vec<PathSlice>,
     ) {
         let aa = fringe;
         let mut u0 = 0.0;
@@ -339,12 +337,13 @@ impl PathCache {
                 return;
             }
 
-            for path in self.paths.iter_mut() {
+            paths_slice.resize(self.paths.len(), Default::default());
+            for (path, path_slice) in self.paths.iter_mut().zip(paths_slice.iter_mut()) {
                 let pts = &mut self.points[path.first] as *mut VPoint;
                 let loop_ = path.closed;
                 let mut dst = vertexes;
-                path.offset = ptrdistance(origin, dst);
-                path.num_fill = 0;
+                path_slice.offset = ptrdistance(origin, dst);
+                path_slice.num_fill = 0;
 
                 let (mut p0, mut p1, s, e) = if loop_ {
                     (pts.offset(path.count as isize - 1), pts, 0, path.count)
@@ -502,7 +501,7 @@ impl PathCache {
                     }
                 }
 
-                path.num_stroke = ptrdistance(vertexes, dst);
+                path_slice.num_stroke = ptrdistance(vertexes, dst);
                 vertexes = dst;
             }
         }
@@ -514,6 +513,7 @@ impl PathCache {
         line_join: LineJoin,
         miter_limit: f32,
         fringe_width: f32,
+        paths_slice: &mut Vec<PathSlice>,
     ) -> Option<usize> {
         let aa = fringe_width;
         let fringe = w > 0.0;
@@ -535,12 +535,13 @@ impl PathCache {
                 return None;
             }
 
-            for path in self.paths.iter_mut() {
+            paths_slice.resize(self.paths.len(), Default::default());
+            for (path, path_slice) in self.paths.iter_mut().zip(paths_slice.iter_mut()) {
                 let pts = &mut self.points[path.first] as *mut VPoint;
                 let woff = 0.5 * aa;
                 let mut dst = vertexes;
 
-                path.offset = ptrdistance(origin, dst);
+                path_slice.offset = ptrdistance(origin, dst);
 
                 if fringe {
                     let mut p0 = pts.offset(path.count as isize - 1);
@@ -589,7 +590,7 @@ impl PathCache {
                     }
                 }
 
-                path.num_fill = ptrdistance(vertexes, dst);
+                path_slice.num_fill = ptrdistance(vertexes, dst);
                 vertexes = dst;
 
                 if fringe {
@@ -650,10 +651,10 @@ impl PathCache {
                     *dst = Vertex::new((*v1).x, (*v1).y, ru, 1.0);
                     dst = dst.add(1);
 
-                    path.num_stroke = ptrdistance(vertexes, dst);
+                    path_slice.num_stroke = ptrdistance(vertexes, dst);
                     vertexes = dst;
                 } else {
-                    path.num_stroke = 0;
+                    path_slice.num_stroke = 0;
                 }
             }
             if !convex {
@@ -669,7 +670,7 @@ impl PathCache {
     }
 
     #[cfg(feature = "wirelines")]
-    pub(crate) fn expand_lines(&mut self) {
+    pub(crate) fn expand_lines(&mut self, paths_slice: &mut Vec<PathSlice>) {
         unsafe {
             let cverts = self
                 .paths
@@ -679,11 +680,12 @@ impl PathCache {
             if vertexes.is_null() {
                 return;
             }
-            for path in self.paths.iter_mut() {
+            paths_slice.resize(self.paths.len(), Default::default());
+            for (path, path_slice) in self.paths.iter_mut().zip(paths_slice.iter_mut()) {
                 let pts = &self.points[path.first..path.first + path.count];
                 let mut dst = vertexes;
-                path.offset = ptrdistance(origin, dst);
-                path.num_fill = 0;
+                path_slice.offset = ptrdistance(origin, dst);
+                path_slice.num_fill = 0;
                 for pt in pts {
                     *dst = Vertex::new(pt.xy.x, pt.xy.y, 0.5, 1.0);
                     dst = dst.add(1);
@@ -693,7 +695,7 @@ impl PathCache {
                     *dst = Vertex::new(v0.x, v0.y, 0.5, 1.0);
                     dst = dst.add(1);
                 }
-                path.num_stroke = ptrdistance(vertexes, dst);
+                path_slice.num_stroke = ptrdistance(vertexes, dst);
                 vertexes = dst;
             }
         }

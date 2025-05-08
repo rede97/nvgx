@@ -2,9 +2,7 @@ use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperati
 use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
 use crate::renderer::Scissor;
-use crate::{Extent, Paint, PathWithCache, PathFillType, Point, Rect, RendererDevice, Transform};
-
-pub(super) const INIT_VERTEX_BUFF_SIZE: usize = 10 * 1024;
+use crate::{Extent, Paint, PathFillType, PathCommandsWithCache, Point, Rect, RendererDevice, Transform};
 
 #[derive(Clone)]
 pub(super) struct State {
@@ -45,7 +43,7 @@ impl Default for State {
 
 pub struct Context<R: RendererDevice> {
     pub(super) renderer: R,
-    pub(super) path: PathWithCache,
+    pub(super) path_cache: PathCommandsWithCache,
     pub(super) states: Vec<State>,
     pub(super) tess_tol: f32,
     pub(super) dist_tol: f32,
@@ -63,16 +61,13 @@ impl<R: RendererDevice> Context<R> {
     pub fn create(mut renderer: R) -> anyhow::Result<Context<R>> {
         let fonts = Fonts::new(&mut renderer)?;
         Ok(Context {
-            path: PathWithCache {
-                vertex_buffer: renderer.create_vertex_buffer(INIT_VERTEX_BUFF_SIZE)?,
-                ..Default::default()
-            },
+            path_cache: PathCommandsWithCache::default(),
             renderer,
             states: vec![Default::default()],
             tess_tol: 0.0,
             dist_tol: 0.0,
             fringe_width: 1.0,
-            device_pixel_ratio: 0.0,
+            device_pixel_ratio: 1.0,
             fonts,
             layout_chars: Default::default(),
             draw_call_count: 0,
@@ -125,9 +120,8 @@ impl<R: RendererDevice> Context<R> {
     }
 
     pub fn end_frame(&mut self) -> anyhow::Result<()> {
-        let mut cache = self.path.cache.borrow_mut();
-        self.renderer
-            .update_vertex_buffer(self.path.vertex_buffer, &cache.vertexes)?;
+        let cache = &mut self.path_cache.cache;
+        self.renderer.update_vertex_buffer(None, &cache.vertexes)?;
         self.renderer.flush()?;
         cache.reset();
         Ok(())
