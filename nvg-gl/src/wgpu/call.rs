@@ -1,7 +1,4 @@
-use std::{
-    ops::Range,
-    sync::{Arc, Mutex},
-};
+use std::{ops::Range, sync::Arc};
 
 use nvg::{BlendFactor, CompositeOperationState, PathFillType, VertexSlice};
 
@@ -23,7 +20,7 @@ pub(crate) struct Call {
     pub triangle: VertexSlice,
     pub uniform_offset: usize,
     pub blend_func: CompositeOperationState,
-    pub vertex_buffer: Arc<Mutex<wgpu::Buffer>>,
+    pub vertex_buffer: Option<Arc<wgpu::Buffer>>,
 }
 
 impl Call {

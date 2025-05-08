@@ -11,7 +11,6 @@ pub use composite::*;
 pub use core::*;
 use std::{
     cell::RefCell,
-    default,
     ops::{Deref, DerefMut},
 };
 

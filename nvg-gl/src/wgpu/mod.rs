@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use call::{Call, CallType, GpuPath};
 use mesh::Mesh;
 use nvg::*;
@@ -34,7 +36,11 @@ impl RenderResource {
         pipeline_manager: &PipelineManager,
     ) {
         let paths = &self.paths[call.path_range.clone()];
-        let buffer = call.vertex_buffer.lock().unwrap();
+        let buffer = call
+            .vertex_buffer
+            .as_ref()
+            .map(|v| v.deref())
+            .unwrap_or(&self.mesh.vertex_buffer);
         {
             {
                 // Fill stencil pass
@@ -96,7 +102,11 @@ impl RenderResource {
         pipeline_manager: &PipelineManager,
     ) {
         let paths = &self.paths[call.path_range.clone()];
-        let buffer = call.vertex_buffer.lock().unwrap();
+        let buffer = call
+            .vertex_buffer
+            .as_ref()
+            .map(|v| v.deref())
+            .unwrap_or(&self.mesh.vertex_buffer);
         {
             render_pass.set_pipeline(pipeline_manager.fill_convex.pipeline());
             render_pass.set_stencil_reference(0);
@@ -144,7 +154,11 @@ impl RenderResource {
         pipeline_manager: &PipelineManager,
     ) {
         let paths = &self.paths[call.path_range.clone()];
-        let buffer = call.vertex_buffer.lock().unwrap();
+        let buffer = call
+            .vertex_buffer
+            .as_ref()
+            .map(|v| v.deref())
+            .unwrap_or(&self.mesh.vertex_buffer);
         render_pass.set_pipeline(pipeline_manager.fill_stroke.pipeline());
         render_pass.set_stencil_reference(0);
         render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
@@ -167,7 +181,11 @@ impl RenderResource {
         render_pass: &mut wgpu::RenderPass<'_>,
         pipeline_manager: &PipelineManager,
     ) {
-        let buffer = call.vertex_buffer.lock().unwrap();
+        let buffer = call
+            .vertex_buffer
+            .as_ref()
+            .map(|v| v.deref())
+            .unwrap_or(&self.mesh.vertex_buffer);
         render_pass.set_pipeline(pipeline_manager.triangles.pipeline());
         render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
         render_pass.set_bind_group(
@@ -188,7 +206,11 @@ impl RenderResource {
         pipeline_manager: &PipelineManager,
     ) {
         let paths = &self.paths[call.path_range.clone()];
-        let buffer = call.vertex_buffer.lock().unwrap();
+        let buffer = call
+            .vertex_buffer
+            .as_ref()
+            .map(|v| v.deref())
+            .unwrap_or(&self.mesh.vertex_buffer);
         render_pass.set_pipeline(pipeline_manager.wirelines.pipeline());
         render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
         render_pass.set_bind_group(

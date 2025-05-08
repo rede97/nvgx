@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use nvg::{Vertex, VertexSlice};
 use wgpu::{Extent3d, Origin2d};
@@ -11,7 +11,7 @@ use crate::wgpu::{
 use super::{call::CallType, mesh::Mesh, Renderer};
 
 impl nvg::RendererDevice for Renderer {
-    type VertexBuffer = Arc<Mutex<wgpu::Buffer>>;
+    type VertexBuffer = Arc<wgpu::Buffer>;
 
     fn edge_antialias(&self) -> bool {
         return self.config.antialias;
@@ -21,10 +21,7 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         init_num_vertex: usize,
     ) -> anyhow::Result<Self::VertexBuffer> {
-        return Ok(Arc::new(Mutex::new(Mesh::create_buffer(
-            &self.device,
-            init_num_vertex,
-        ))));
+        return Ok(Arc::new(Mesh::create_buffer(&self.device, init_num_vertex)));
     }
 
     fn update_vertex_buffer(
@@ -33,10 +30,9 @@ impl nvg::RendererDevice for Renderer {
         vertexes: &[Vertex],
     ) -> anyhow::Result<()> {
         if let Some(buffer) = buffer {
-            let mut guard = buffer.lock().unwrap();
             self.resources
                 .mesh
-                .update_buffer(&self.device, &self.queue, &mut guard, vertexes);
+                .update_buffer(&self.device, &self.queue, buffer, vertexes)?;
         } else {
             self.resources
                 .mesh
@@ -171,7 +167,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn fill(
         &mut self,
-        vertex_buffer: Option<&Self::VertexBuffer>,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         fill_type: nvg::PathFillType,
@@ -208,7 +204,7 @@ impl nvg::RendererDevice for Renderer {
             },
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            vertex_buffer: vertex_buffer.clone(),
+            vertex_buffer,
         };
 
         if let CallType::Fill(_) = call.call_type {
@@ -231,7 +227,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn stroke(
         &mut self,
-        vertex_buffer: Option<&Self::VertexBuffer>,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -255,7 +251,7 @@ impl nvg::RendererDevice for Renderer {
             path_range: path_offset..self.resources.paths.len(),
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            vertex_buffer: vertex_buffer.clone(),
+            vertex_buffer,
             triangle: VertexSlice::default(),
         };
 
@@ -273,7 +269,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn triangles(
         &mut self,
-        vertex_buffer: Option<&Self::VertexBuffer>,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -286,7 +282,7 @@ impl nvg::RendererDevice for Renderer {
             path_range: 0..0,
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            vertex_buffer: vertex_buffer.clone(),
+            vertex_buffer,
         };
 
         self.resources.calls.push(call);
@@ -310,7 +306,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn wirelines(
         &mut self,
-        vertex_buffer: Option<&Self::VertexBuffer>,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -332,7 +328,7 @@ impl nvg::RendererDevice for Renderer {
             path_range: path_offset..self.resources.paths.len(),
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            vertex_buffer: vertex_buffer.clone(),
+            vertex_buffer,
             triangle: VertexSlice::default(),
         };
 
