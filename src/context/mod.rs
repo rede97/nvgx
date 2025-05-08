@@ -1,4 +1,4 @@
-use crate::{cache::PathCache, renderer::TextureType, BufferId, PathCommands};
+use crate::{cache::PathCache, renderer::TextureType, PathCommands};
 
 mod composite;
 mod core;
@@ -11,6 +11,7 @@ pub use composite::*;
 pub use core::*;
 use std::{
     cell::RefCell,
+    default,
     ops::{Deref, DerefMut},
 };
 
@@ -62,7 +63,6 @@ impl TextMetrics {
 pub(crate) struct PathWithCache {
     pub path: PathCommands,
     pub cache: RefCell<PathCache>,
-    pub vertex_buffer: BufferId,
 }
 
 impl Deref for PathWithCache {

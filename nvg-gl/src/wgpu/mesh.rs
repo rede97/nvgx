@@ -1,7 +1,6 @@
 use std::iter::FromIterator;
 
-use nvg::{BufferId, Vertex};
-use slab::Slab;
+use nvg::Vertex;
 use wgpu::vertex_attr_array;
 
 const VERTEX_ATTRIBS: [wgpu::VertexAttribute; 2] = vertex_attr_array![
@@ -16,7 +15,7 @@ pub const VERTEX_DESC: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLay
 };
 
 pub struct Mesh {
-    pub vertex_buffers: Slab<wgpu::Buffer>,
+    pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub indices: Vec<u32>,
 }
@@ -25,19 +24,19 @@ impl Mesh {
     const VERTEX_SIZE: u64 = std::mem::size_of::<Vertex>() as u64;
     const INDEX_SIZE: u64 = std::mem::size_of::<u32>() as u64 * 3;
 
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, init_vertex_size: u64) -> Self {
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, init_num_vertex: usize) -> Self {
+        let indices =
+            Vec::from_iter((0..(init_num_vertex * 3) as u32).map(Self::triangle_fan_indices));
         let index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("NVG New Index Buffer"),
-            size: init_vertex_size * 3 * size_of::<u32>() as u64,
+            size: (indices.len() * size_of::<u32>()) as u64,
             usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-
-        let indices =
-            Vec::from_iter((0..(init_vertex_size * 3) as u32).map(Self::triangle_fan_indices));
         queue.write_buffer(&index_buffer, 0, bytemuck::cast_slice(&indices));
+
         Self {
-            vertex_buffers: Slab::new(),
+            vertex_buffer: Mesh::create_buffer(device, init_num_vertex),
             index_buffer,
             indices,
         }
@@ -53,7 +52,12 @@ impl Mesh {
     }
 
     #[inline]
-    fn update_indices(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, vertex_count: u64) {
+    pub fn update_indices(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        vertex_count: u64,
+    ) {
         let indices_len = self.indices.len() as u32;
         let new_indices_len = (vertex_count * 3) as u32;
         if indices_len < new_indices_len {
@@ -74,31 +78,23 @@ impl Mesh {
     }
 
     #[inline]
-    pub fn create_buffer(&mut self, device: &wgpu::Device, init_num_vertex: usize) -> BufferId {
+    pub fn create_buffer(device: &wgpu::Device, init_num_vertex: usize) -> wgpu::Buffer {
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("NVG Create New Vertex Buffer"),
             size: (init_num_vertex * size_of::<Vertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        return self.vertex_buffers.insert(buffer);
+        return buffer;
     }
 
-    #[inline]
-    pub fn delete_buffer(&mut self, buffer: BufferId) {
-        self.vertex_buffers.remove(buffer);
-    }
-
-    #[inline]
-    pub fn update_buffer(
-        &mut self,
+    fn update_vertex_buffer(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        buffer: BufferId,
+        buffer: &mut wgpu::Buffer,
         vertices: &[nvg::Vertex],
-    ) {
+    ) -> u64 {
         let vertex_count = vertices.len() as u64;
-        let buffer = &mut self.vertex_buffers[buffer];
         if buffer.size() < vertex_count * Self::VERTEX_SIZE {
             buffer.destroy();
             *buffer = device.create_buffer(&wgpu::BufferDescriptor {
@@ -109,11 +105,30 @@ impl Mesh {
             });
         }
         queue.write_buffer(&buffer, 0, bytemuck::cast_slice(vertices));
+        return vertex_count;
+    }
+
+    #[inline]
+    pub fn update_buffer(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        buffer: &mut wgpu::Buffer,
+        vertices: &[nvg::Vertex],
+    ) {
+        let vertex_count = Mesh::update_vertex_buffer(device, queue, buffer, vertices);
         self.update_indices(device, queue, vertex_count);
     }
 
     #[inline]
-    pub fn get_buffer(&self, buffer: BufferId) -> &wgpu::Buffer {
-        return &self.vertex_buffers[buffer];
+    pub fn update_inner_buffer(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        vertices: &[nvg::Vertex],
+    ) {
+        let vertex_count =
+            Mesh::update_vertex_buffer(device, queue, &mut self.vertex_buffer, vertices);
+        self.update_indices(device, queue, vertex_count);
     }
 }

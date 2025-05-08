@@ -1,8 +1,8 @@
-use cache::PathCache;
+use cache::PathInfo;
 
-use crate::{BufferId, Point, Transform, Vector2D};
+use crate::{Point, Transform, Vector2D};
 use core::f32;
-use std::ops::Add;
+use std::ops::{Add, Range};
 
 use crate::Rect;
 pub(crate) mod cache;
@@ -376,12 +376,61 @@ impl PathCommands {
     #[inline]
     pub(crate) fn clear(&mut self) {
         self.commands.clear();
+        self.xform = Transform::identity();
+        self.xforms.clear();
+        self.fill_type = PathFillType::Winding;
+        self.last_position = Point::default();
     }
 }
 
-/// Todo
-pub(crate) enum PathInner {
-    Commands(PathCommands),
-    /// save vertex draw call
-    Lock(PathCache, BufferId),
-}
+// /// Todo
+// pub(crate) enum PathInner {
+//     Commands(PathCommands),
+//     /// save vertex draw call
+//     Lock {
+//         call: Vec<PathInfo>,
+//         fill: Range<usize>,
+//         stroke: Range<usize>,
+//     },
+// }
+
+// pub struct Pat<T: Sized> {
+//     inner: PathInner,
+//     vertex_buffer: Option<T>,
+// }
+
+// impl<T> Path<T> {
+//     pub fn new() -> Self {
+//         return Self {
+//             inner: PathInner::Commands(PathCommands::default()),
+//             vertex_buffer: None,
+//         };
+//     }
+
+//     pub fn reset(&mut self) {
+//         self.inner = PathInner::Commands(PathCommands::default());
+//     }
+// }
+
+// impl Deref for Path {
+//     type Target = PathCommands;
+//     fn deref(&self) -> &Self::Target {
+//         match &self.inner {
+//             PathInner::Commands(path_commands) => {
+//                 return &path_commands;
+//             }
+//             PathInner::Lock {
+//                 call: _,
+//                 stroke_offset: _,
+//             } => {
+//                 panic!("Path must be reset before dereferencing to PathCommands.")
+//             }
+//         }
+//     }
+// }
+
+// impl DerefMut for Path {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         return &mut self.path;
+//     }
+// }

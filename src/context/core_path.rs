@@ -165,13 +165,7 @@ impl<R: RendererDevice> Context<R> {
         cache.flatten_paths(&path.commands, dist_tol, tess_tol);
         cache.expand_lines();
 
-        renderer.wirelines(
-            path.vertex_buffer,
-            &stroke,
-            composite_operation,
-            &scissor,
-            &cache.paths,
-        )?;
+        renderer.wirelines(None, &stroke, composite_operation, &scissor, &cache.paths)?;
 
         let mut draw_call_count = 0;
         for _path in &cache.paths {
@@ -246,7 +240,7 @@ impl<R: RendererDevice> Context<R> {
         }
 
         renderer.stroke(
-            path.vertex_buffer,
+            None,
             &stroke_paint,
             composite_operation,
             &scissor,
@@ -289,7 +283,7 @@ impl<R: RendererDevice> Context<R> {
         fill_paint.outer_color.a *= paint.alpha;
 
         renderer.fill(
-            path.vertex_buffer,
+            None,
             &fill_paint,
             composite_operation,
             path.fill_type,

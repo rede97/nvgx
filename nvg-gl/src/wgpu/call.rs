@@ -1,6 +1,9 @@
-use std::ops::Range;
+use std::{
+    ops::Range,
+    sync::{Arc, Mutex},
+};
 
-use nvg::{BlendFactor, BufferId, CompositeOperationState, PathFillType, VertexSlice};
+use nvg::{BlendFactor, CompositeOperationState, PathFillType, VertexSlice};
 
 use super::unifroms::RenderCommand;
 
@@ -16,27 +19,11 @@ pub(crate) enum CallType {
 pub(crate) struct Call {
     pub call_type: CallType,
     pub image: Option<usize>,
-    pub path_start: usize,
-    pub path_end: usize,
+    pub path_range: Range<usize>,
     pub triangle: VertexSlice,
     pub uniform_offset: usize,
     pub blend_func: CompositeOperationState,
-    pub vertex_buffer: BufferId,
-}
-
-impl Default for Call {
-    fn default() -> Self {
-        Self {
-            call_type: CallType::ConvexFill,
-            image: None,
-            path_start: 0,
-            path_end: 0,
-            triangle: Default::default(),
-            uniform_offset: 0,
-            blend_func: CompositeOperationState::default(),
-            vertex_buffer: 0,
-        }
-    }
+    pub vertex_buffer: Arc<Mutex<wgpu::Buffer>>,
 }
 
 impl Call {

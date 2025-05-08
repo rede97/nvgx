@@ -100,25 +100,14 @@ impl<R: RendererDevice> Context<R> {
                 lc.bounds.max.y * invscale,
             ));
 
-            cache
-                .vertexes
-                .push(Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y));
-            cache
-                .vertexes
-                .push(Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y));
-            cache
-                .vertexes
-                .push(Vertex::new(rt.x, rt.y, lc.uv.max.x, lc.uv.min.y));
-
-            cache
-                .vertexes
-                .push(Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y));
-            cache
-                .vertexes
-                .push(Vertex::new(lb.x, lb.y, lc.uv.min.x, lc.uv.max.y));
-            cache
-                .vertexes
-                .push(Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y));
+            cache.vertexes.extend([
+                Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y),
+                Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y),
+                Vertex::new(rt.x, rt.y, lc.uv.max.x, lc.uv.min.y),
+                Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y),
+                Vertex::new(lb.x, lb.y, lc.uv.min.x, lc.uv.max.y),
+                Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y),
+            ]);
         }
 
         let mut paint = state.paint.fill.clone();
@@ -127,7 +116,7 @@ impl<R: RendererDevice> Context<R> {
         paint.outer_color.a *= state.paint.alpha;
 
         self.renderer.triangles(
-            self.path.vertex_buffer,
+            None,
             &paint,
             state.composite_operation,
             &state.scissor,
