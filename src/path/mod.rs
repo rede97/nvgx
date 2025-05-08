@@ -1,8 +1,6 @@
-use cache::PathInfo;
-
 use crate::{Point, Transform, Vector2D};
 use core::f32;
-use std::ops::{Add, Range};
+use std::ops::Add;
 
 use crate::Rect;
 pub(crate) mod cache;

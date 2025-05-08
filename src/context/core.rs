@@ -4,8 +4,6 @@ use crate::paint::{LineCap, LineJoin, PaintPattern};
 use crate::renderer::Scissor;
 use crate::{Extent, Paint, PathFillType, PathWithCache, Point, Rect, RendererDevice, Transform};
 
-pub(super) const INIT_VERTEX_BUFF_SIZE: usize = 10 * 1024;
-
 #[derive(Clone)]
 pub(super) struct State {
     pub(super) composite_operation: CompositeOperationState,

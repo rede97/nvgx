@@ -88,36 +88,22 @@ impl Mesh {
         return buffer;
     }
 
-    fn update_vertex_buffer(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        buffer: &mut wgpu::Buffer,
-        vertices: &[nvg::Vertex],
-    ) -> u64 {
-        let vertex_count = vertices.len() as u64;
-        if buffer.size() < vertex_count * Self::VERTEX_SIZE {
-            buffer.destroy();
-            *buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("NVG Expand Vertex Buffer"),
-                size: vertex_count * Self::VERTEX_SIZE,
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            });
-        }
-        queue.write_buffer(&buffer, 0, bytemuck::cast_slice(vertices));
-        return vertex_count;
-    }
-
     #[inline]
     pub fn update_buffer(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        buffer: &mut wgpu::Buffer,
+        buffer: &wgpu::Buffer,
         vertices: &[nvg::Vertex],
-    ) {
-        let vertex_count = Mesh::update_vertex_buffer(device, queue, buffer, vertices);
-        self.update_indices(device, queue, vertex_count);
+    ) -> anyhow::Result<()> {
+        let vertex_count = vertices.len() as u64;
+        if buffer.size() < vertex_count * Self::VERTEX_SIZE {
+            Err(anyhow!("Vertex buffer out of memory"))
+        } else {
+            queue.write_buffer(&buffer, 0, bytemuck::cast_slice(vertices));
+            self.update_indices(device, queue, vertex_count);
+            Ok(())
+        }
     }
 
     #[inline]
@@ -127,8 +113,17 @@ impl Mesh {
         queue: &wgpu::Queue,
         vertices: &[nvg::Vertex],
     ) {
-        let vertex_count =
-            Mesh::update_vertex_buffer(device, queue, &mut self.vertex_buffer, vertices);
+        let vertex_count = vertices.len() as u64;
+        if self.vertex_buffer.size() < vertex_count * Self::VERTEX_SIZE {
+            self.vertex_buffer.destroy();
+            self.vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("NVG Expand Vertex Buffer"),
+                size: vertex_count * Self::VERTEX_SIZE,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+        }
+        queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(vertices));
         self.update_indices(device, queue, vertex_count);
     }
 }
