@@ -383,20 +383,20 @@ impl PathCommands {
     }
 }
 
-/// Todo
-pub(crate) enum PathInner {
-    Commands(PathCommands),
-    /// save vertex draw call
-    Lock {
-        call: Vec<PathInfo>,
-        fill: Range<usize>,
-        stroke: Range<usize>,
-    },
-}
+// /// Todo
+// pub(crate) enum PathInner {
+//     Commands(PathCommands),
+//     /// save vertex draw call
+//     Lock {
+//         call: Vec<PathInfo>,
+//         fill: Range<usize>,
+//         stroke: Range<usize>,
+//     },
+// }
 
 // pub struct Pat<T: Sized> {
 //     inner: PathInner,
-//     vertex_buffer: Option<Arc<T>>,
+//     vertex_buffer: Option<T>,
 // }
 
 // impl<T> Path<T> {

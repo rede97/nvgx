@@ -91,7 +91,6 @@ impl Mesh {
     ) {
         let vertex_count = vertices.len() as u64;
         if buffer.size() < vertex_count * Self::VERTEX_SIZE {
-            buffer.destroy();
             *buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("NVG Expand Vertex Buffer"),
                 size: vertex_count * Self::VERTEX_SIZE,

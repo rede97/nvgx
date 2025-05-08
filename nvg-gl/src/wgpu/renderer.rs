@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use nvg::{Vertex, VertexSlice};
 use wgpu::{Extent3d, Origin2d};
 
@@ -9,7 +11,7 @@ use crate::wgpu::{
 use super::{call::CallType, mesh::Mesh, Renderer};
 
 impl nvg::RendererDevice for Renderer {
-    type VertexBuffer = wgpu::Buffer;
+    type VertexBuffer = Arc<Mutex<wgpu::Buffer>>;
 
     fn edge_antialias(&self) -> bool {
         return self.config.antialias;
@@ -19,17 +21,18 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         init_num_vertex: usize,
     ) -> anyhow::Result<Self::VertexBuffer> {
-        return Ok(Mesh::create_buffer(&self.device, init_num_vertex));
+        return Ok(Arc::new(Mutex::new(Mesh::create_buffer(&self.device, init_num_vertex))));
     }
 
     fn update_vertex_buffer(
         &mut self,
-        buffer: &mut Self::VertexBuffer,
+        buffer: &Self::VertexBuffer,
         vertexes: &[Vertex],
     ) -> anyhow::Result<()> {
+        let mut guard = buffer.lock().unwrap();
         self.resources
             .mesh
-            .update_buffer(&self.device, &self.queue, buffer, vertexes);
+            .update_buffer(&self.device, &self.queue, &mut guard, vertexes);
         Ok(())
     }
 
