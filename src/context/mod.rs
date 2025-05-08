@@ -1,6 +1,4 @@
-use crate::{
-    cache::PathCache, renderer::TextureType, LineCap, LineJoin, PathCommands, PathSlice,
-};
+use crate::{cache::PathCache, renderer::TextureType, LineCap, LineJoin, PathCommands, PathSlice};
 
 mod composite;
 mod core;

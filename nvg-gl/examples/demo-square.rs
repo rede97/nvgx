@@ -162,7 +162,7 @@ impl demo::Demo<Renderer> for DemoCutout {
             ctx.fill_paint(nvg::Color::rgba_i(90, 120, 250, 100));
             ctx.fill()?;
             ctx.stroke_paint(nvg::Color::rgb_i(90, 120, 250));
-    #[cfg(feature = "wirelines")]
+            #[cfg(feature = "wirelines")]
             ctx.wirelines()?;
         }
         Ok(())

@@ -2,7 +2,9 @@ use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperati
 use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
 use crate::renderer::Scissor;
-use crate::{Extent, Paint, PathFillType, PathCommandsWithCache, Point, Rect, RendererDevice, Transform};
+use crate::{
+    Extent, Paint, PathCommandsWithCache, PathFillType, Point, Rect, RendererDevice, Transform,
+};
 
 #[derive(Clone)]
 pub(super) struct State {

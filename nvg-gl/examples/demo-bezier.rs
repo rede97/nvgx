@@ -1,6 +1,6 @@
 use anyhow::Error;
-use winit::event::{ElementState, MouseButton, MouseScrollDelta};
 use nvg::*;
+use winit::event::{ElementState, MouseButton, MouseScrollDelta};
 mod demo;
 
 struct ControlPoint {
@@ -284,11 +284,7 @@ impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
         self.triangle.mouse_move(self.cursor.0, self.cursor.1);
     }
 
-    fn mouse_event(
-        &mut self,
-        _btn: winit::event::MouseButton,
-        _state: winit::event::ElementState,
-    ) {
+    fn mouse_event(&mut self, _btn: winit::event::MouseButton, _state: winit::event::ElementState) {
         let click = _btn == MouseButton::Left && _state == ElementState::Pressed;
         if self.bezier.mouse_event(click, self.cursor.0, self.cursor.1) {
             return;
@@ -304,11 +300,7 @@ impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
         }
     }
 
-    fn key_event(
-        &mut self,
-        _key: winit::keyboard::KeyCode,
-        state: winit::event::ElementState,
-    ) {
+    fn key_event(&mut self, _key: winit::keyboard::KeyCode, state: winit::event::ElementState) {
         match _key {
             winit::keyboard::KeyCode::KeyL => {
                 if state == winit::event::ElementState::Pressed {
