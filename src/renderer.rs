@@ -30,7 +30,7 @@ pub trait RendererDevice {
 
     fn update_vertex_buffer(
         &mut self,
-        buffer: &Self::VertexBuffer,
+        buffer: Option<&Self::VertexBuffer>,
         vertexes: &[Vertex],
     ) -> anyhow::Result<()>;
 
@@ -65,7 +65,7 @@ pub trait RendererDevice {
 
     fn fill(
         &mut self,
-        vertex_buffer: &Self::VertexBuffer,
+        vertex_buffer: Option<&Self::VertexBuffer>,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         fill_type: PathFillType,
@@ -77,7 +77,7 @@ pub trait RendererDevice {
 
     fn stroke(
         &mut self,
-        vertex_buffer: &Self::VertexBuffer,
+        vertex_buffer: Option<&Self::VertexBuffer>,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
@@ -88,7 +88,7 @@ pub trait RendererDevice {
 
     fn triangles(
         &mut self,
-        vertex_buffer: &Self::VertexBuffer,
+        vertex_buffer: Option<&Self::VertexBuffer>,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
@@ -98,7 +98,7 @@ pub trait RendererDevice {
     #[cfg(feature = "wirelines")]
     fn wirelines(
         &mut self,
-        vertex_buffer: &Self::VertexBuffer,
+        vertex_buffer: Option<&Self::VertexBuffer>,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,

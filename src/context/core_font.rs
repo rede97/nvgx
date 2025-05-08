@@ -116,7 +116,7 @@ impl<R: RendererDevice> Context<R> {
         paint.outer_color.a *= state.paint.alpha;
 
         self.renderer.triangles(
-            &self.path.vertex_buffer,
+            None,
             &paint,
             state.composite_operation,
             &state.scissor,

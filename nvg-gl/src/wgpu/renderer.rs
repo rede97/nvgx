@@ -21,18 +21,27 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         init_num_vertex: usize,
     ) -> anyhow::Result<Self::VertexBuffer> {
-        return Ok(Arc::new(Mutex::new(Mesh::create_buffer(&self.device, init_num_vertex))));
+        return Ok(Arc::new(Mutex::new(Mesh::create_buffer(
+            &self.device,
+            init_num_vertex,
+        ))));
     }
 
     fn update_vertex_buffer(
         &mut self,
-        buffer: &Self::VertexBuffer,
+        buffer: Option<&Self::VertexBuffer>,
         vertexes: &[Vertex],
     ) -> anyhow::Result<()> {
-        let mut guard = buffer.lock().unwrap();
-        self.resources
-            .mesh
-            .update_buffer(&self.device, &self.queue, &mut guard, vertexes);
+        if let Some(buffer) = buffer {
+            let mut guard = buffer.lock().unwrap();
+            self.resources
+                .mesh
+                .update_buffer(&self.device, &self.queue, &mut guard, vertexes);
+        } else {
+            self.resources
+                .mesh
+                .update_inner_buffer(&self.device, &self.queue, vertexes);
+        };
         Ok(())
     }
 
@@ -162,7 +171,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn fill(
         &mut self,
-        vertex_buffer: &Self::VertexBuffer,
+        vertex_buffer: Option<&Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         fill_type: nvg::PathFillType,
@@ -222,7 +231,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn stroke(
         &mut self,
-        vertex_buffer: &Self::VertexBuffer,
+        vertex_buffer: Option<&Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -264,7 +273,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn triangles(
         &mut self,
-        vertex_buffer: &Self::VertexBuffer,
+        vertex_buffer: Option<&Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -301,7 +310,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn wirelines(
         &mut self,
-        vertex_buffer: &Self::VertexBuffer,
+        vertex_buffer: Option<&Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,

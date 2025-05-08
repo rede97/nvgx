@@ -45,7 +45,7 @@ impl Default for State {
 
 pub struct Context<R: RendererDevice> {
     pub(super) renderer: R,
-    pub(super) path: PathWithCache<R::VertexBuffer>,
+    pub(super) path: PathWithCache,
     pub(super) states: Vec<State>,
     pub(super) tess_tol: f32,
     pub(super) dist_tol: f32,
@@ -63,7 +63,7 @@ impl<R: RendererDevice> Context<R> {
     pub fn create(mut renderer: R) -> anyhow::Result<Context<R>> {
         let fonts = Fonts::new(&mut renderer)?;
         Ok(Context {
-            path: PathWithCache::new(renderer.create_vertex_buffer(INIT_VERTEX_BUFF_SIZE)?),
+            path: PathWithCache::default(),
             renderer,
             states: vec![Default::default()],
             tess_tol: 0.0,
@@ -124,7 +124,7 @@ impl<R: RendererDevice> Context<R> {
     pub fn end_frame(&mut self) -> anyhow::Result<()> {
         let mut cache = self.path.cache.borrow_mut();
         self.renderer
-            .update_vertex_buffer(&mut self.path.vertex_buffer, &cache.vertexes)?;
+            .update_vertex_buffer(None, &cache.vertexes)?;
         self.renderer.flush()?;
         cache.reset();
         Ok(())

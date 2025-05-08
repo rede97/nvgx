@@ -11,6 +11,7 @@ pub use composite::*;
 pub use core::*;
 use std::{
     cell::RefCell,
+    default,
     ops::{Deref, DerefMut},
 };
 
@@ -58,30 +59,20 @@ impl TextMetrics {
     }
 }
 
-pub(crate) struct PathWithCache<B> {
+#[derive(Default)]
+pub(crate) struct PathWithCache {
     pub path: PathCommands,
     pub cache: RefCell<PathCache>,
-    pub vertex_buffer: B,
 }
 
-impl<B> PathWithCache<B> {
-    fn new(vertex_buffer: B) -> Self {
-        return Self {
-            vertex_buffer,
-            path: PathCommands::default(),
-            cache: RefCell::new(PathCache::default()),
-        };
-    }
-}
-
-impl<B> Deref for PathWithCache<B> {
+impl Deref for PathWithCache {
     type Target = PathCommands;
     fn deref(&self) -> &Self::Target {
         return &self.path;
     }
 }
 
-impl<B> DerefMut for PathWithCache<B> {
+impl DerefMut for PathWithCache {
     fn deref_mut(&mut self) -> &mut Self::Target {
         return &mut self.path;
     }
