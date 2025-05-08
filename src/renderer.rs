@@ -3,8 +3,6 @@ pub use crate::paint::PaintPattern;
 pub use crate::path::cache::{PathInfo, Vertex, VertexSlice};
 pub use crate::*;
 
-pub type BufferId = usize;
-
 #[derive(Debug, Copy, Clone)]
 pub enum TextureType {
     RGBA,
@@ -18,18 +16,23 @@ pub struct Scissor {
 }
 
 pub trait RendererDevice {
+    type VertexBuffer;
     fn edge_antialias(&self) -> bool;
 
     fn resize(&mut self, _width: u32, _height: u32) -> anyhow::Result<()> {
         Ok(())
     }
 
-    fn create_vertex_buffer(&mut self, init_num_vertex: usize) -> anyhow::Result<BufferId>;
+    fn create_vertex_buffer(
+        &mut self,
+        init_num_vertex: usize,
+    ) -> anyhow::Result<Self::VertexBuffer>;
 
-    fn update_vertex_buffer(&mut self, buffer: BufferId, vertexes: &[Vertex])
-        -> anyhow::Result<()>;
-
-    fn delete_vertex_buffer(&mut self, buffer: BufferId) -> anyhow::Result<()>;
+    fn update_vertex_buffer(
+        &mut self,
+        buffer: &mut Self::VertexBuffer,
+        vertexes: &[Vertex],
+    ) -> anyhow::Result<()>;
 
     fn create_texture(
         &mut self,
@@ -62,7 +65,7 @@ pub trait RendererDevice {
 
     fn fill(
         &mut self,
-        vertex_buffer: BufferId,
+        vertex_buffer: &Self::VertexBuffer,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         fill_type: PathFillType,
@@ -74,7 +77,7 @@ pub trait RendererDevice {
 
     fn stroke(
         &mut self,
-        vertex_buffer: BufferId,
+        vertex_buffer: &Self::VertexBuffer,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
@@ -85,7 +88,7 @@ pub trait RendererDevice {
 
     fn triangles(
         &mut self,
-        vertex_buffer: BufferId,
+        vertex_buffer: &Self::VertexBuffer,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
@@ -95,7 +98,7 @@ pub trait RendererDevice {
     #[cfg(feature = "wirelines")]
     fn wirelines(
         &mut self,
-        vertex_buffer: BufferId,
+        vertex_buffer: &Self::VertexBuffer,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,

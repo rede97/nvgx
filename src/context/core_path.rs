@@ -154,7 +154,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     fn wirelines_path(
         renderer: &mut R,
-        path: &PathWithCache,
+        path: &PathWithCache<R::VertexBuffer>,
         stroke: &PaintPattern,
         dist_tol: f32,
         tess_tol: f32,
@@ -166,7 +166,7 @@ impl<R: RendererDevice> Context<R> {
         cache.expand_lines();
 
         renderer.wirelines(
-            path.vertex_buffer,
+            &path.vertex_buffer,
             &stroke,
             composite_operation,
             &scissor,
@@ -199,7 +199,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     fn stroke_path(
         renderer: &mut R,
-        path: &PathWithCache,
+        path: &PathWithCache<R::VertexBuffer>,
         paint: &Paint,
         average_scale: f32,
         device_pixel_ratio: f32,
@@ -246,7 +246,7 @@ impl<R: RendererDevice> Context<R> {
         }
 
         renderer.stroke(
-            path.vertex_buffer,
+            &path.vertex_buffer,
             &stroke_paint,
             composite_operation,
             &scissor,
@@ -267,7 +267,7 @@ impl<R: RendererDevice> Context<R> {
     #[inline]
     fn fill_path(
         renderer: &mut R,
-        path: &PathWithCache,
+        path: &PathWithCache<R::VertexBuffer>,
         paint: &Paint,
         dist_tol: f32,
         tess_tol: f32,
@@ -289,7 +289,7 @@ impl<R: RendererDevice> Context<R> {
         fill_paint.outer_color.a *= paint.alpha;
 
         renderer.fill(
-            path.vertex_buffer,
+            &path.vertex_buffer,
             &fill_paint,
             composite_operation,
             path.fill_type,
