@@ -1,9 +1,11 @@
-use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState};
+use super::{
+    Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState,
+};
 use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
 use crate::renderer::Scissor;
 use crate::{
-    Extent, Paint, PathCommandsWithCache, PathFillType, Point, Rect, RendererDevice, Transform,
+    Color, Extent, Paint, PathCommandsWithCache, PathFillType, Point, Rect, RendererDevice, Transform
 };
 
 #[derive(Clone)]
@@ -97,6 +99,10 @@ impl<R: RendererDevice> Context<R> {
         self.tess_tol = 0.25 / ratio;
         self.dist_tol = 0.01 / ratio;
         self.device_pixel_ratio = ratio;
+    }
+
+    pub fn clear(&mut self, color: Color) -> anyhow::Result<()> {
+        return self.renderer.clear(color);
     }
 
     pub fn begin_frame<E: Into<Extent>>(

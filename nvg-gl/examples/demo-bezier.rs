@@ -151,7 +151,7 @@ impl Triangle {
         if wirelines {
             self.paint.style = PaintStyle::Fill;
             ctx.draw_path(&path, &self.paint)?;
-            ctx.draw_wirelines_path(&path, &self.paint.stroke)?;
+            ctx.wirelines_path(&path, &self.paint.stroke)?;
         } else {
             self.paint.style = PaintStyle::StrokeAndFill;
             ctx.draw_path(&path, &self.paint)?;
@@ -209,7 +209,7 @@ impl ArcTo {
         path.move_to(self.control_points[0].p);
         path.line_to(self.control_points[1].p);
         path.line_to(self.control_points[2].p);
-        ctx.draw_wirelines_path(&path, &nvg::Color::rgba(0.2, 0.4, 0.6, 0.7).into())?;
+        ctx.wirelines_path(&path, &nvg::Color::rgba(0.2, 0.4, 0.6, 0.7).into())?;
         let mut path = PathWithCache::new();
         path.move_to(self.control_points[0].p);
         path.arc_to(

@@ -372,5 +372,9 @@ impl PathCommands {
     #[inline]
     pub(crate) fn clear(&mut self) {
         self.commands.clear();
+        self.fill_type = PathFillType::Winding;
+        self.xforms.clear();
+        self.xform = Transform::identity();
+        self.last_position = Point::default();
     }
 }

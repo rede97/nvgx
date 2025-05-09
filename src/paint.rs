@@ -178,13 +178,6 @@ pub enum LineCap {
 }
 
 #[derive(Debug, Clone)]
-pub enum PaintStyle {
-    Stroke,
-    Fill,
-    StrokeAndFill,
-}
-
-#[derive(Debug, Clone)]
 pub struct Paint {
     pub antialias: bool,
     pub alpha: f32,
@@ -194,7 +187,6 @@ pub struct Paint {
     pub line_join: LineJoin,
     pub line_cap: LineCap,
     pub miter_limit: f32,
-    pub style: PaintStyle,
 }
 
 impl Paint {
@@ -214,7 +206,6 @@ impl Default for Paint {
             line_cap: LineCap::Butt,
             miter_limit: 10.0,
             fill: Color::rgb(1.0, 1.0, 1.0).into(),
-            style: PaintStyle::Stroke,
         };
     }
 }
