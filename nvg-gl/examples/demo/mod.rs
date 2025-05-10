@@ -30,12 +30,7 @@ pub trait Demo<R: RendererDevice> {
     fn mouse_event(&mut self, _btn: winit::event::MouseButton, _state: winit::event::ElementState) {
     }
 
-    fn key_event(
-        &mut self,
-        _key: winit::keyboard::KeyCode,
-        _state: winit::event::ElementState,
-    ) {
-    }
+    fn key_event(&mut self, _key: winit::keyboard::KeyCode, _state: winit::event::ElementState) {}
 
     fn mouse_wheel(&mut self, _delta: winit::event::MouseScrollDelta) {}
 }

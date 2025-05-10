@@ -63,7 +63,6 @@ impl<R: RendererDevice> Context<R> {
 
     pub fn text<S: AsRef<str>, P: Into<Point>>(&mut self, pt: P, text: S) -> anyhow::Result<()> {
         let state = self.states.last().unwrap();
-        let mut cache = self.path.cache.borrow_mut();
         let scale = state.xform.font_scale() * self.device_pixel_ratio;
         let xform = &state.xform;
         let invscale = 1.0 / scale;
@@ -81,8 +80,8 @@ impl<R: RendererDevice> Context<R> {
             &mut self.layout_chars,
         )?;
 
-        cache.vertexes.clear();
-
+        let cache = &mut self.path_cache.cache;
+        let offset = cache.vertexes.len();
         for lc in &self.layout_chars {
             let lt = xform.transform_point(Point::new(
                 lc.bounds.min.x * invscale,
@@ -101,25 +100,14 @@ impl<R: RendererDevice> Context<R> {
                 lc.bounds.max.y * invscale,
             ));
 
-            cache
-                .vertexes
-                .push(Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y));
-            cache
-                .vertexes
-                .push(Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y));
-            cache
-                .vertexes
-                .push(Vertex::new(rt.x, rt.y, lc.uv.max.x, lc.uv.min.y));
-
-            cache
-                .vertexes
-                .push(Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y));
-            cache
-                .vertexes
-                .push(Vertex::new(lb.x, lb.y, lc.uv.min.x, lc.uv.max.y));
-            cache
-                .vertexes
-                .push(Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y));
+            cache.vertexes.extend([
+                Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y),
+                Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y),
+                Vertex::new(rt.x, rt.y, lc.uv.max.x, lc.uv.min.y),
+                Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y),
+                Vertex::new(lb.x, lb.y, lc.uv.min.x, lc.uv.max.y),
+                Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y),
+            ]);
         }
 
         let mut paint = state.paint.fill.clone();
@@ -128,10 +116,14 @@ impl<R: RendererDevice> Context<R> {
         paint.outer_color.a *= state.paint.alpha;
 
         self.renderer.triangles(
+            None,
             &paint,
             state.composite_operation,
             &state.scissor,
-            &cache.vertexes,
+            crate::VertexSlice {
+                offset,
+                count: cache.vertexes.len() - offset,
+            },
         )?;
         Ok(())
     }

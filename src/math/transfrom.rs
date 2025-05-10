@@ -2,7 +2,6 @@ use super::Point;
 use num_traits::AsPrimitive;
 use std::ops::{Mul, MulAssign};
 
-
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Transform(pub [f32; 6]);
 

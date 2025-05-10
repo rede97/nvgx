@@ -1,6 +1,6 @@
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
-use nvg::{BlendFactor, CompositeOperationState, PathFillType, Vertex};
+use nvg::{BlendFactor, CompositeOperationState, PathFillType, VertexSlice};
 
 use super::unifroms::RenderCommand;
 
@@ -10,46 +10,26 @@ pub(crate) enum CallType {
     ConvexFill,
     Stroke,
     Triangles,
+    #[cfg(feature = "wirelines")]
     Lines,
 }
 
 pub(crate) struct Call {
     pub call_type: CallType,
     pub image: Option<usize>,
-    pub path_offset: usize,
-    pub path_count: usize,
-    pub triangle_offset: usize,
-    pub triangle_count: usize,
+    pub path_range: Range<usize>,
+    pub triangle: VertexSlice,
     pub uniform_offset: usize,
     pub blend_func: CompositeOperationState,
-}
-
-impl Default for Call {
-    fn default() -> Self {
-        Self {
-            call_type: CallType::ConvexFill,
-            image: None,
-            path_offset: 0,
-            path_count: 0,
-            triangle_offset: 0,
-            triangle_count: 0,
-            uniform_offset: 0,
-            blend_func: CompositeOperationState::default(),
-        }
-    }
+    pub vertex_buffer: Option<Arc<wgpu::Buffer>>,
 }
 
 impl Call {
     #[inline]
-    pub fn triangle_slice(&self) -> Range<u64> {
-        let start = (self.triangle_offset * size_of::<Vertex>()) as u64;
-        let end = ((self.triangle_offset + self.triangle_count) * size_of::<Vertex>()) as u64;
+    pub fn triangle_vert(&self) -> Range<u32> {
+        let start = self.triangle.offset as u32;
+        let end = (self.triangle.offset + self.triangle.count) as u32;
         return start..end;
-    }
-
-    #[inline]
-    pub fn triangle_count(&self) -> u32 {
-        self.triangle_count as u32
     }
 
     #[inline]
@@ -96,26 +76,26 @@ impl ToBlendState for &CompositeOperationState {}
 
 #[derive(Default)]
 pub(crate) struct GpuPath {
-    pub fill_offset: usize,
-    pub fill_count: usize,
-    pub stroke_offset: usize,
-    pub stroke_count: usize,
+    pub fill: VertexSlice,
+    pub stroke: VertexSlice,
 }
 
 impl GpuPath {
     #[inline]
-    pub fn triangle_fan_slice(&self) -> Range<u64> {
-        let start = (self.fill_offset * size_of::<Vertex>()) as u64;
-        let end = ((self.fill_offset + self.fill_count) * size_of::<Vertex>()) as u64;
-        return start..end;
+    pub fn triangle_fan_offset(&self) -> i32 {
+        return self.fill.offset as i32;
     }
 
     #[inline]
     pub fn triangle_fan_count(&self) -> u32 {
-        if self.fill_count < 2 {
-            return 0;
-        } else {
-            return (self.fill_count - 2) as u32;
-        }
+        assert!(self.fill.count > 2);
+        return (self.fill.count - 2) as u32;
+    }
+
+    #[inline]
+    pub fn stroke_vert(&self) -> Range<u32> {
+        let start = self.stroke.offset as u32;
+        let end = (self.stroke.offset + self.stroke.count) as u32;
+        return start..end;
     }
 }

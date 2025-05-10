@@ -1,4 +1,6 @@
-use nvg::Vertex;
+use std::sync::Arc;
+
+use nvg::{Vertex, VertexSlice};
 use wgpu::{Extent3d, Origin2d};
 
 use crate::wgpu::{
@@ -6,11 +8,37 @@ use crate::wgpu::{
     unifroms::{RenderCommand, ShaderType},
 };
 
-use super::{call::CallType, Renderer};
+use super::{call::CallType, mesh::Mesh, Renderer};
 
 impl nvg::RendererDevice for Renderer {
+    type VertexBuffer = Arc<wgpu::Buffer>;
+
     fn edge_antialias(&self) -> bool {
         return self.config.antialias;
+    }
+
+    fn create_vertex_buffer(
+        &mut self,
+        init_num_vertex: usize,
+    ) -> anyhow::Result<Self::VertexBuffer> {
+        return Ok(Arc::new(Mesh::create_buffer(&self.device, init_num_vertex)));
+    }
+
+    fn update_vertex_buffer(
+        &mut self,
+        buffer: Option<Self::VertexBuffer>,
+        vertexes: &[Vertex],
+    ) -> anyhow::Result<()> {
+        if let Some(buffer) = buffer {
+            self.resources
+                .mesh
+                .update_buffer(&self.device, &self.queue, buffer.as_ref(), vertexes)?;
+        } else {
+            self.resources
+                .mesh
+                .update_inner_buffer(&self.device, &self.queue, vertexes);
+        };
+        Ok(())
     }
 
     fn resize(&mut self, _width: u32, _height: u32) -> anyhow::Result<()> {
@@ -96,13 +124,11 @@ impl nvg::RendererDevice for Renderer {
     fn cancel(&mut self) -> anyhow::Result<()> {
         self.resources.calls.clear();
         self.resources.paths.clear();
-        self.resources.mesh.clear();
         self.resources.render_unifrom.value.clear();
         Ok(())
     }
 
     fn flush(&mut self) -> anyhow::Result<()> {
-        self.resources.mesh.update_buffer(&self.device, &self.queue);
         self.resources
             .viewsize_uniform
             .update_buffer(&self.device, &self.queue);
@@ -118,6 +144,7 @@ impl nvg::RendererDevice for Renderer {
                 &texture.view,
                 &stencil_view,
                 &mut self.pipeline_manager,
+                self.clear_cmd.take(),
             );
         } else {
             let output = self.surface.get_current_texture().unwrap();
@@ -131,6 +158,7 @@ impl nvg::RendererDevice for Renderer {
                 &view,
                 self.resources.texture_manager.stencil_view(),
                 &mut self.pipeline_manager,
+                self.clear_cmd.take(),
             );
             output.present();
         };
@@ -139,58 +167,47 @@ impl nvg::RendererDevice for Renderer {
 
     fn fill(
         &mut self,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         fill_type: nvg::PathFillType,
         scissor: &nvg::Scissor,
         fringe: f32,
-        bounds: nvg::Bounds,
-        paths: &[nvg::PathInfo],
+        bounds_offset: Option<usize>,
+        paths: &[nvg::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.resources.paths.len();
-        let mut offset = self.resources.mesh.vertices.len();
-        for path in paths {
-            let fill = path.get_fill();
-            let mut wgpu_path = GpuPath::default();
-            if !fill.is_empty() {
-                wgpu_path.fill_offset = offset;
-                wgpu_path.fill_count = fill.len();
-                self.resources.mesh.vertices.extend(fill);
-                offset += fill.len()
+        self.resources.paths.extend(paths.iter().filter_map(|p| {
+            let fill = p.get_fill();
+            if fill.count < 3 {
+                None
+            } else {
+                Some(GpuPath {
+                    fill,
+                    stroke: p.get_stroke(),
+                })
             }
-
-            let stroke = path.get_stroke();
-            if !stroke.is_empty() {
-                wgpu_path.stroke_offset = offset;
-                wgpu_path.stroke_count = stroke.len();
-                self.resources.mesh.vertices.extend(stroke);
-                offset += stroke.len();
-            }
-            self.resources.paths.push(wgpu_path);
-        }
+        }));
 
         let call = Call {
-            call_type: if paths.len() == 1 && paths[0].convex {
-                crate::wgpu::call::CallType::ConvexFill
-            } else {
+            call_type: if bounds_offset.is_some() {
                 crate::wgpu::call::CallType::Fill(fill_type)
+            } else {
+                crate::wgpu::call::CallType::ConvexFill
             },
             image: paint.image,
-            path_offset,
-            path_count: paths.len(),
-            triangle_offset: offset,
-            triangle_count: 4,
+            path_range: path_offset..self.resources.paths.len(),
+            triangle: if let Some(offset) = bounds_offset {
+                VertexSlice { offset, count: 4 }
+            } else {
+                Default::default()
+            },
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
+            vertex_buffer,
         };
 
         if let CallType::Fill(_) = call.call_type {
-            self.resources.mesh.vertices.extend([
-                Vertex::new(bounds.max.x, bounds.max.y, 0.5, 1.0),
-                Vertex::new(bounds.max.x, bounds.min.y, 0.5, 1.0),
-                Vertex::new(bounds.min.x, bounds.max.y, 0.5, 1.0),
-                Vertex::new(bounds.min.x, bounds.min.y, 0.5, 1.0),
-            ]);
             self.resources.render_unifrom.value.push(RenderCommand {
                 stroke_thr: -1.0,
                 render_type: ShaderType::Simple as u32,
@@ -210,41 +227,34 @@ impl nvg::RendererDevice for Renderer {
 
     fn stroke(
         &mut self,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
         fringe: f32,
         stroke_width: f32,
-        paths: &[nvg::PathInfo],
+        paths: &[nvg::PathSlice],
     ) -> anyhow::Result<()> {
+        let path_offset = self.resources.paths.len();
+
+        self.resources.paths.extend(paths.iter().filter_map(|p| {
+            let stroke = p.get_stroke();
+            Some(GpuPath {
+                stroke: stroke,
+                ..Default::default()
+            })
+        }));
+
         let call = Call {
             call_type: CallType::Stroke,
             image: paint.image,
-            path_offset: self.resources.paths.len(),
-            path_count: paths.len(),
+            path_range: path_offset..self.resources.paths.len(),
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            ..Default::default()
+            vertex_buffer,
+            triangle: VertexSlice::default(),
         };
 
-        let mut offset = self.resources.mesh.vertices.len();
-        for path in paths {
-            let mut gl_path = GpuPath {
-                fill_offset: 0,
-                fill_count: 0,
-                stroke_offset: 0,
-                stroke_count: 0,
-            };
-
-            let stroke = path.get_stroke();
-            if !stroke.is_empty() {
-                gl_path.stroke_offset = offset;
-                gl_path.stroke_count = stroke.len();
-                self.resources.mesh.vertices.extend(stroke);
-                offset += stroke.len();
-                self.resources.paths.push(gl_path);
-            }
-        }
         self.resources.render_unifrom.value.push(RenderCommand::new(
             &self,
             paint,
@@ -259,23 +269,23 @@ impl nvg::RendererDevice for Renderer {
 
     fn triangles(
         &mut self,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
-        vertexes: &[nvg::Vertex],
+        slice: VertexSlice,
     ) -> anyhow::Result<()> {
         let call = Call {
             call_type: CallType::Triangles,
             image: paint.image,
-            triangle_offset: self.resources.mesh.vertices.len(),
-            triangle_count: vertexes.len(),
+            triangle: slice,
+            path_range: 0..0,
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            ..Default::default()
+            vertex_buffer,
         };
 
         self.resources.calls.push(call);
-        self.resources.mesh.vertices.extend(vertexes);
 
         self.resources.render_unifrom.value.push(
             RenderCommand::new(&self, paint, scissor, 1.0, 1.0, -1.0).set_type(ShaderType::Image),
@@ -285,7 +295,7 @@ impl nvg::RendererDevice for Renderer {
 
     fn clear(&mut self, color: nvg::Color) -> anyhow::Result<()> {
         self.cancel()?;
-        self.resources.clear_cmd = Some(wgpu::Color {
+        self.clear_cmd = Some(wgpu::Color {
             r: color.r as f64,
             g: color.g as f64,
             b: color.b as f64,
@@ -294,37 +304,34 @@ impl nvg::RendererDevice for Renderer {
         Ok(())
     }
 
+    #[cfg(feature = "wirelines")]
     fn wirelines(
         &mut self,
+        vertex_buffer: Option<Self::VertexBuffer>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
-        paths: &[nvg::PathInfo],
+        paths: &[nvg::PathSlice],
     ) -> anyhow::Result<()> {
+        let path_offset = self.resources.paths.len();
+
+        self.resources.paths.extend(paths.iter().filter_map(|p| {
+            let stroke = p.get_stroke();
+            Some(GpuPath {
+                stroke: stroke,
+                ..Default::default()
+            })
+        }));
+
         let call = Call {
             call_type: CallType::Lines,
             image: paint.image,
-            path_offset: self.resources.paths.len(),
-            path_count: paths.len(),
+            path_range: path_offset..self.resources.paths.len(),
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
-            ..Default::default()
+            vertex_buffer,
+            triangle: VertexSlice::default(),
         };
-
-        let mut offset = self.resources.mesh.vertices.len();
-        for path in paths {
-            let line = path.get_line();
-            if !line.is_empty() {
-                let gl_path = GpuPath {
-                    stroke_offset: offset,
-                    stroke_count: line.len(),
-                    ..Default::default()
-                };
-                self.resources.mesh.vertices.extend(line);
-                offset += line.len();
-                self.resources.paths.push(gl_path);
-            }
-        }
 
         self.resources.calls.push(call);
 

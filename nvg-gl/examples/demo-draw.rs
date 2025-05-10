@@ -24,6 +24,7 @@ impl DemoDraw {
         ctx.text((10, 70), "key L: wirelines")?;
         ctx.text((10, 80), "key C: close path")?;
         ctx.text((10, 90), "key F: Fill path")?;
+        ctx.fill()?;
 
         ctx.global_composite_operation(CompositeOperation::Basic(BasicCompositeOperation::SrcOver));
         ctx.reset_transform();
@@ -46,6 +47,7 @@ impl DemoDraw {
         if self.wirelines {
             ctx.fill_paint(nvg::Color::rgba_i(90, 120, 250, 100));
             ctx.fill()?;
+            #[cfg(feature = "wirelines")]
             ctx.wirelines()?;
         } else {
             if self.fill {
@@ -137,11 +139,7 @@ impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
         Ok(())
     }
 
-    fn key_event(
-        &mut self,
-        _key: winit::keyboard::KeyCode,
-        state: winit::event::ElementState,
-    ) {
+    fn key_event(&mut self, _key: winit::keyboard::KeyCode, state: winit::event::ElementState) {
         match _key {
             winit::keyboard::KeyCode::KeyC => {
                 if state == winit::event::ElementState::Pressed {

@@ -1,5 +1,5 @@
-use super::{PointFlags, VPoint};
 use super::Vertex;
+use super::{PointFlags, VPoint};
 use clamped::Clamp;
 use std::f32::consts::PI;
 

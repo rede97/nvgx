@@ -17,9 +17,7 @@ impl RenderConfig {
 
 impl Default for RenderConfig {
     fn default() -> Self {
-        Self {
-            antialias: true,
-        }
+        Self { antialias: true }
     }
 }
 

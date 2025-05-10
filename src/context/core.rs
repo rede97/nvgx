@@ -1,9 +1,13 @@
-use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState};
+use super::core_path_cache::PathCommandsWithCache;
+use super::{
+    Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState,
+};
 use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
-use crate::path::Path;
 use crate::renderer::Scissor;
-use crate::{Extent, Paint, PathFillType, Point, Rect, RendererDevice, Transform};
+use crate::{
+    Color, Extent, Paint, PathFillType, Point, Rect, RendererDevice, Transform
+};
 
 #[derive(Clone)]
 pub(super) struct State {
@@ -44,7 +48,7 @@ impl Default for State {
 
 pub struct Context<R: RendererDevice> {
     pub(super) renderer: R,
-    pub(super) path: Path,
+    pub(super) path_cache: PathCommandsWithCache,
     pub(super) states: Vec<State>,
     pub(super) tess_tol: f32,
     pub(super) dist_tol: f32,
@@ -62,13 +66,13 @@ impl<R: RendererDevice> Context<R> {
     pub fn create(mut renderer: R) -> anyhow::Result<Context<R>> {
         let fonts = Fonts::new(&mut renderer)?;
         Ok(Context {
+            path_cache: PathCommandsWithCache::default(),
             renderer,
-            path: Path::new(),
             states: vec![Default::default()],
             tess_tol: 0.0,
             dist_tol: 0.0,
             fringe_width: 1.0,
-            device_pixel_ratio: 0.0,
+            device_pixel_ratio: 1.0,
             fonts,
             layout_chars: Default::default(),
             draw_call_count: 0,
@@ -98,6 +102,10 @@ impl<R: RendererDevice> Context<R> {
         self.device_pixel_ratio = ratio;
     }
 
+    pub fn clear(&mut self, color: Color) -> anyhow::Result<()> {
+        return self.renderer.clear(color);
+    }
+
     pub fn begin_frame<E: Into<Extent>>(
         &mut self,
         window_extent: E,
@@ -121,7 +129,10 @@ impl<R: RendererDevice> Context<R> {
     }
 
     pub fn end_frame(&mut self) -> anyhow::Result<()> {
+        let cache = &mut self.path_cache.cache;
+        self.renderer.update_vertex_buffer(None, &cache.vertexes)?;
         self.renderer.flush()?;
+        cache.reset();
         Ok(())
     }
 
