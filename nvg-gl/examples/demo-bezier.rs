@@ -119,6 +119,7 @@ struct Triangle<R: RendererDevice> {
     control_points: [ControlPoint; 3],
     path: Path<R>,
     paint: Paint,
+    update: bool,
 }
 
 impl<R: RendererDevice> Triangle<R> {
@@ -136,15 +137,19 @@ impl<R: RendererDevice> Triangle<R> {
             ],
             path: Path::new(),
             paint,
+            update: true,
         };
     }
 
     pub fn draw(&mut self, ctx: &mut Context<R>, wirelines: bool) -> anyhow::Result<()> {
-        let path = self.path.reset();
-        path.move_to(self.control_points[0].p);
-        path.line_to(self.control_points[1].p);
-        path.line_to(self.control_points[2].p);
-        path.close_path();
+        if self.update {
+            let path = self.path.reset();
+            path.move_to(self.control_points[0].p);
+            path.line_to(self.control_points[1].p);
+            path.line_to(self.control_points[2].p);
+            path.close_path();
+            self.update = false;
+        }
         if wirelines {
             ctx.draw_path(
                 &self.path,
@@ -179,6 +184,7 @@ impl<R: RendererDevice> Triangle<R> {
         for cp in self.control_points.iter_mut() {
             cp.mouse_move(x, y);
         }
+        self.update = true;
     }
 }
 
@@ -189,6 +195,7 @@ struct ArcTo<R: RendererDevice> {
     paint: Paint,
     line_path: Path<R>,
     line_paint: Paint,
+    update: bool,
 }
 
 impl<R: RendererDevice> ArcTo<R> {
@@ -214,22 +221,26 @@ impl<R: RendererDevice> ArcTo<R> {
             line_path: Path::new(),
             line_paint,
             radius: 50.0,
+            update: true,
         };
     }
 
     pub fn draw(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
-        let path = self.line_path.reset();
-        path.move_to(self.control_points[0].p);
-        path.line_to(self.control_points[1].p);
-        path.line_to(self.control_points[2].p);
+        if self.update {
+            let path = self.line_path.reset();
+            path.move_to(self.control_points[0].p);
+            path.line_to(self.control_points[1].p);
+            path.line_to(self.control_points[2].p);
+            let path = self.path.reset();
+            path.move_to(self.control_points[0].p);
+            path.arc_to(
+                self.control_points[1].p,
+                self.control_points[2].p,
+                self.radius,
+            );
+            self.update = false;
+        }
         ctx.draw_path(&self.line_path, &self.line_paint, DrawPathStyle::WIRELINES)?;
-        let path = self.path.reset();
-        path.move_to(self.control_points[0].p);
-        path.arc_to(
-            self.control_points[1].p,
-            self.control_points[2].p,
-            self.radius,
-        );
         ctx.draw_path(&self.path, &self.paint, DrawPathStyle::STROKE)?;
         for cp in self.control_points.iter() {
             cp.draw(ctx)?;
@@ -251,10 +262,12 @@ impl<R: RendererDevice> ArcTo<R> {
         for cp in self.control_points.iter_mut() {
             cp.mouse_move(x, y);
         }
+        self.update = true;
     }
 
     pub fn mouse_wheel(&mut self, y: f32) {
         self.radius = f32::clamp(self.radius + y, 20.0, 500.0);
+        self.update = true;
     }
 }
 
