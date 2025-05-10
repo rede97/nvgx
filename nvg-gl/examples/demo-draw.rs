@@ -5,12 +5,21 @@ use std::time::Instant;
 
 mod demo;
 
+enum LinesType {
+    Stroke,
+    WireLines,
+}
+
 struct DemoDraw {
     img: Option<ImageId>,
     start_time: Instant,
+    prev_time: f32,
     close: bool,
-    wirelines: bool,
+    lines_type: LinesType,
+    lines: bool,
     fill: bool,
+    mouse: (f32, f32),
+    smoothed_mouse: (f32, f32),
 }
 
 impl DemoDraw {
@@ -21,6 +30,7 @@ impl DemoDraw {
         ctx: &mut Context<R>,
     ) -> Result<(), Error> {
         ctx.text_align(nvg::Align::LEFT);
+        ctx.text((10, 0), "key S: stroke")?;
         ctx.text((10, 70), "key L: wirelines")?;
         ctx.text((10, 80), "key C: close path")?;
         ctx.text((10, 90), "key F: Fill path")?;
@@ -44,11 +54,19 @@ impl DemoDraw {
 
         ctx.reset_transform();
         ctx.stroke_paint(Color::rgb_i(0xFF, 0xFF, 0xFF));
-        if self.wirelines {
+        if self.lines {
             ctx.fill_paint(nvg::Color::rgba_i(90, 120, 250, 100));
             ctx.fill()?;
-            #[cfg(feature = "wirelines")]
-            ctx.wirelines()?;
+            match self.lines_type {
+                LinesType::Stroke => {
+                    ctx.stroke_width(1.0);
+                    ctx.stroke()?;
+                }
+                LinesType::WireLines => {
+                    #[cfg(feature = "wirelines")]
+                    ctx.wirelines()?;
+                }
+            }
         } else {
             if self.fill {
                 ctx.fill()?;
@@ -58,6 +76,28 @@ impl DemoDraw {
             }
         }
 
+        Ok(())
+    }
+
+    fn demo_image<R: RendererDevice>(
+        &mut self,
+        _width: f32,
+        _height: f32,
+        ctx: &mut Context<R>,
+    ) -> Result<(), Error> {
+        ctx.begin_path();
+        let radius = 100.0;
+        ctx.fill_paint({
+            ImagePattern {
+                img: self.img.unwrap(),
+                center: (0.0, 0.0).into(),
+                size: (200.0, 200.0).into(),
+                angle: 0.0,
+                alpha: 0.8,
+            }
+        });
+        ctx.circle(self.smoothed_mouse, radius);
+        ctx.fill()?;
         Ok(())
     }
 }
@@ -72,9 +112,13 @@ impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
         Ok(())
     }
 
-    fn update(&mut self, _width: f32, _height: f32, ctx: &mut Context<R>) -> anyhow::Result<()> {
+    fn update(&mut self, width: f32, height: f32, ctx: &mut Context<R>) -> anyhow::Result<()> {
         let elapsed = self.start_time.elapsed().as_secs_f32();
-        self.demo_lines(_width, _height, ctx)?;
+        let delta_time = elapsed - self.prev_time;
+        self.prev_time = elapsed;
+        self.smoothed_mouse = smooth_mouse(self.mouse, self.smoothed_mouse, delta_time, 7.0);
+        self.demo_lines(width, height, ctx)?;
+        self.demo_image(width, height, ctx)?;
 
         ctx.begin_path();
         ctx.rect((100.0, 100.0, 300.0, 300.0));
@@ -140,25 +184,46 @@ impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
     }
 
     fn key_event(&mut self, _key: winit::keyboard::KeyCode, state: winit::event::ElementState) {
-        match _key {
-            winit::keyboard::KeyCode::KeyC => {
-                if state == winit::event::ElementState::Pressed {
+        if state == winit::event::ElementState::Pressed {
+            match _key {
+                winit::keyboard::KeyCode::KeyC => {
                     self.close = !self.close;
                 }
-            }
-            winit::keyboard::KeyCode::KeyL => {
-                if state == winit::event::ElementState::Pressed {
-                    self.wirelines = !self.wirelines;
+                winit::keyboard::KeyCode::KeyL => {
+                    self.lines = !self.lines;
                 }
-            }
-            winit::keyboard::KeyCode::KeyF => {
-                if state == winit::event::ElementState::Pressed {
+                winit::keyboard::KeyCode::KeyS => {
+                    self.lines_type = match self.lines_type {
+                        LinesType::Stroke => LinesType::WireLines,
+                        LinesType::WireLines => LinesType::Stroke,
+                    }
+                }
+                winit::keyboard::KeyCode::KeyF => {
                     self.fill = !self.fill;
                 }
+                _ => (),
             }
-            _ => (),
         }
     }
+
+    fn cursor_moved(&mut self, x: f32, y: f32) {
+        self.mouse = (x, y);
+    }
+}
+
+fn lerp(from: f32, to: f32, t: f32) -> f32 {
+    from + (to - from) * t
+}
+
+fn smooth_mouse(
+    mouse: (f32, f32),
+    prev_smoothed_mouse: (f32, f32),
+    dt: f32,
+    speed: f32,
+) -> (f32, f32) {
+    let smx = lerp(prev_smoothed_mouse.0, mouse.0, dt * speed);
+    let smy = lerp(prev_smoothed_mouse.1, mouse.1, dt * speed);
+    (smx, smy)
 }
 
 fn main() {
@@ -167,8 +232,12 @@ fn main() {
             img: None,
             start_time: Instant::now(),
             close: false,
-            wirelines: false,
+            lines: false,
+            lines_type: LinesType::WireLines,
             fill: false,
+            prev_time: 0.0,
+            mouse: (0.0, 0.0),
+            smoothed_mouse: (0.0, 0.0),
         },
         "demo-draw",
     );

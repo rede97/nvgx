@@ -119,6 +119,6 @@ impl AsRef<CompositeOperationState> for &CompositeOperationState {
 
 impl Default for CompositeOperationState {
     fn default() -> Self {
-        return CompositeOperation::Basic(BasicCompositeOperation::Lighter).into();
+        return CompositeOperation::Basic(BasicCompositeOperation::SrcOver).into();
     }
 }
