@@ -30,7 +30,7 @@ pub trait RendererDevice {
 
     fn update_vertex_buffer(
         &mut self,
-        buffer: Option<&Self::VertexBuffer>,
+        buffer: Option<Self::VertexBuffer>,
         vertexes: &[Vertex],
     ) -> anyhow::Result<()>;
 

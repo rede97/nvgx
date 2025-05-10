@@ -115,46 +115,48 @@ impl ControlBezier {
     }
 }
 
-struct Triangle {
+struct Triangle<R: RendererDevice> {
     control_points: [ControlPoint; 3],
+    path: Path<R>,
     paint: Paint,
 }
 
-impl Triangle {
+impl<R: RendererDevice> Triangle<R> {
     pub fn new() -> Self {
         let cyan = Color::rgb(0.2, 0.7, 0.8);
         let mut paint = Paint::new();
         paint.stroke = nvg::Color::rgb(0.9, 0.9, 0.9).into();
         paint.stroke_width = 2.0;
         paint.fill = nvg::Color::rgb(0.6, 0.4, 0.7).into();
-        paint.style = PaintStyle::StrokeAndFill;
         return Self {
             control_points: [
                 ControlPoint::new(200.0, 500.0, cyan),
                 ControlPoint::new(400.0, 600.0, cyan),
                 ControlPoint::new(600.0, 200.0, cyan),
             ],
+            path: Path::new(),
             paint,
         };
     }
 
-    pub fn draw<R: RendererDevice>(
-        &mut self,
-        ctx: &mut Context<R>,
-        wirelines: bool,
-    ) -> anyhow::Result<()> {
-        let mut path = PathWithCache::new();
+    pub fn draw(&mut self, ctx: &mut Context<R>, wirelines: bool) -> anyhow::Result<()> {
+        let path = self.path.reset();
         path.move_to(self.control_points[0].p);
         path.line_to(self.control_points[1].p);
         path.line_to(self.control_points[2].p);
         path.close_path();
         if wirelines {
-            self.paint.style = PaintStyle::Fill;
-            ctx.draw_path(&path, &self.paint)?;
-            ctx.wirelines_path(&path, &self.paint.stroke)?;
+            ctx.draw_path(
+                &self.path,
+                &self.paint,
+                DrawPathStyle::FILL | DrawPathStyle::WIRELINES,
+            )?;
         } else {
-            self.paint.style = PaintStyle::StrokeAndFill;
-            ctx.draw_path(&path, &self.paint)?;
+            ctx.draw_path(
+                &self.path,
+                &self.paint,
+                DrawPathStyle::FILL | DrawPathStyle::STROKE,
+            )?;
         }
 
         for cp in self.control_points.iter() {
@@ -180,44 +182,55 @@ impl Triangle {
     }
 }
 
-struct ArcTo {
+struct ArcTo<R: RendererDevice> {
     control_points: [ControlPoint; 3],
     radius: f32,
+    path: Path<R>,
     paint: Paint,
+    line_path: Path<R>,
+    line_paint: Paint,
 }
 
-impl ArcTo {
+impl<R: RendererDevice> ArcTo<R> {
     pub fn new() -> Self {
         let cyan = Color::rgb(0.2, 0.7, 0.8);
-        let mut paint = Paint::new();
-        paint.stroke = nvg::Color::rgb(0.3, 0.8, 0.6).into();
-        paint.stroke_width = 2.0;
-        paint.style = PaintStyle::Stroke;
+        let paint = Paint {
+            stroke: nvg::Color::rgb(0.3, 0.8, 0.6).into(),
+            stroke_width: 2.0,
+            ..Default::default()
+        };
+        let line_paint = Paint {
+            stroke: nvg::Color::rgba(0.2, 0.4, 0.6, 0.7).into(),
+            ..Default::default()
+        };
         return Self {
             control_points: [
                 ControlPoint::new(400.0, 100.0, cyan),
                 ControlPoint::new(200.0, 300.0, cyan),
                 ControlPoint::new(500.0, 300.0, cyan),
             ],
+            path: Path::new(),
             paint,
+            line_path: Path::new(),
+            line_paint,
             radius: 50.0,
         };
     }
 
-    pub fn draw<R: RendererDevice>(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
-        let mut path = PathWithCache::new();
+    pub fn draw(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
+        let path = self.line_path.reset();
         path.move_to(self.control_points[0].p);
         path.line_to(self.control_points[1].p);
         path.line_to(self.control_points[2].p);
-        ctx.wirelines_path(&path, &nvg::Color::rgba(0.2, 0.4, 0.6, 0.7).into())?;
-        let mut path = PathWithCache::new();
+        ctx.draw_path(&self.line_path, &self.line_paint, DrawPathStyle::WIRELINES)?;
+        let path = self.path.reset();
         path.move_to(self.control_points[0].p);
         path.arc_to(
             self.control_points[1].p,
             self.control_points[2].p,
             self.radius,
         );
-        ctx.draw_path(&path, &self.paint)?;
+        ctx.draw_path(&self.path, &self.paint, DrawPathStyle::STROKE)?;
         for cp in self.control_points.iter() {
             cp.draw(ctx)?;
         }
@@ -245,17 +258,17 @@ impl ArcTo {
     }
 }
 
-struct DemoDraw {
+struct DemoDraw<R: RendererDevice> {
     img: Option<ImageId>,
     cursor: (f32, f32),
     window_size: (f32, f32),
     bezier: ControlBezier,
-    triangle: Triangle,
-    arc_to: ArcTo,
+    triangle: Triangle<R>,
+    arc_to: ArcTo<R>,
     wirelines: bool,
 }
 
-impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
+impl<R: RendererDevice> demo::Demo<R> for DemoDraw<R> {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> Result<(), Error> {
         ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
         self.img = Some(ctx.create_image_from_file(

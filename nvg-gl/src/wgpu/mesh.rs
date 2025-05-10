@@ -79,9 +79,10 @@ impl Mesh {
 
     #[inline]
     pub fn create_buffer(device: &wgpu::Device, init_num_vertex: usize) -> wgpu::Buffer {
+        let buffer_size = align_size::<1024>(init_num_vertex) * size_of::<Vertex>();
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("NVG Create New Vertex Buffer"),
-            size: (init_num_vertex * size_of::<Vertex>()) as u64,
+            size: buffer_size as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -126,4 +127,9 @@ impl Mesh {
         queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(vertices));
         self.update_indices(device, queue, vertex_count);
     }
+}
+
+fn align_size<const S: usize>(offset: usize) -> usize {
+    assert!(S.is_power_of_two());
+    (offset + S - 1) & !(S - 1)
 }

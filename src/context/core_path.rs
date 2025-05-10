@@ -1,108 +1,267 @@
-use crate::{PathDir, Point, Rect, RendererDevice};
+use crate::Paint;
+use crate::{DrawPathStyle, RendererDevice};
 
+use super::core_path_cache::PathRefWithCache;
 use super::*;
 
 impl<R: RendererDevice> Context<R> {
-    #[inline]
-    pub fn move_to<P: Into<Point>>(&mut self, pt: P) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.move_to(pt);
+    pub fn fill(&mut self) -> anyhow::Result<()> {
+        let state = self.states.last().unwrap();
+        let paint = &state.paint;
+        self.path_cache.fill_type = state.fill_type;
+        let bounds_offset = Self::expand_fill_path(
+            &mut self.path_cache,
+            &state.paint,
+            self.dist_tol,
+            self.tess_tol,
+            self.fringe_width,
+        );
+
+        let fill_slice = self.path_cache.get_fill_slice();
+        self.renderer.fill(
+            None,
+            &paint.get_fill(),
+            state.composite_operation,
+            self.path_cache.path_commands().fill_type,
+            &state.scissor,
+            self.fringe_width,
+            bounds_offset,
+            fill_slice,
+        )?;
+
+        self.draw_call_count += fill_slice.len();
+        self.fill_triangles_count += fill_slice.iter().fold(0, |mut acc, path_slice| {
+            if path_slice.num_fill > 2 {
+                acc += path_slice.num_fill - 2;
+            }
+            if path_slice.num_stroke > 2 {
+                acc += path_slice.num_stroke - 2;
+            }
+            acc
+        });
+        Ok(())
     }
 
-    #[inline]
-    pub fn line_to<P: Into<Point>>(&mut self, pt: P) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.line_to(pt);
+    pub fn stroke(&mut self) -> anyhow::Result<()> {
+        let state = self.states.last().unwrap();
+        let paint = &state.paint;
+        let antialias = self.renderer.edge_antialias() && paint.antialias;
+        let (stroke_paint, stroke_width) = paint.get_stroke(
+            antialias,
+            self.fringe_width,
+            state.xform.average_scale(),
+            self.device_pixel_ratio,
+        );
+
+        Self::expand_stroke_path(
+            &mut self.path_cache,
+            antialias,
+            stroke_width,
+            &paint,
+            self.dist_tol,
+            self.tess_tol,
+            self.fringe_width,
+        );
+
+        let stroke_slice = self.path_cache.get_stroke_slice();
+        self.renderer.stroke(
+            None,
+            &stroke_paint,
+            state.composite_operation,
+            &state.scissor,
+            self.fringe_width,
+            stroke_width,
+            stroke_slice,
+        )?;
+
+        self.draw_call_count += stroke_slice.len();
+        self.fill_triangles_count += stroke_slice
+            .iter()
+            .fold(0, |acc, path_slice| acc + path_slice.num_stroke - 2);
+        Ok(())
     }
 
-    #[inline]
-    pub fn bezier_to<P: Into<Point>>(&mut self, cp1: P, cp2: P, pt: P) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.bezier_to(cp1, cp2, pt);
+    #[cfg(feature = "wirelines")]
+    pub fn wirelines(&mut self) -> anyhow::Result<()> {
+        Self::expand_wirelines_path(&mut self.path_cache, self.dist_tol, self.tess_tol);
+        let state = self.states.last().unwrap();
+        let (stroke_paint, _) = state.paint.get_stroke(false, 1.0, 1.0, 1.0);
+        let lines_slice = self.path_cache.get_lines_slice();
+
+        self.renderer.wirelines(
+            None,
+            &stroke_paint,
+            state.composite_operation,
+            &state.scissor,
+            lines_slice,
+        )?;
+        self.draw_call_count += lines_slice.len();
+        Ok(())
     }
 
-    #[inline]
-    pub fn quad_to<P: Into<Point>>(&mut self, cp: P, pt: P) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.quad_to(cp, pt);
-    }
-
-    #[inline]
-    pub fn arc_to<P: Into<Point>>(&mut self, pt1: P, pt2: P, radius: f32) {
-        self.path_cache.xform = self.state_mut().xform;
-        if self.path_cache.commands.is_empty() {
-            return;
+    pub fn draw_path<'a>(
+        &'a mut self,
+        path: &'a Path<R>,
+        paint: &'a Paint,
+        style: DrawPathStyle,
+    ) -> anyhow::Result<()> {
+        if style.is_empty() {
+            return Ok(());
         }
-        let pt0 = self.path_cache.last_position;
-        let pt1 = pt1.into();
-        let pt2 = pt2.into();
-        if pt0.equals(pt1, self.dist_tol)
-            || pt1.equals(pt2, self.dist_tol)
-            || pt1.dist_pt_seg(pt0, pt2) < self.dist_tol * self.dist_tol
-            || radius < self.dist_tol
-        {
-            self.line_to(pt1);
-            return;
+        let cached_style = path.inner_cached_style();
+
+        let (fill_cmd, stroke_cmd, lines_cmd) = if cached_style.contains(style) {
+            let fill_cmd = if style.contains(DrawPathStyle::FILL) {
+                Some(path.inner.borrow().draw_slice.bounds_offset)
+            } else {
+                None
+            };
+            let stroke_cmd = if style.contains(DrawPathStyle::STROKE) {
+                let antialias = self.renderer.edge_antialias() && paint.antialias;
+                Some(paint.get_stroke(
+                    antialias,
+                    self.fringe_width,
+                    path.xform.average_scale(),
+                    self.device_pixel_ratio,
+                ))
+            } else {
+                None
+            };
+            let lines_cmd = if style.contains(DrawPathStyle::WIRELINES) {
+                Some(())
+            } else {
+                None
+            };
+            (fill_cmd, stroke_cmd, lines_cmd)
+        } else {
+            // Update Vertex buffer
+            let mut path_cache = PathRefWithCache::new(path);
+            let new_style = cached_style | style;
+            let fill_cmd = if new_style.contains(DrawPathStyle::FILL) {
+                Some(Self::expand_fill_path(
+                    &mut path_cache,
+                    &paint,
+                    self.dist_tol,
+                    self.tess_tol,
+                    self.fringe_width,
+                ))
+            } else {
+                None
+            };
+            let stroke_cmd = if new_style.contains(DrawPathStyle::STROKE) {
+                let antialias = self.renderer.edge_antialias() && paint.antialias;
+                let (stroke_paint, stroke_width) = paint.get_stroke(
+                    antialias,
+                    self.fringe_width,
+                    path.xform.average_scale(),
+                    self.device_pixel_ratio,
+                );
+                Self::expand_stroke_path(
+                    &mut path_cache,
+                    antialias,
+                    stroke_width,
+                    &paint,
+                    self.dist_tol,
+                    self.tess_tol,
+                    self.fringe_width,
+                );
+                Some((stroke_paint, stroke_width))
+            } else {
+                None
+            };
+            let lines_cmd = if style.contains(DrawPathStyle::WIRELINES) {
+                Self::expand_wirelines_path(&mut path_cache, self.dist_tol, self.tess_tol);
+                Some(())
+            } else {
+                None
+            };
+            if !path_cache.cache.vertexes.is_empty() {
+                let try_update =
+                    path_cache
+                        .path_mut_inner
+                        .vertex_buffer
+                        .as_ref()
+                        .and_then(|buffer| {
+                            self.renderer
+                                .update_vertex_buffer(
+                                    Some(buffer.clone()),
+                                    &path_cache.cache.vertexes,
+                                )
+                                .ok()
+                        });
+                if try_update.is_none() {
+                    let buffer = self
+                        .renderer
+                        .create_vertex_buffer(path_cache.cache.vertexes.len())?;
+                    self.renderer
+                        .update_vertex_buffer(Some(buffer.clone()), &path_cache.cache.vertexes)?;
+                    path_cache.path_mut_inner.vertex_buffer = Some(buffer);
+                }
+            }
+
+            path_cache.path_mut_inner.style = new_style;
+            (fill_cmd, stroke_cmd, lines_cmd)
+        };
+
+        // Start Draw-CALLs
+        let state = self.states.last().unwrap();
+        let inner = path.inner.borrow();
+        if let Some(bounds_offset) = fill_cmd {
+            let fill_slice = &inner.draw_slice.fill;
+            self.renderer.fill(
+                inner.vertex_buffer.clone(),
+                &paint.get_fill(),
+                state.composite_operation,
+                path.path_comands.fill_type,
+                &state.scissor,
+                self.fringe_width,
+                bounds_offset,
+                fill_slice,
+            )?;
+
+            self.draw_call_count += fill_slice.len();
+            self.fill_triangles_count += fill_slice.iter().fold(0, |mut acc, path_slice| {
+                if path_slice.num_fill > 2 {
+                    acc += path_slice.num_fill - 2;
+                }
+                if path_slice.num_stroke > 2 {
+                    acc += path_slice.num_stroke - 2;
+                }
+                acc
+            });
         }
-        self.path_cache.inner_arc_to(pt0, pt1, pt2, radius);
-    }
 
-    #[inline]
-    pub fn arc<P: Into<Point>>(&mut self, cp: P, radius: f32, a0: f32, a1: f32, dir: PathDir) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.arc(cp, radius, a0, a1, dir);
-    }
+        if let Some((stroke_paint, stroke_width)) = stroke_cmd {
+            let stroke_slice = &inner.draw_slice.stroke;
+            self.renderer.stroke(
+                inner.vertex_buffer.clone(),
+                &stroke_paint,
+                state.composite_operation,
+                &state.scissor,
+                self.fringe_width,
+                stroke_width,
+                stroke_slice,
+            )?;
 
-    #[inline]
-    pub fn rect<T: Into<Rect>>(&mut self, rect: T) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.rect(rect);
-    }
+            self.draw_call_count += stroke_slice.len();
+            self.fill_triangles_count += stroke_slice
+                .iter()
+                .fold(0, |acc, path_slice| acc + path_slice.num_stroke - 2);
+        }
 
-    #[inline]
-    pub fn rounded_rect<T: Into<Rect>>(&mut self, rect: T, radius: f32) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.rounded_rect(rect, radius);
-    }
+        if let Some(_) = lines_cmd {
+            let lines_slice = &inner.draw_slice.lines;
+            let (stroke_paint, _) = paint.get_stroke(false, 1.0, 1.0, 1.0);
+            self.renderer.wirelines(
+                inner.vertex_buffer.clone(),
+                &stroke_paint,
+                state.composite_operation,
+                &state.scissor,
+                lines_slice,
+            )?;
+            self.draw_call_count += lines_slice.len();
+        }
 
-    #[inline]
-    pub fn rounded_rect_varying<T: Into<Rect>>(
-        &mut self,
-        rect: T,
-        lt: f32,
-        rt: f32,
-        rb: f32,
-        lb: f32,
-    ) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.rounded_rect_varying(rect, lt, rt, rb, lb);
-    }
-
-    #[inline]
-    pub fn ellipse<P: Into<Point>>(&mut self, center: P, radius_x: f32, radius_y: f32) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.ellipse(center, radius_x, radius_y);
-    }
-
-    #[inline]
-    pub fn circle<P: Into<Point>>(&mut self, center: P, radius: f32) {
-        self.path_cache.xform = self.state_mut().xform;
-        self.path_cache.circle(center, radius);
-    }
-
-    #[inline]
-    pub fn path_winding<D: Into<PathDir>>(&mut self, dir: D) {
-        self.path_cache.path_winding(dir);
-    }
-
-    #[inline]
-    pub fn begin_path(&mut self) {
-        self.path_cache.clear();
-        self.path_cache.cache.clear();
-    }
-
-    #[inline]
-    pub fn close_path(&mut self) {
-        self.path_cache.close_path();
+        Ok(())
     }
 }

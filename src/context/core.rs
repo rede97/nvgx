@@ -1,3 +1,4 @@
+use super::core_path_cache::PathCommandsWithCache;
 use super::{
     Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState,
 };
@@ -5,7 +6,7 @@ use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
 use crate::renderer::Scissor;
 use crate::{
-    Color, Extent, Paint, PathCommandsWithCache, PathFillType, Point, Rect, RendererDevice, Transform
+    Color, Extent, Paint, PathFillType, Point, Rect, RendererDevice, Transform
 };
 
 #[derive(Clone)]

@@ -1,3 +1,5 @@
+use clamped::Clamp;
+
 use super::ImageId;
 use crate::{Color, Extent, Point, Rect, Transform};
 
@@ -192,6 +194,40 @@ pub struct Paint {
 impl Paint {
     pub fn new() -> Self {
         return Self::default();
+    }
+
+    #[inline]
+    pub fn get_fill(&self) -> PaintPattern {
+        let mut fill_paint = self.fill.clone();
+        fill_paint.inner_color.a *= self.alpha;
+        fill_paint.outer_color.a *= self.alpha;
+        return fill_paint;
+    }
+
+    #[inline]
+    pub fn get_stroke(
+        &self,
+        antialias: bool,
+        fringe_width: f32,
+        average_scale: f32,
+        device_pixel_ratio: f32,
+    ) -> (PaintPattern, f32) {
+        let mut stroke_width =
+            (self.stroke_width * device_pixel_ratio * average_scale).clamped(0.0, 200.0);
+        let mut stroke_paint = self.stroke.clone();
+        if antialias {
+            if stroke_width < fringe_width {
+                let alpha = (stroke_width / fringe_width).clamped(0.0, 1.0);
+                stroke_paint.inner_color.a *= alpha * alpha;
+                stroke_paint.outer_color.a *= alpha * alpha;
+                stroke_width = fringe_width;
+            }
+        }
+
+        stroke_paint.inner_color.a *= self.alpha;
+        stroke_paint.outer_color.a *= self.alpha;
+
+        return (stroke_paint, stroke_width);
     }
 }
 

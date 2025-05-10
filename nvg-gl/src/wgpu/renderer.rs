@@ -26,13 +26,13 @@ impl nvg::RendererDevice for Renderer {
 
     fn update_vertex_buffer(
         &mut self,
-        buffer: Option<&Self::VertexBuffer>,
+        buffer: Option<Self::VertexBuffer>,
         vertexes: &[Vertex],
     ) -> anyhow::Result<()> {
         if let Some(buffer) = buffer {
             self.resources
                 .mesh
-                .update_buffer(&self.device, &self.queue, buffer, vertexes)?;
+                .update_buffer(&self.device, &self.queue, buffer.as_ref(), vertexes)?;
         } else {
             self.resources
                 .mesh
