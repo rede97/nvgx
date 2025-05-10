@@ -1,6 +1,9 @@
 pub mod fb;
 
+use std::{ops::Range, sync::Arc};
+
 use nvg::*;
+use renderer::GLVertexBuffer;
 use slab::Slab;
 
 use crate::{premul_color, xform_to_3x4, RenderConfig};
@@ -128,9 +131,9 @@ impl From<CompositeOperationState> for Blend {
 
 struct Call {
     call_type: CallType,
+    vert_buff: Option<Arc<GLVertexBuffer>>,
     image: Option<usize>,
-    path_offset: usize,
-    path_count: usize,
+    path_range: Range<usize>,
     triangle_offset: usize,
     triangle_count: usize,
     uniform_offset: usize,
@@ -186,13 +189,11 @@ pub struct Renderer {
     shader: Shader,
     textures: Slab<Texture>,
     view: Extent,
-    vert_buf: gl::types::GLuint,
-    vert_arr: gl::types::GLuint,
+    vert_buf: GLVertexBuffer,
     frag_buf: gl::types::GLuint,
     frag_size: usize,
     calls: Vec<Call>,
     paths: Vec<GLPath>,
-    vertexes: Vec<Vertex>,
     uniforms: Vec<u8>,
     config: RenderConfig,
     default_fbo: DefaultFBO,
@@ -202,8 +203,6 @@ impl Drop for Renderer {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteBuffers(1, &self.frag_buf);
-            gl::DeleteBuffers(1, &self.vert_buf);
-            gl::DeleteVertexArrays(1, &self.vert_arr);
         }
     }
 }
@@ -213,11 +212,7 @@ impl Renderer {
         unsafe {
             let shader = Shader::load()?;
 
-            let mut vert_arr: gl::types::GLuint = std::mem::zeroed();
-            gl::GenVertexArrays(1, &mut vert_arr);
-
-            let mut vert_buf: gl::types::GLuint = std::mem::zeroed();
-            gl::GenBuffers(1, &mut vert_buf);
+            let vert_buf = GLVertexBuffer::new();
 
             gl::UniformBlockBinding(shader.prog, shader.loc_frag, 0);
             let mut frag_buf: gl::types::GLuint = std::mem::zeroed();
@@ -241,12 +236,10 @@ impl Renderer {
                 textures: Default::default(),
                 view: Default::default(),
                 vert_buf,
-                vert_arr,
                 frag_buf,
                 frag_size,
                 calls: Default::default(),
                 paths: Default::default(),
-                vertexes: Default::default(),
                 uniforms: Default::default(),
                 config,
                 default_fbo: DefaultFBO {
@@ -277,7 +270,7 @@ impl Renderer {
 
     #[inline]
     unsafe fn do_fill(&self, call: &Call, fill_type: PathFillType) {
-        let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+        let paths = &self.paths[call.path_range.clone()];
 
         gl::Enable(gl::STENCIL_TEST);
         gl::StencilMask(0xff);
@@ -332,7 +325,7 @@ impl Renderer {
 
     #[inline]
     unsafe fn do_convex_fill(&self, call: &Call) {
-        let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+        let paths = &self.paths[call.path_range.clone()];
         self.set_uniforms(call.uniform_offset, call.image);
         for path in paths {
             gl::DrawArrays(
@@ -352,7 +345,7 @@ impl Renderer {
 
     #[inline]
     unsafe fn do_stroke(&self, call: &Call) {
-        let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+        let paths = &self.paths[call.path_range.clone()];
         self.set_uniforms(call.uniform_offset, call.image);
         for path in paths {
             gl::DrawArrays(
@@ -376,7 +369,7 @@ impl Renderer {
     #[cfg(feature = "wirelines")]
     #[inline]
     unsafe fn do_lines(&self, call: &Call) {
-        let paths = &self.paths[call.path_offset..call.path_offset + call.path_count];
+        let paths = &self.paths[call.path_range.clone()];
         self.set_uniforms(call.uniform_offset, call.image);
         for path in paths {
             gl::DrawArrays(

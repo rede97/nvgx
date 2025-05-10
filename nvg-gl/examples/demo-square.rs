@@ -86,7 +86,18 @@ impl demo::Demo<Renderer> for DemoCutout {
         }
 
         ctx.begin_path();
+        ctx.shape_antialias(true);
+        ctx.begin_path();
+        ctx.fill_type(PathFillType::EvenOdd);
+        ctx.circle((250.0, 220.0), 150.0);
+        ctx.circle((400.0, 220.0), 150.0);
+        ctx.circle((300.0, 350.0), 100.0);
+        ctx.path_winding(WindingSolidity::Hole);
+        ctx.fill_paint(nvg::Color::rgb_i(255, 192, 60));
+        ctx.fill()?;
+        
         if true {
+            ctx.begin_path();
             ctx.fill_paint(nvg::Color::rgb(0.9, 0.3, 0.4));
             ctx.rect(nvg::Rect::new(
                 Point::new(250.0, 300.0),
@@ -104,15 +115,6 @@ impl demo::Demo<Renderer> for DemoCutout {
             ctx.line_to((100.0, 200.0));
             ctx.stroke()?;
         }
-        ctx.shape_antialias(true);
-        ctx.begin_path();
-        ctx.fill_type(PathFillType::EvenOdd);
-        ctx.circle((250.0, 220.0), 150.0);
-        ctx.circle((400.0, 220.0), 150.0);
-        ctx.circle((300.0, 350.0), 100.0);
-        ctx.path_winding(WindingSolidity::Hole);
-        ctx.fill_paint(nvg::Color::rgb_i(255, 192, 60));
-        ctx.fill()?;
 
         {
             // rect
