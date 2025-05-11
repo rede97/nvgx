@@ -30,7 +30,7 @@ impl DemoDraw {
         ctx: &mut Context<R>,
     ) -> Result<(), Error> {
         ctx.text_align(nvg::Align::LEFT);
-        ctx.text((10, 0), "key S: stroke")?;
+        ctx.text((10, 60), "key S: stroke")?;
         ctx.text((10, 70), "key L: wirelines")?;
         ctx.text((10, 80), "key C: close path")?;
         ctx.text((10, 90), "key F: Fill path")?;
