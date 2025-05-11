@@ -9,8 +9,10 @@ use std::{
 pub(crate) mod cache;
 mod commands;
 mod transform;
+mod instance;
 
 pub use commands::*;
+pub use instance::*;
 
 bitflags! {
     pub struct DrawPathStyle: u32 {

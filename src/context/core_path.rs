@@ -1,5 +1,7 @@
-use crate::Paint;
+use std::ops::Range;
+
 use crate::{DrawPathStyle, RendererDevice};
+use crate::{Instances, Paint, Transform};
 
 use super::core_path_cache::PathRefWithCache;
 use super::*;
@@ -107,6 +109,7 @@ impl<R: RendererDevice> Context<R> {
         path: &'a Path<R>,
         paint: &'a Paint,
         style: DrawPathStyle,
+        instances: Option<(&Instances<R>, Range<u32>)>,
     ) -> anyhow::Result<()> {
         if style.is_empty() {
             return Ok(());
@@ -205,6 +208,31 @@ impl<R: RendererDevice> Context<R> {
             path_cache.path_mut_inner.style = new_style;
             (fill_cmd, stroke_cmd, lines_cmd)
         };
+
+        if let Some((instances, range)) = instances {
+            if !instances.is_empty() {
+                let inner = instances.inner.borrow_mut();
+                let try_update =
+                    inner.vertex_buffer
+                        .as_ref()
+                        .and_then(|buffer| {
+                            self.renderer
+                                .update_vertex_buffer(
+                                    Some(buffer.clone()),
+                                    &instances.transforms,
+                                )
+                                .ok()
+                        });
+                if try_update.is_none() {
+                    let buffer = self
+                        .renderer
+                        .create_vertex_buffer(path_cache.cache.vertexes.len())?;
+                    self.renderer
+                        .update_vertex_buffer(Some(buffer.clone()), &path_cache.cache.vertexes)?;
+                    path_cache.path_mut_inner.vertex_buffer = Some(buffer);
+                }
+            }
+        }
 
         // Start Draw-CALLs
         let state = self.states.last().unwrap();

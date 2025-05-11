@@ -28,7 +28,7 @@ impl nvg::RendererDevice for Renderer {
     fn update_vertex_buffer(
         &mut self,
         buffer: Option<Self::VertexBuffer>,
-        vertexes: &[Vertex],
+        data: &[u8],
     ) -> anyhow::Result<()> {
         if let Some(buffer) = buffer {
             self.resources.mesh.update_buffer(
