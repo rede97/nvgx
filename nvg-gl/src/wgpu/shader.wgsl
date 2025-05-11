@@ -3,6 +3,12 @@ struct VertexInput {
     @location(1) tcoord: vec2f,
 }
 
+struct InstanceInput {
+    @location(2) model_matrix_0: vec2<f32>,
+    @location(3) model_matrix_1: vec2<f32>,
+    @location(4) model_matrix_2: vec2<f32>,
+}
+
 struct VertexOutput {
     @builtin(position) clip_position: vec4f,
     @location(0) ftcoord: vec2f,
@@ -13,11 +19,17 @@ struct VertexOutput {
 var<uniform> view_size: vec2f;
 
 @vertex
-fn vs_main(vert_in: VertexInput,) -> VertexOutput {
+fn vs_main(vert_in: VertexInput, inst_in: InstanceInput) -> VertexOutput {
+    let model_matrix = mat3x3<f32>(
+        vec3f(inst_in.model_matrix_0, 0.0),
+        vec3f(inst_in.model_matrix_1, 0.0),
+        vec3f(inst_in.model_matrix_2, 1.0),
+    );
+    let v = model_matrix * vec3(vert_in.vertex, 1.0);
     var out: VertexOutput;
     out.ftcoord = vert_in.tcoord;
-    out.fpos = vert_in.vertex;
-    out.clip_position = vec4f(2.0 * vert_in.vertex.x / view_size.x - 1.0, 1.0 - 2.0 * vert_in.vertex.y / view_size.y, 0.0, 1.0);
+    out.fpos = v.xy;
+    out.clip_position = vec4f(2.0 * v.x / view_size.x - 1.0, 1.0 - 2.0 * v.y / view_size.y, 0.0, 1.0);
     return out;
 }
 

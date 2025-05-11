@@ -112,6 +112,13 @@ impl RenderCommand {
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct VertexCommand {
+    pub viewsize: Extent,
+    pub transfrom_mat: [f32; 12],
+}
+
 pub struct Unifrom<T: WgpuUnifromContent> {
     pub value: T,
     pub buffer: wgpu::Buffer,

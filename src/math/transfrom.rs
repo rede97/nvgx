@@ -2,7 +2,8 @@ use super::Point;
 use num_traits::AsPrimitive;
 use std::ops::{Mul, MulAssign};
 
-#[derive(Debug, Copy, Clone, Default)]
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Transform(pub [f32; 6]);
 
 impl Transform {
@@ -73,6 +74,12 @@ impl Transform {
         let a = self.average_scale();
         let d = 0.01f32;
         (a / d).ceil() * d
+    }
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        return Self::identity();
     }
 }
 

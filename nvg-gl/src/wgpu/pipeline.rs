@@ -1,6 +1,6 @@
 use nvg::{CompositeOperationState, PathFillType};
 
-use super::{call::ToBlendState, mesh::VERTEX_DESC};
+use super::{call::ToBlendState, instance::INSTANCE_DESC, mesh::VERTEX_DESC};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PipelineUsage {
@@ -148,7 +148,7 @@ impl PipelineUsage {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
-                buffers: &[VERTEX_DESC],
+                buffers: &[VERTEX_DESC, INSTANCE_DESC],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,

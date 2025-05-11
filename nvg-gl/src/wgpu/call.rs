@@ -22,6 +22,7 @@ pub(crate) struct Call {
     pub uniform_offset: usize,
     pub blend_func: CompositeOperationState,
     pub vertex_buffer: Option<Arc<wgpu::Buffer>>,
+    pub instances: Option<(Arc<wgpu::Buffer>, Range<u32>)>,
 }
 
 impl Call {

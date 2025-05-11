@@ -117,6 +117,7 @@ impl<R: RendererDevice> Context<R> {
 
         self.renderer.triangles(
             None,
+            None,
             &paint,
             state.composite_operation,
             &state.scissor,

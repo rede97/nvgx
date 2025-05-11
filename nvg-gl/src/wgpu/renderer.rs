@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::sync::Arc;
 
 use nvg::{Vertex, VertexSlice};
@@ -30,9 +31,12 @@ impl nvg::RendererDevice for Renderer {
         vertexes: &[Vertex],
     ) -> anyhow::Result<()> {
         if let Some(buffer) = buffer {
-            self.resources
-                .mesh
-                .update_buffer(&self.device, &self.queue, buffer.as_ref(), vertexes)?;
+            self.resources.mesh.update_buffer(
+                &self.device,
+                &self.queue,
+                buffer.as_ref(),
+                vertexes,
+            )?;
         } else {
             self.resources
                 .mesh
@@ -168,6 +172,7 @@ impl nvg::RendererDevice for Renderer {
     fn fill(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         fill_type: nvg::PathFillType,
@@ -205,6 +210,7 @@ impl nvg::RendererDevice for Renderer {
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
             vertex_buffer,
+            instances,
         };
 
         if let CallType::Fill(_) = call.call_type {
@@ -228,6 +234,7 @@ impl nvg::RendererDevice for Renderer {
     fn stroke(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -253,6 +260,7 @@ impl nvg::RendererDevice for Renderer {
             blend_func: composite_operation,
             vertex_buffer,
             triangle: VertexSlice::default(),
+            instances,
         };
 
         self.resources.render_unifrom.value.push(RenderCommand::new(
@@ -270,6 +278,7 @@ impl nvg::RendererDevice for Renderer {
     fn triangles(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -283,6 +292,7 @@ impl nvg::RendererDevice for Renderer {
             uniform_offset: self.resources.render_unifrom.offset(),
             blend_func: composite_operation,
             vertex_buffer,
+            instances,
         };
 
         self.resources.calls.push(call);
@@ -308,11 +318,13 @@ impl nvg::RendererDevice for Renderer {
     fn wirelines(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
         paths: &[nvg::PathSlice],
     ) -> anyhow::Result<()> {
+
         let path_offset = self.resources.paths.len();
 
         self.resources.paths.extend(paths.iter().filter_map(|p| {
@@ -331,6 +343,7 @@ impl nvg::RendererDevice for Renderer {
             blend_func: composite_operation,
             vertex_buffer,
             triangle: VertexSlice::default(),
+            instances,
         };
 
         self.resources.calls.push(call);

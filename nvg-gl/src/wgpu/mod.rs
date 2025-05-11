@@ -6,12 +6,13 @@ use nvg::*;
 use pipeline::{PipelineManager, PipelineUsage};
 use texture::TextureManager;
 use unifroms::{RenderCommand, Unifrom};
-use wgpu::TextureView;
+use wgpu::{util::DeviceExt, TextureView};
 
 use crate::RenderConfig;
 
 mod call;
 pub mod fb;
+mod instance;
 mod mesh;
 mod pipeline;
 mod renderer;
@@ -25,6 +26,7 @@ pub struct RenderResource {
     viewsize_uniform: Unifrom<Extent>,
     render_unifrom: Unifrom<Vec<RenderCommand>>,
     texture_manager: TextureManager,
+    default_instace: wgpu::Buffer,
 }
 
 impl RenderResource {
@@ -41,6 +43,11 @@ impl RenderResource {
             .as_ref()
             .map(|v| v.deref())
             .unwrap_or(&self.mesh.vertex_buffer);
+        let (instance_buffer, instance_slice) = call
+            .instances
+            .as_ref()
+            .map(|i| (i.0.deref(), i.1.clone()))
+            .unwrap_or((&self.default_instace, 0..1));
         {
             {
                 // Fill stencil pass
@@ -56,9 +63,14 @@ impl RenderResource {
                 render_pass
                     .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                 render_pass.set_vertex_buffer(0, buffer.slice(..));
+                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                 for path in paths {
                     let count = path.triangle_fan_count();
-                    render_pass.draw_indexed(0..(count * 3), path.triangle_fan_offset(), 0..1);
+                    render_pass.draw_indexed(
+                        0..(count * 3),
+                        path.triangle_fan_offset(),
+                        instance_slice.clone(),
+                    );
                 }
             }
             {
@@ -73,8 +85,10 @@ impl RenderResource {
                 );
                 render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
                 render_pass.set_vertex_buffer(0, buffer.slice(..));
+                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+
                 for path in paths {
-                    render_pass.draw(path.stroke_vert(), 0..1);
+                    render_pass.draw(path.stroke_vert(), instance_slice.clone());
                 }
             }
             {
@@ -89,7 +103,9 @@ impl RenderResource {
                 );
                 render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
                 render_pass.set_vertex_buffer(0, buffer.slice(..));
-                render_pass.draw(call.triangle_vert(), 0..1);
+                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+
+                render_pass.draw(call.triangle_vert(), instance_slice.clone());
             }
         }
     }
@@ -107,6 +123,11 @@ impl RenderResource {
             .as_ref()
             .map(|v| v.deref())
             .unwrap_or(&self.mesh.vertex_buffer);
+        let (instance_buffer, instance_slice) = call
+            .instances
+            .as_ref()
+            .map(|i| (i.0.deref(), i.1.clone()))
+            .unwrap_or((&self.default_instace, 0..1));
         {
             render_pass.set_pipeline(pipeline_manager.fill_convex.pipeline());
             render_pass.set_stencil_reference(0);
@@ -120,11 +141,13 @@ impl RenderResource {
             render_pass
                 .set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.set_vertex_buffer(0, buffer.slice(..));
+            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+
             for path in paths {
                 render_pass.draw_indexed(
                     0..path.triangle_fan_count() * 3,
                     path.triangle_fan_offset(),
-                    0..1,
+                    instance_slice.clone(),
                 );
             }
         }
@@ -140,8 +163,10 @@ impl RenderResource {
             );
             render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
             render_pass.set_vertex_buffer(0, buffer.slice(..));
+            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+
             for path in paths {
-                render_pass.draw(path.stroke_vert(), 0..1);
+                render_pass.draw(path.stroke_vert(), instance_slice.clone());
             }
         }
     }
@@ -159,6 +184,11 @@ impl RenderResource {
             .as_ref()
             .map(|v| v.deref())
             .unwrap_or(&self.mesh.vertex_buffer);
+        let (instance_buffer, instance_slice) = call
+            .instances
+            .as_ref()
+            .map(|i| (i.0.deref(), i.1.clone()))
+            .unwrap_or((&self.default_instace, 0..1));
         render_pass.set_pipeline(pipeline_manager.fill_stroke.pipeline());
         render_pass.set_stencil_reference(0);
         render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
@@ -169,8 +199,10 @@ impl RenderResource {
         );
         render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
         render_pass.set_vertex_buffer(0, buffer.slice(..));
+        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+
         for path in paths {
-            render_pass.draw(path.stroke_vert(), 0..1);
+            render_pass.draw(path.stroke_vert(), instance_slice.clone());
         }
     }
 
@@ -186,6 +218,11 @@ impl RenderResource {
             .as_ref()
             .map(|v| v.deref())
             .unwrap_or(&self.mesh.vertex_buffer);
+        let (instance_buffer, instance_slice) = call
+            .instances
+            .as_ref()
+            .map(|i| (i.0.deref(), i.1.clone()))
+            .unwrap_or((&self.default_instace, 0..1));
         render_pass.set_pipeline(pipeline_manager.triangles.pipeline());
         render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
         render_pass.set_bind_group(
@@ -195,7 +232,9 @@ impl RenderResource {
         );
         render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
         render_pass.set_vertex_buffer(0, buffer.slice(..));
-        render_pass.draw(call.triangle_vert(), 0..1);
+        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+
+        render_pass.draw(call.triangle_vert(), instance_slice.clone());
     }
 
     #[inline]
@@ -212,6 +251,11 @@ impl RenderResource {
             .as_ref()
             .map(|v| v.deref())
             .unwrap_or(&self.mesh.vertex_buffer);
+        let (instance_buffer, instance_slice) = call
+            .instances
+            .as_ref()
+            .map(|i| (i.0.deref(), i.1.clone()))
+            .unwrap_or((&self.default_instace, 0..1));
         render_pass.set_pipeline(pipeline_manager.wirelines.pipeline());
         render_pass.set_bind_group(0, &self.viewsize_uniform.bind_group, &[]);
         render_pass.set_bind_group(
@@ -221,8 +265,10 @@ impl RenderResource {
         );
         render_pass.set_bind_group(2, self.texture_manager.get_bindgroup(call.image), &[]);
         render_pass.set_vertex_buffer(0, buffer.slice(..));
+        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+
         for path in paths {
-            render_pass.draw(path.stroke_vert(), 0..1);
+            render_pass.draw(path.stroke_vert(), instance_slice.clone());
         }
     }
 
@@ -356,6 +402,13 @@ impl Renderer {
 
         let pipeline_manager = PipelineManager::new(shader, pipeline_layout, &device);
 
+        let identity_instance = Transform::identity();
+        let default_instace = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Default Instace"),
+            contents: bytemuck::bytes_of(&identity_instance),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
         return Ok(Self {
             config,
             device,
@@ -372,6 +425,7 @@ impl Renderer {
                 viewsize_uniform,
                 render_unifrom,
                 texture_manager,
+                default_instace,
             },
         });
     }

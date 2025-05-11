@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 pub use crate::context::{CompositeOperationState, ImageId};
 pub use crate::paint::PaintPattern;
 pub use crate::path::cache::{PathSlice, Vertex, VertexSlice};
@@ -66,6 +68,7 @@ pub trait RendererDevice {
     fn fill(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         fill_type: PathFillType,
@@ -78,6 +81,7 @@ pub trait RendererDevice {
     fn stroke(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
@@ -89,6 +93,7 @@ pub trait RendererDevice {
     fn triangles(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,
@@ -99,6 +104,7 @@ pub trait RendererDevice {
     fn wirelines(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &PaintPattern,
         composite_operation: CompositeOperationState,
         scissor: &Scissor,

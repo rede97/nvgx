@@ -20,6 +20,7 @@ impl<R: RendererDevice> Context<R> {
         let fill_slice = self.path_cache.get_fill_slice();
         self.renderer.fill(
             None,
+            None,
             &paint.get_fill(),
             state.composite_operation,
             self.path_cache.path_commands().fill_type,
@@ -66,6 +67,7 @@ impl<R: RendererDevice> Context<R> {
         let stroke_slice = self.path_cache.get_stroke_slice();
         self.renderer.stroke(
             None,
+            None,
             &stroke_paint,
             state.composite_operation,
             &state.scissor,
@@ -89,6 +91,7 @@ impl<R: RendererDevice> Context<R> {
         let lines_slice = self.path_cache.get_lines_slice();
 
         self.renderer.wirelines(
+            None,
             None,
             &stroke_paint,
             state.composite_operation,
@@ -210,6 +213,7 @@ impl<R: RendererDevice> Context<R> {
             let fill_slice = &inner.draw_slice.fill;
             self.renderer.fill(
                 inner.vertex_buffer.clone(),
+                None,
                 &paint.get_fill(),
                 state.composite_operation,
                 path.path_comands.fill_type,
@@ -235,6 +239,7 @@ impl<R: RendererDevice> Context<R> {
             let stroke_slice = &inner.draw_slice.stroke;
             self.renderer.stroke(
                 inner.vertex_buffer.clone(),
+                None,
                 &stroke_paint,
                 state.composite_operation,
                 &state.scissor,
@@ -254,6 +259,7 @@ impl<R: RendererDevice> Context<R> {
             let (stroke_paint, _) = paint.get_stroke(false, 1.0, 1.0, 1.0);
             self.renderer.wirelines(
                 inner.vertex_buffer.clone(),
+                None,
                 &stroke_paint,
                 state.composite_operation,
                 &state.scissor,
