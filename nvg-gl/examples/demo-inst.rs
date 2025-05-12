@@ -8,6 +8,7 @@ use slab::Slab;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::time::Instant;
+use wgpu::wgc::id;
 
 const BLOCK_SIZE: f32 = 75.0;
 
@@ -36,11 +37,217 @@ impl ShapeKind {
     }
 }
 
+trait ShapeDraw<R: RendererDevice> {
+    fn get_or_append<'a, T: Rng>(
+        &mut self,
+        caches: &'a mut ShapeCache<R>,
+        pair: (u16, u16),
+        rng: &mut T,
+    ) -> &'a ShapeInstance;
+    fn draw(
+        &mut self,
+        caches: &mut ShapeCache<R>,
+        ctx: &mut nvg::Context<R>,
+        dt: f32,
+    ) -> anyhow::Result<()>;
+}
+
+struct ShapeDrawSingleInst<R: RendererDevice> {
+    loc_map: HashMap<u32, usize>,
+    instances: Instances<R>,
+}
+
+impl<R: RendererDevice> ShapeDrawSingleInst<R> {
+    fn new() -> Self {
+        return Self {
+            loc_map: HashMap::new(),
+            instances: Instances::new(Vec::new()),
+        };
+    }
+}
+
+impl<R: RendererDevice> ShapeDraw<R> for ShapeDrawSingleInst<R> {
+    fn get_or_append<'a, T: Rng>(
+        &mut self,
+        caches: &'a mut ShapeCache<R>,
+        pair: (u16, u16),
+        rng: &mut T,
+    ) -> &'a ShapeInstance {
+        let offset = BLOCK_SIZE / 2.0;
+
+        let index = ShapeCache::<R>::elegent_pair(pair);
+        if let Some(inst_id) = self.loc_map.get(&index) {
+            return caches.shape_insts.get(*inst_id).unwrap();
+        }
+        let new_kind = ShapeKind::rand(rng);
+        if !caches.shapes.contains_key(&new_kind) {
+            caches
+                .shapes
+                .insert(new_kind, ShapeCache::create_path(new_kind, BLOCK_SIZE));
+        }
+
+        let x = pair.0 as f32 * BLOCK_SIZE - offset;
+        let y = pair.1 as f32 * BLOCK_SIZE - offset;
+        let new_inst = ShapeInstance::new(new_kind, (x, y), rng);
+        let new_inst_id = caches.shape_insts.insert(new_inst);
+        self.loc_map.insert(index, new_inst_id);
+        return caches.shape_insts.get(new_inst_id).unwrap();
+    }
+
+    fn draw(
+        &mut self,
+        caches: &mut ShapeCache<R>,
+        ctx: &mut nvg::Context<R>,
+        dt: f32,
+    ) -> anyhow::Result<()> {
+        self.instances.clear();
+        self.instances
+            .extend(caches.shape_insts.iter_mut().map(|(_, i)| i.update(dt)));
+        ctx.update_instances(&self.instances)?;
+        for (idx, inst) in caches.shape_insts.iter() {
+            let path = caches.shapes.get(&inst.kind).unwrap();
+            let paint = Paint {
+                fill: COLORS[inst.color].into(),
+                stroke: COLORS[inst.color].into(),
+                stroke_width: 3.0,
+                ..Default::default()
+            };
+            match &inst.kind {
+                ShapeKind::Polygon(_) => {
+                    ctx.draw_path(
+                        path,
+                        &paint,
+                        DrawPathStyle::FILL,
+                        Some((&self.instances, idx as u32..(idx + 1) as u32)),
+                    )?;
+                }
+                ShapeKind::Squiggle(_) => {
+                    ctx.draw_path(
+                        path,
+                        &paint,
+                        DrawPathStyle::STROKE,
+                        Some((&self.instances, idx as u32..(idx + 1) as u32)),
+                    )?;
+                }
+            };
+        }
+        return Ok(());
+    }
+}
+
+struct ShapeDrawByProperity<R: RendererDevice> {
+    loc_map: HashMap<u32, usize>,
+    color_seqs: [HashMap<ShapeKind, Vec<usize>>; 4],
+    instances: Instances<R>,
+}
+
+impl<R: RendererDevice> ShapeDrawByProperity<R> {
+    fn new() -> Self {
+        return Self {
+            loc_map: HashMap::new(),
+            color_seqs: [
+                HashMap::new(),
+                HashMap::new(),
+                HashMap::new(),
+                HashMap::new(),
+            ],
+            instances: Instances::new(Vec::new()),
+        };
+    }
+}
+
+impl<R: RendererDevice> ShapeDraw<R> for ShapeDrawByProperity<R> {
+    fn get_or_append<'a, T: Rng>(
+        &mut self,
+        caches: &'a mut ShapeCache<R>,
+        pair: (u16, u16),
+        rng: &mut T,
+    ) -> &'a ShapeInstance {
+        let offset = BLOCK_SIZE / 2.0;
+
+        let index = ShapeCache::<R>::elegent_pair(pair);
+        if let Some(inst_id) = self.loc_map.get(&index) {
+            return caches.shape_insts.get(*inst_id).unwrap();
+        }
+        let new_kind = ShapeKind::rand(rng);
+        if !caches.shapes.contains_key(&new_kind) {
+            caches
+                .shapes
+                .insert(new_kind, ShapeCache::create_path(new_kind, BLOCK_SIZE));
+        }
+
+        let x = pair.0 as f32 * BLOCK_SIZE - offset;
+        let y = pair.1 as f32 * BLOCK_SIZE - offset;
+        let new_inst = ShapeInstance::new(new_kind, (x, y), rng);
+        let color_idx = new_inst.color;
+        let new_inst_id = caches.shape_insts.insert(new_inst);
+        self.loc_map.insert(index, new_inst_id);
+        {
+            let color_shape = self.color_seqs.get_mut(color_idx).unwrap();
+            let insts_id = color_shape.entry(new_kind).or_insert(Vec::new());
+            insts_id.push(new_inst_id);
+        }
+        return caches.shape_insts.get(new_inst_id).unwrap();
+    }
+
+    fn draw(
+        &mut self,
+        caches: &mut ShapeCache<R>,
+        ctx: &mut nvg::Context<R>,
+        dt: f32,
+    ) -> anyhow::Result<()> {
+        self.instances.clear();
+        for (_, color_seq) in self.color_seqs.iter().enumerate() {
+            for (_, insts_id) in color_seq.iter() {
+                self.instances.extend(
+                    insts_id
+                        .iter()
+                        .map(|idx| caches.shape_insts[*idx].update(dt)),
+                );
+            }
+        }
+        ctx.update_instances(&self.instances)?;
+
+        let mut insts_offset: u32 = 0;
+        for (color_idx, color_seq) in self.color_seqs.iter().enumerate() {
+            let color = COLORS[color_idx];
+            let paint = Paint {
+                fill: color.into(),
+                stroke: color.into(),
+                stroke_width: 3.0,
+                ..Default::default()
+            };
+            for (shape_kind, insts_id) in color_seq.iter() {
+                let path = caches.shapes.get(shape_kind).unwrap();
+                let insts_end = insts_offset + (insts_id.len() as u32);
+                match shape_kind {
+                    ShapeKind::Polygon(_) => {
+                        ctx.draw_path(
+                            path,
+                            &paint,
+                            DrawPathStyle::FILL,
+                            Some((&self.instances, insts_offset..insts_end)),
+                        )?;
+                    }
+                    ShapeKind::Squiggle(_) => {
+                        ctx.draw_path(
+                            path,
+                            &paint,
+                            DrawPathStyle::STROKE,
+                            Some((&self.instances, insts_offset..insts_end)),
+                        )?;
+                    }
+                };
+                insts_offset = insts_end;
+            }
+        }
+        return Ok(());
+    }
+}
+
 struct ShapeCache<R: RendererDevice> {
     shapes: HashMap<ShapeKind, Path<R>>,
     shape_insts: Slab<ShapeInstance>,
-    loc_map: HashMap<u32, usize>,
-    instances: Instances<R>,
 }
 
 impl<R: RendererDevice> ShapeCache<R> {
@@ -48,30 +255,7 @@ impl<R: RendererDevice> ShapeCache<R> {
         ShapeCache {
             shapes: HashMap::new(),
             shape_insts: Slab::new(),
-            loc_map: HashMap::new(),
-            instances: Instances::new(Vec::new()),
         }
-    }
-
-    fn get_or_append<T: Rng>(&mut self, pair: (u16, u16), rng: &mut T) -> &ShapeInstance {
-        let offset = BLOCK_SIZE / 2.0;
-
-        let index = Self::elegent_pair(pair);
-        if let Some(inst_id) = self.loc_map.get(&index) {
-            return self.shape_insts.get(*inst_id).unwrap();
-        }
-        let new_kind = ShapeKind::rand(rng);
-        if !self.shapes.contains_key(&new_kind) {
-            self.shapes
-                .insert(new_kind, Self::create_path(new_kind, BLOCK_SIZE));
-        }
-
-        let x = pair.0 as f32 * BLOCK_SIZE - offset;
-        let y = pair.1 as f32 * BLOCK_SIZE - offset;
-        let new_inst = ShapeInstance::new(new_kind, (x, y), rng);
-        let new_inst_id = self.shape_insts.insert(new_inst);
-        self.loc_map.insert(index, new_inst_id);
-        return self.shape_insts.get(new_inst_id).unwrap();
     }
 
     fn elegent_pair((x, y): (u16, u16)) -> u32 {
@@ -83,44 +267,6 @@ impl<R: RendererDevice> ShapeCache<R> {
         } else {
             a + b * b
         }
-    }
-
-    fn draw(&mut self, ctx: &mut nvg::Context<R>, dt: f32) -> anyhow::Result<()> {
-        self.instances.clear();
-        self.instances
-            .extend(self.shape_insts.iter_mut().map(|(_, i)| i.update(dt)));
-        ctx.update_instances(&self.instances)?;
-        for (idx, inst) in self.shape_insts.iter() {
-            let path = self.shapes.get(&inst.kind).unwrap();
-            match &inst.kind {
-                ShapeKind::Polygon(_) => {
-                    let paint = Paint {
-                        fill: inst.color.clone().into(),
-                        ..Default::default()
-                    };
-                    ctx.draw_path(
-                        path,
-                        &paint,
-                        DrawPathStyle::FILL,
-                        Some((&self.instances, idx as u32..(idx + 1) as u32)),
-                    )?;
-                }
-                ShapeKind::Squiggle(_) => {
-                    let paint = Paint {
-                        stroke: inst.color.clone().into(),
-                        stroke_width: 3.0,
-                        ..Default::default()
-                    };
-                    ctx.draw_path(
-                        path,
-                        &paint,
-                        DrawPathStyle::STROKE,
-                        Some((&self.instances, idx as u32..(idx + 1) as u32)),
-                    )?;
-                }
-            };
-        }
-        return Ok(());
     }
 
     fn create_path(kind: ShapeKind, size: f32) -> Path<R> {
@@ -177,18 +323,19 @@ struct ShapeInstance {
     pos: (f32, f32),
     rotation: f32,
     speed: f32,
-    color: Color,
+    color: usize,
 }
 
 impl ShapeInstance {
     fn new<T: Rng>(kind: ShapeKind, pos: (f32, f32), rng: &mut T) -> Self {
         let direction = [-1.0f32, 1.0f32].choose(rng).unwrap();
+        let color_idx: [usize; 4] = [0, 1, 2, 3];
         return Self {
             kind,
             pos,
             rotation: rng.gen_range(0.0, 2.0 * PI),
             speed: rng.gen_range(1.0, 4.0) * direction,
-            color: *COLORS.choose(rng).unwrap(),
+            color: *color_idx.choose(rng).unwrap(),
         };
     }
 
@@ -263,6 +410,7 @@ struct DemoCutout<R: RendererDevice> {
     prev_time: f32,
     rng: ThreadRng,
     shapes: ShapeCache<R>,
+    shape: ShapeDrawByProperity<R>,
     mouse: (f32, f32),
     smoothed_mouse: (f32, f32),
 }
@@ -273,6 +421,7 @@ impl<R: RendererDevice> Default for DemoCutout<R> {
             start_time: Instant::now(),
             prev_time: 0.0,
             shapes: ShapeCache::new(),
+            shape: ShapeDrawByProperity::new(),
             rng: thread_rng(),
             mouse: (0.0, 0.0),
             smoothed_mouse: (0.0, 0.0),
@@ -300,10 +449,11 @@ impl<R: RendererDevice> demo::Demo<R> for DemoCutout<R> {
 
         for x in 0..max_cols {
             for y in 0..max_rows {
-                self.shapes.get_or_append((x, y), &mut self.rng);
+                self.shape
+                    .get_or_append(&mut self.shapes, (x, y), &mut self.rng);
             }
         }
-        self.shapes.draw(ctx, delta_time)?;
+        self.shape.draw(&mut self.shapes, ctx, delta_time)?;
         ctx.reset_transform();
         render_cutout(ctx, (0.0, 0.0), (width, height), self.smoothed_mouse);
         Ok(())
