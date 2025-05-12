@@ -1,13 +1,9 @@
 use super::core_path_cache::PathCommandsWithCache;
-use super::{
-    Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState,
-};
+use super::{Align, BasicCompositeOperation, CompositeOperation, CompositeOperationState};
 use crate::fonts::{FontId, Fonts, LayoutChar};
 use crate::paint::{LineCap, LineJoin, PaintPattern};
 use crate::renderer::Scissor;
-use crate::{
-    Color, Extent, Paint, PathFillType, Point, Rect, RendererDevice, Transform
-};
+use crate::{Color, Extent, Paint, PathFillType, Point, Rect, RendererDevice, Transform};
 
 #[derive(Clone)]
 pub(super) struct State {
@@ -130,7 +126,8 @@ impl<R: RendererDevice> Context<R> {
 
     pub fn end_frame(&mut self) -> anyhow::Result<()> {
         let cache = &mut self.path_cache.cache;
-        self.renderer.update_vertex_buffer(None, &cache.vertexes)?;
+        self.renderer
+            .update_vertex_buffer(None, bytemuck::cast_slice(&cache.vertexes))?;
         self.renderer.flush()?;
         cache.reset();
         Ok(())

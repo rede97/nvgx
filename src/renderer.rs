@@ -27,12 +27,12 @@ pub trait RendererDevice {
 
     fn create_vertex_buffer(
         &mut self,
-        init_num_vertex: usize,
+        buffer_size: usize,
     ) -> anyhow::Result<Self::VertexBuffer>;
 
     fn update_vertex_buffer(
         &mut self,
-        buffer: Option<Self::VertexBuffer>,
+        buffer: Option<&Self::VertexBuffer>,
         vertexes: &[u8],
     ) -> anyhow::Result<()>;
 

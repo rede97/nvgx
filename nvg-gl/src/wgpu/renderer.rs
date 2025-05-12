@@ -1,7 +1,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use nvg::{Vertex, VertexSlice};
+use nvg::VertexSlice;
 use wgpu::{Extent3d, Origin2d};
 
 use crate::wgpu::{
@@ -27,20 +27,17 @@ impl nvg::RendererDevice for Renderer {
 
     fn update_vertex_buffer(
         &mut self,
-        buffer: Option<Self::VertexBuffer>,
+        buffer: Option<&Self::VertexBuffer>,
         data: &[u8],
     ) -> anyhow::Result<()> {
         if let Some(buffer) = buffer {
-            self.resources.mesh.update_buffer(
-                &self.device,
-                &self.queue,
-                buffer.as_ref(),
-                vertexes,
-            )?;
+            self.resources
+                .mesh
+                .update_buffer(&self.queue, buffer.as_ref(), data)?;
         } else {
             self.resources
                 .mesh
-                .update_inner_buffer(&self.device, &self.queue, vertexes);
+                .update_inner_buffer(&self.device, &self.queue, data);
         };
         Ok(())
     }
@@ -182,17 +179,23 @@ impl nvg::RendererDevice for Renderer {
         paths: &[nvg::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.resources.paths.len();
+        let mut fill_vertex_count = 0;
         self.resources.paths.extend(paths.iter().filter_map(|p| {
             let fill = p.get_fill();
             if fill.count < 3 {
                 None
             } else {
+                fill_vertex_count += fill.count;
                 Some(GpuPath {
                     fill,
                     stroke: p.get_stroke(),
                 })
             }
         }));
+
+        self.resources
+            .mesh
+            .update_indices(&self.device, &self.queue, fill_vertex_count as u64);
 
         let call = Call {
             call_type: if bounds_offset.is_some() {
@@ -324,7 +327,6 @@ impl nvg::RendererDevice for Renderer {
         scissor: &nvg::Scissor,
         paths: &[nvg::PathSlice],
     ) -> anyhow::Result<()> {
-
         let path_offset = self.resources.paths.len();
 
         self.resources.paths.extend(paths.iter().filter_map(|p| {

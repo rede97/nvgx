@@ -155,12 +155,14 @@ impl<R: RendererDevice> Triangle<R> {
                 &self.path,
                 &self.paint,
                 DrawPathStyle::FILL | DrawPathStyle::WIRELINES,
+                None,
             )?;
         } else {
             ctx.draw_path(
                 &self.path,
                 &self.paint,
                 DrawPathStyle::FILL | DrawPathStyle::STROKE,
+                None,
             )?;
         }
 
@@ -240,8 +242,13 @@ impl<R: RendererDevice> ArcTo<R> {
             );
             self.update = false;
         }
-        ctx.draw_path(&self.line_path, &self.line_paint, DrawPathStyle::WIRELINES)?;
-        ctx.draw_path(&self.path, &self.paint, DrawPathStyle::STROKE)?;
+        ctx.draw_path(
+            &self.line_path,
+            &self.line_paint,
+            DrawPathStyle::WIRELINES,
+            None,
+        )?;
+        ctx.draw_path(&self.path, &self.paint, DrawPathStyle::STROKE, None)?;
         for cp in self.control_points.iter() {
             cp.draw(ctx)?;
         }

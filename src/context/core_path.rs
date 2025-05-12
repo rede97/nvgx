@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use crate::{DrawPathStyle, RendererDevice};
-use crate::{Instances, Paint, Transform};
+use crate::{Instances, Paint};
 
 use super::core_path_cache::PathRefWithCache;
 use super::*;
@@ -181,6 +181,7 @@ impl<R: RendererDevice> Context<R> {
             } else {
                 None
             };
+            let vertex_data = bytemuck::cast_slice(&path_cache.cache.vertexes);
             if !path_cache.cache.vertexes.is_empty() {
                 let try_update =
                     path_cache
@@ -189,18 +190,13 @@ impl<R: RendererDevice> Context<R> {
                         .as_ref()
                         .and_then(|buffer| {
                             self.renderer
-                                .update_vertex_buffer(
-                                    Some(buffer.clone()),
-                                    &path_cache.cache.vertexes,
-                                )
+                                .update_vertex_buffer(Some(&buffer), vertex_data)
                                 .ok()
                         });
                 if try_update.is_none() {
-                    let buffer = self
-                        .renderer
-                        .create_vertex_buffer(path_cache.cache.vertexes.len())?;
+                    let buffer = self.renderer.create_vertex_buffer(vertex_data.len())?;
                     self.renderer
-                        .update_vertex_buffer(Some(buffer.clone()), &path_cache.cache.vertexes)?;
+                        .update_vertex_buffer(Some(&buffer), vertex_data)?;
                     path_cache.path_mut_inner.vertex_buffer = Some(buffer);
                 }
             }
@@ -209,30 +205,28 @@ impl<R: RendererDevice> Context<R> {
             (fill_cmd, stroke_cmd, lines_cmd)
         };
 
-        if let Some((instances, range)) = instances {
+        let instances = if let Some((instances, range)) = instances {
+            let instances_data = bytemuck::cast_slice(&instances.transforms);
             if !instances.is_empty() {
-                let inner = instances.inner.borrow_mut();
-                let try_update =
-                    inner.vertex_buffer
-                        .as_ref()
-                        .and_then(|buffer| {
-                            self.renderer
-                                .update_vertex_buffer(
-                                    Some(buffer.clone()),
-                                    &instances.transforms,
-                                )
-                                .ok()
-                        });
-                if try_update.is_none() {
-                    let buffer = self
-                        .renderer
-                        .create_vertex_buffer(path_cache.cache.vertexes.len())?;
+                let mut inner = instances.inner.borrow_mut();
+                let try_update = inner.vertex_buffer.as_ref().and_then(|buffer| {
                     self.renderer
-                        .update_vertex_buffer(Some(buffer.clone()), &path_cache.cache.vertexes)?;
-                    path_cache.path_mut_inner.vertex_buffer = Some(buffer);
+                        .update_vertex_buffer(Some(&buffer), instances_data)
+                        .ok()
+                });
+                if try_update.is_none() {
+                    let buffer = self.renderer.create_vertex_buffer(instances_data.len())?;
+                    self.renderer
+                        .update_vertex_buffer(Some(&buffer), instances_data)?;
+                    inner.vertex_buffer = Some(buffer);
                 }
+                inner.vertex_buffer.clone().map(|buffer| (buffer, range))
+            } else {
+                None
             }
-        }
+        } else {
+            None
+        };
 
         // Start Draw-CALLs
         let state = self.states.last().unwrap();
@@ -241,7 +235,7 @@ impl<R: RendererDevice> Context<R> {
             let fill_slice = &inner.draw_slice.fill;
             self.renderer.fill(
                 inner.vertex_buffer.clone(),
-                None,
+                instances.clone(),
                 &paint.get_fill(),
                 state.composite_operation,
                 path.path_comands.fill_type,
@@ -267,7 +261,7 @@ impl<R: RendererDevice> Context<R> {
             let stroke_slice = &inner.draw_slice.stroke;
             self.renderer.stroke(
                 inner.vertex_buffer.clone(),
-                None,
+                instances.clone(),
                 &stroke_paint,
                 state.composite_operation,
                 &state.scissor,
@@ -287,7 +281,7 @@ impl<R: RendererDevice> Context<R> {
             let (stroke_paint, _) = paint.get_stroke(false, 1.0, 1.0, 1.0);
             self.renderer.wirelines(
                 inner.vertex_buffer.clone(),
-                None,
+                instances.clone(),
                 &stroke_paint,
                 state.composite_operation,
                 &state.scissor,

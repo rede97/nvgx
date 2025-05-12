@@ -387,7 +387,7 @@ impl Renderer {
         let render_unifrom: Unifrom<Vec<RenderCommand>> =
             Unifrom::new(&device, 0, wgpu::ShaderStages::FRAGMENT, Some(64));
 
-        let mesh = Mesh::new(&device, &queue, 1024);
+        let mesh = Mesh::new(&device, &queue, 10);
         let texture_manager = TextureManager::new(&device, &surface_config);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
