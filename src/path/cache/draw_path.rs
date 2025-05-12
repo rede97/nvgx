@@ -7,11 +7,11 @@ use rawpointer::ptrdistance;
 use std::f32::consts::PI;
 
 impl PathCache {
-    /// clear path and vertexes
+    /// clear path and vertices
     #[inline]
     pub fn reset(&mut self) {
         self.clear();
-        self.vertexes.clear();
+        self.vertices.clear();
     }
 
     /// only clear path
@@ -67,15 +67,15 @@ impl PathCache {
         }
     }
 
-    unsafe fn alloc_temp_vertexes(&mut self, count: usize) -> (*const Vertex, *mut Vertex) {
-        let offset = self.vertexes.len();
-        self.vertexes.resize(offset + count, Default::default());
-        if self.vertexes.is_empty() {
+    unsafe fn alloc_temp_vertices(&mut self, count: usize) -> (*const Vertex, *mut Vertex) {
+        let offset = self.vertices.len();
+        self.vertices.resize(offset + count, Default::default());
+        if self.vertices.is_empty() {
             return (std::ptr::null(), std::ptr::null_mut());
         }
         (
-            &self.vertexes[0] as *const Vertex,
-            &mut self.vertexes[offset] as *mut Vertex,
+            &self.vertices[0] as *const Vertex,
+            &mut self.vertices[offset] as *mut Vertex,
         )
     }
 
@@ -332,8 +332,8 @@ impl PathCache {
         }
 
         unsafe {
-            let (origin, mut vertexes) = self.alloc_temp_vertexes(cverts);
-            if vertexes.is_null() {
+            let (origin, mut vertices) = self.alloc_temp_vertices(cverts);
+            if vertices.is_null() {
                 return;
             }
 
@@ -341,7 +341,7 @@ impl PathCache {
             for (path, path_slice) in self.paths.iter_mut().zip(paths_slice.iter_mut()) {
                 let pts = &mut self.points[path.first] as *mut VPoint;
                 let loop_ = path.closed;
-                let mut dst = vertexes;
+                let mut dst = vertices;
                 path_slice.offset = ptrdistance(origin, dst);
                 path_slice.num_fill = 0;
 
@@ -447,8 +447,8 @@ impl PathCache {
                 }
 
                 if loop_ {
-                    let v0 = vertexes;
-                    let v1 = vertexes.add(1);
+                    let v0 = vertices;
+                    let v1 = vertices.add(1);
 
                     *dst = Vertex::new((*v0).x, (*v0).y, u0, 1.0);
                     dst = dst.add(1);
@@ -501,8 +501,8 @@ impl PathCache {
                     }
                 }
 
-                path_slice.num_stroke = ptrdistance(vertexes, dst);
-                vertexes = dst;
+                path_slice.num_stroke = ptrdistance(vertices, dst);
+                vertices = dst;
             }
         }
     }
@@ -530,8 +530,8 @@ impl PathCache {
         }
 
         unsafe {
-            let (origin, mut vertexes) = self.alloc_temp_vertexes(cverts);
-            if vertexes.is_null() {
+            let (origin, mut vertices) = self.alloc_temp_vertices(cverts);
+            if vertices.is_null() {
                 return None;
             }
 
@@ -539,7 +539,7 @@ impl PathCache {
             for (path, path_slice) in self.paths.iter_mut().zip(paths_slice.iter_mut()) {
                 let pts = &mut self.points[path.first] as *mut VPoint;
                 let woff = 0.5 * aa;
-                let mut dst = vertexes;
+                let mut dst = vertices;
 
                 path_slice.offset = ptrdistance(origin, dst);
 
@@ -590,15 +590,15 @@ impl PathCache {
                     }
                 }
 
-                path_slice.num_fill = ptrdistance(vertexes, dst);
-                vertexes = dst;
+                path_slice.num_fill = ptrdistance(vertices, dst);
+                vertices = dst;
 
                 if fringe {
                     let mut lw = w + woff;
                     let rw = w - woff;
                     let mut lu = 0.0;
                     let ru = 1.0;
-                    let mut dst = vertexes;
+                    let mut dst = vertices;
                     if convex {
                         lw = woff;
                         lu = 0.5;
@@ -642,8 +642,8 @@ impl PathCache {
                         p1 = p1.add(1);
                     }
 
-                    let v0 = vertexes;
-                    let v1 = vertexes.add(1);
+                    let v0 = vertices;
+                    let v1 = vertices.add(1);
 
                     *dst = Vertex::new((*v0).x, (*v0).y, lu, 1.0);
                     dst = dst.add(1);
@@ -651,19 +651,19 @@ impl PathCache {
                     *dst = Vertex::new((*v1).x, (*v1).y, ru, 1.0);
                     dst = dst.add(1);
 
-                    path_slice.num_stroke = ptrdistance(vertexes, dst);
-                    vertexes = dst;
+                    path_slice.num_stroke = ptrdistance(vertices, dst);
+                    vertices = dst;
                 } else {
                     path_slice.num_stroke = 0;
                 }
             }
             if !convex {
-                // add bounds to vertexes
-                *vertexes = Vertex::new(self.bounds.max.x, self.bounds.max.y, 0.5, 1.0);
-                *vertexes.add(1) = Vertex::new(self.bounds.max.x, self.bounds.min.y, 0.5, 1.0);
-                *vertexes.add(2) = Vertex::new(self.bounds.min.x, self.bounds.max.y, 0.5, 1.0);
-                *vertexes.add(3) = Vertex::new(self.bounds.min.x, self.bounds.min.y, 0.5, 1.0);
-                return Some(ptrdistance(origin, vertexes));
+                // add bounds to vertices
+                *vertices = Vertex::new(self.bounds.max.x, self.bounds.max.y, 0.5, 1.0);
+                *vertices.add(1) = Vertex::new(self.bounds.max.x, self.bounds.min.y, 0.5, 1.0);
+                *vertices.add(2) = Vertex::new(self.bounds.min.x, self.bounds.max.y, 0.5, 1.0);
+                *vertices.add(3) = Vertex::new(self.bounds.min.x, self.bounds.min.y, 0.5, 1.0);
+                return Some(ptrdistance(origin, vertices));
             }
             return None;
         }
@@ -676,14 +676,14 @@ impl PathCache {
                 .paths
                 .iter()
                 .fold(0, |acc, e| acc + e.count + (e.closed as usize));
-            let (origin, mut vertexes) = self.alloc_temp_vertexes(cverts);
-            if vertexes.is_null() {
+            let (origin, mut vertices) = self.alloc_temp_vertices(cverts);
+            if vertices.is_null() {
                 return;
             }
             paths_slice.resize(self.paths.len(), Default::default());
             for (path, path_slice) in self.paths.iter_mut().zip(paths_slice.iter_mut()) {
                 let pts = &self.points[path.first..path.first + path.count];
-                let mut dst = vertexes;
+                let mut dst = vertices;
                 path_slice.offset = ptrdistance(origin, dst);
                 path_slice.num_fill = 0;
                 for pt in pts {
@@ -691,12 +691,12 @@ impl PathCache {
                     dst = dst.add(1);
                 }
                 if path.closed {
-                    let v0 = &*vertexes;
+                    let v0 = &*vertices;
                     *dst = Vertex::new(v0.x, v0.y, 0.5, 1.0);
                     dst = dst.add(1);
                 }
-                path_slice.num_stroke = ptrdistance(vertexes, dst);
-                vertexes = dst;
+                path_slice.num_stroke = ptrdistance(vertices, dst);
+                vertices = dst;
             }
         }
     }

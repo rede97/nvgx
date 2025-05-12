@@ -28,7 +28,7 @@ pub(crate) struct VPoint {
 pub(crate) struct PathCache {
     pub(crate) points: Vec<VPoint>,
     pub(crate) paths: Vec<PathInfo>,
-    pub(crate) vertexes: Vec<Vertex>,
+    pub(crate) vertices: Vec<Vertex>,
     pub(crate) bounds: Bounds,
 }
 

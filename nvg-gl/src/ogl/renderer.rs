@@ -45,13 +45,13 @@ impl GLVertexBuffer {
         }
     }
 
-    fn update_data(&self, vertexes: &[Vertex]) {
+    fn update_data(&self, vertices: &[Vertex]) {
         unsafe {
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vert_buf);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                (vertexes.len() * std::mem::size_of::<Vertex>()) as isize,
-                vertexes.as_ptr() as *const c_void,
+                (vertices.len() * std::mem::size_of::<Vertex>()) as isize,
+                vertices.as_ptr() as *const c_void,
                 gl::STREAM_DRAW,
             );
         }
@@ -88,12 +88,12 @@ impl nvg::RendererDevice for Renderer {
     fn update_vertex_buffer(
         &mut self,
         buffer: Option<Self::VertexBuffer>,
-        vertexes: &[Vertex],
+        vertices: &[Vertex],
     ) -> anyhow::Result<()> {
         if let Some(buffer) = buffer {
-            buffer.update_data(vertexes);
+            buffer.update_data(vertices);
         } else {
-            self.vert_buf.update_data(vertexes);
+            self.vert_buf.update_data(vertices);
         }
         Ok(())
     }

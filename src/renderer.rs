@@ -33,7 +33,7 @@ pub trait RendererDevice {
     fn update_vertex_buffer(
         &mut self,
         buffer: Option<&Self::VertexBuffer>,
-        vertexes: &[u8],
+        vertices: &[u8],
     ) -> anyhow::Result<()>;
 
     fn create_texture(

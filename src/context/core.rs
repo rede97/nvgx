@@ -127,7 +127,7 @@ impl<R: RendererDevice> Context<R> {
     pub fn end_frame(&mut self) -> anyhow::Result<()> {
         let cache = &mut self.path_cache.cache;
         self.renderer
-            .update_vertex_buffer(None, bytemuck::cast_slice(&cache.vertexes))?;
+            .update_vertex_buffer(None, bytemuck::cast_slice(&cache.vertices))?;
         self.renderer.flush()?;
         cache.reset();
         Ok(())

@@ -200,8 +200,8 @@ impl<R: RendererDevice> Context<R> {
             } else {
                 None
             };
-            let vertex_data = bytemuck::cast_slice(&path_cache.cache.vertexes);
-            if !path_cache.cache.vertexes.is_empty() {
+            let vertex_data = bytemuck::cast_slice(&path_cache.cache.vertices);
+            if !path_cache.cache.vertices.is_empty() {
                 let try_update =
                     path_cache
                         .path_mut_inner

@@ -81,7 +81,7 @@ impl<R: RendererDevice> Context<R> {
         )?;
 
         let cache = &mut self.path_cache.cache;
-        let offset = cache.vertexes.len();
+        let offset = cache.vertices.len();
         for lc in &self.layout_chars {
             let lt = xform.transform_point(Point::new(
                 lc.bounds.min.x * invscale,
@@ -100,7 +100,7 @@ impl<R: RendererDevice> Context<R> {
                 lc.bounds.max.y * invscale,
             ));
 
-            cache.vertexes.extend([
+            cache.vertices.extend([
                 Vertex::new(lt.x, lt.y, lc.uv.min.x, lc.uv.min.y),
                 Vertex::new(rb.x, rb.y, lc.uv.max.x, lc.uv.max.y),
                 Vertex::new(rt.x, rt.y, lc.uv.max.x, lc.uv.min.y),
@@ -123,7 +123,7 @@ impl<R: RendererDevice> Context<R> {
             &state.scissor,
             crate::VertexSlice {
                 offset,
-                count: cache.vertexes.len() - offset,
+                count: cache.vertices.len() - offset,
             },
         )?;
         Ok(())
