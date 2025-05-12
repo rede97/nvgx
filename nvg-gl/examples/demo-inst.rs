@@ -8,7 +8,6 @@ use slab::Slab;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::time::Instant;
-use wgpu::wgc::id;
 
 const BLOCK_SIZE: f32 = 75.0;
 
@@ -52,12 +51,14 @@ trait ShapeDraw<R: RendererDevice> {
     ) -> anyhow::Result<()>;
 }
 
-struct ShapeDrawSingleInst<R: RendererDevice> {
+#[allow(unused)]
+struct ShapeDrawSingle<R: RendererDevice> {
     loc_map: HashMap<u32, usize>,
     instances: Instances<R>,
 }
 
-impl<R: RendererDevice> ShapeDrawSingleInst<R> {
+#[allow(unused)]
+impl<R: RendererDevice> ShapeDrawSingle<R> {
     fn new() -> Self {
         return Self {
             loc_map: HashMap::new(),
@@ -66,7 +67,7 @@ impl<R: RendererDevice> ShapeDrawSingleInst<R> {
     }
 }
 
-impl<R: RendererDevice> ShapeDraw<R> for ShapeDrawSingleInst<R> {
+impl<R: RendererDevice> ShapeDraw<R> for ShapeDrawSingle<R> {
     fn get_or_append<'a, T: Rng>(
         &mut self,
         caches: &'a mut ShapeCache<R>,
@@ -135,12 +136,14 @@ impl<R: RendererDevice> ShapeDraw<R> for ShapeDrawSingleInst<R> {
     }
 }
 
+#[allow(unused)]
 struct ShapeDrawByProperity<R: RendererDevice> {
     loc_map: HashMap<u32, usize>,
     color_seqs: [HashMap<ShapeKind, Vec<usize>>; 4],
     instances: Instances<R>,
 }
 
+#[allow(unused)]
 impl<R: RendererDevice> ShapeDrawByProperity<R> {
     fn new() -> Self {
         return Self {
@@ -318,6 +321,7 @@ impl<R: RendererDevice> ShapeCache<R> {
     }
 }
 
+#[allow(unused)]
 struct ShapeInstance {
     kind: ShapeKind,
     pos: (f32, f32),
@@ -410,7 +414,10 @@ struct DemoCutout<R: RendererDevice> {
     prev_time: f32,
     rng: ThreadRng,
     shapes: ShapeCache<R>,
-    shape: ShapeDrawByProperity<R>,
+    #[cfg(feature = "example-single-inst")]
+    drawer: ShapeDrawSingle<R>,
+    #[cfg(not(feature = "example-single-inst"))]
+    drawer: ShapeDrawByProperity<R>,
     mouse: (f32, f32),
     smoothed_mouse: (f32, f32),
 }
@@ -421,7 +428,10 @@ impl<R: RendererDevice> Default for DemoCutout<R> {
             start_time: Instant::now(),
             prev_time: 0.0,
             shapes: ShapeCache::new(),
-            shape: ShapeDrawByProperity::new(),
+            #[cfg(feature = "example-single-inst")]
+            drawer: ShapeDrawSingle::new(),
+            #[cfg(not(feature = "example-single-inst"))]
+            drawer: ShapeDrawByProperity::new(),
             rng: thread_rng(),
             mouse: (0.0, 0.0),
             smoothed_mouse: (0.0, 0.0),
@@ -449,11 +459,11 @@ impl<R: RendererDevice> demo::Demo<R> for DemoCutout<R> {
 
         for x in 0..max_cols {
             for y in 0..max_rows {
-                self.shape
+                self.drawer
                     .get_or_append(&mut self.shapes, (x, y), &mut self.rng);
             }
         }
-        self.shape.draw(&mut self.shapes, ctx, delta_time)?;
+        self.drawer.draw(&mut self.shapes, ctx, delta_time)?;
         ctx.reset_transform();
         render_cutout(ctx, (0.0, 0.0), (width, height), self.smoothed_mouse);
         Ok(())

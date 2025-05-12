@@ -15,6 +15,7 @@ default = ["wirelines", "wgpu-impl"]
 wirelines = ["nvg/wirelines"]
 wgpu-impl = ["pollster", "wgpu", "indexmap"]
 ogl-impl = ["gl", "glutin", "glutin-winit"]
+example-single-inst = []
 
 [dependencies]
 nvg = { version = "0.5.7", path = "../" }
