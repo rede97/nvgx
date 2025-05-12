@@ -20,9 +20,9 @@ impl nvg::RendererDevice for Renderer {
 
     fn create_vertex_buffer(
         &mut self,
-        init_num_vertex: usize,
+        buffer_size: usize,
     ) -> anyhow::Result<Self::VertexBuffer> {
-        return Ok(Arc::new(Mesh::create_buffer(&self.device, init_num_vertex)));
+        return Ok(Arc::new(Mesh::create_buffer(&self.device, buffer_size)));
     }
 
     fn update_vertex_buffer(

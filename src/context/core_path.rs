@@ -104,6 +104,25 @@ impl<R: RendererDevice> Context<R> {
         Ok(())
     }
 
+    pub fn update_instances(&mut self, instances: &Instances<R>) -> anyhow::Result<()> {
+        let instances_data = bytemuck::cast_slice(&instances.transforms);
+        if !instances.is_empty() {
+            let mut inner = instances.inner.borrow_mut();
+            let try_update = inner.vertex_buffer.as_ref().and_then(|buffer| {
+                self.renderer
+                    .update_vertex_buffer(Some(&buffer), instances_data)
+                    .ok()
+            });
+            if try_update.is_none() {
+                let buffer = self.renderer.create_vertex_buffer(instances_data.len())?;
+                self.renderer
+                    .update_vertex_buffer(Some(&buffer), instances_data)?;
+                inner.vertex_buffer = Some(buffer);
+            }
+        }
+        Ok(())
+    }
+
     pub fn draw_path<'a>(
         &'a mut self,
         path: &'a Path<R>,
@@ -205,28 +224,17 @@ impl<R: RendererDevice> Context<R> {
             (fill_cmd, stroke_cmd, lines_cmd)
         };
 
-        let instances = if let Some((instances, range)) = instances {
-            let instances_data = bytemuck::cast_slice(&instances.transforms);
-            if !instances.is_empty() {
-                let mut inner = instances.inner.borrow_mut();
-                let try_update = inner.vertex_buffer.as_ref().and_then(|buffer| {
-                    self.renderer
-                        .update_vertex_buffer(Some(&buffer), instances_data)
-                        .ok()
-                });
-                if try_update.is_none() {
-                    let buffer = self.renderer.create_vertex_buffer(instances_data.len())?;
-                    self.renderer
-                        .update_vertex_buffer(Some(&buffer), instances_data)?;
-                    inner.vertex_buffer = Some(buffer);
-                }
-                inner.vertex_buffer.clone().map(|buffer| (buffer, range))
+        let instances = instances.and_then(|(insts, range)| {
+            if !insts.is_empty() {
+                let inner = insts.inner.borrow();
+                inner
+                    .vertex_buffer
+                    .clone()
+                    .and_then(|buffer| Some((buffer, range)))
             } else {
                 None
             }
-        } else {
-            None
-        };
+        });
 
         // Start Draw-CALLs
         let state = self.states.last().unwrap();
