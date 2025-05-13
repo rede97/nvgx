@@ -1,7 +1,6 @@
 use anyhow::Error;
-use nvg::*;
+use nvgx::*;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta};
-mod demo;
 
 struct ControlPoint {
     p: (f32, f32),
@@ -126,9 +125,9 @@ impl<R: RendererDevice> Triangle<R> {
     pub fn new() -> Self {
         let cyan = Color::rgb(0.2, 0.7, 0.8);
         let mut paint = Paint::new();
-        paint.stroke = nvg::Color::rgb(0.9, 0.9, 0.9).into();
+        paint.stroke = nvgx::Color::rgb(0.9, 0.9, 0.9).into();
         paint.stroke_width = 2.0;
-        paint.fill = nvg::Color::rgb(0.6, 0.4, 0.7).into();
+        paint.fill = nvgx::Color::rgb(0.6, 0.4, 0.7).into();
         return Self {
             control_points: [
                 ControlPoint::new(200.0, 500.0, cyan),
@@ -204,12 +203,12 @@ impl<R: RendererDevice> ArcTo<R> {
     pub fn new() -> Self {
         let cyan = Color::rgb(0.2, 0.7, 0.8);
         let paint = Paint {
-            stroke: nvg::Color::rgb(0.3, 0.8, 0.6).into(),
+            stroke: nvgx::Color::rgb(0.3, 0.8, 0.6).into(),
             stroke_width: 2.0,
             ..Default::default()
         };
         let line_paint = Paint {
-            stroke: nvg::Color::rgba(0.2, 0.4, 0.6, 0.7).into(),
+            stroke: nvgx::Color::rgba(0.2, 0.4, 0.6, 0.7).into(),
             ..Default::default()
         };
         return Self {
@@ -288,7 +287,7 @@ struct DemoDraw<R: RendererDevice> {
     wirelines: bool,
 }
 
-impl<R: RendererDevice> demo::Demo<R> for DemoDraw<R> {
+impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoDraw<R> {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> Result<(), Error> {
         ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
         self.img = Some(ctx.create_image_from_file(
@@ -355,7 +354,7 @@ impl<R: RendererDevice> demo::Demo<R> for DemoDraw<R> {
 }
 
 fn main() {
-    demo::run(
+    nvgx_demo::run(
         DemoDraw {
             img: None,
             cursor: (0.0, 0.0),

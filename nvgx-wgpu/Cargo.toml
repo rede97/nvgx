@@ -1,0 +1,16 @@
+[package]
+name = "nvgx-wgpu"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["wirelines"]
+wirelines = ["nvgx/wirelines"]
+
+[dependencies]
+nvgx = { path = "../" }
+slab = "0.4.2"
+anyhow = "1.0.26"
+wgpu = { version = "25.0.0" }
+indexmap = { version = "2.9.0" }
+bytemuck = "1.23.0"

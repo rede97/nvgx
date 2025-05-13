@@ -1,4 +1,4 @@
-use nvg::{Extent, FrameBufferDevice, ImageId, RenderFrameBufferDevice};
+use nvgx::{Extent, FrameBufferDevice, ImageId, RenderFrameBufferDevice};
 
 use super::{texture::StencilTexture, Renderer};
 

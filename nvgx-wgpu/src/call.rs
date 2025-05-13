@@ -1,6 +1,6 @@
 use std::{ops::Range, sync::Arc};
 
-use nvg::{BlendFactor, CompositeOperationState, PathFillType, VertexSlice};
+use nvgx::{BlendFactor, CompositeOperationState, PathFillType, VertexSlice};
 
 use super::unifroms::RenderCommand;
 

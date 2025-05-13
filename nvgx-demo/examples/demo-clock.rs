@@ -1,12 +1,10 @@
 use chrono::{DateTime, Datelike, Local, Timelike};
-use nvg::*;
+use nvgx::*;
 use std::f32::consts::PI;
-
-mod demo;
 
 struct DemoClock;
 
-impl<R: RendererDevice> demo::Demo<R> for DemoClock {
+impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoClock {
     fn update(&mut self, width: f32, height: f32, ctx: &mut Context<R>) -> anyhow::Result<()> {
         let dt: DateTime<Local> = Local::now();
         let hour = dt.hour();
@@ -148,5 +146,5 @@ impl<R: RendererDevice> demo::Demo<R> for DemoClock {
 }
 
 fn main() {
-    demo::run(DemoClock, "demo-clock");
+    nvgx_demo::run(DemoClock, "demo-clock");
 }

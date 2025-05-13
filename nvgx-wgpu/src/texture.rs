@@ -1,4 +1,4 @@
-use nvg::{ImageFlags, TextureType};
+use nvgx::{ImageFlags, TextureType};
 use slab::Slab;
 
 #[allow(unused)]
@@ -37,7 +37,7 @@ pub struct Texture {
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
     pub bind_group: wgpu::BindGroup,
-    pub image_flags: nvg::ImageFlags,
+    pub image_flags: nvgx::ImageFlags,
 }
 
 impl Texture {
@@ -53,7 +53,7 @@ impl Texture {
                 depth_or_array_layers: 1,
             },
             ImageFlags::empty(),
-            nvg::TextureType::RGBA,
+            nvgx::TextureType::RGBA,
             texture_bind_group_layout,
         );
     }
@@ -61,12 +61,12 @@ impl Texture {
     pub fn new(
         device: &wgpu::Device,
         size: wgpu::Extent3d,
-        image_flags: nvg::ImageFlags,
-        texture_type: nvg::TextureType,
+        image_flags: nvgx::ImageFlags,
+        texture_type: nvgx::TextureType,
         texture_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let texture = match texture_type {
-            nvg::TextureType::RGBA => {
+            nvgx::TextureType::RGBA => {
                 device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("NVG RGBA Texture"),
                     size,
@@ -80,7 +80,7 @@ impl Texture {
                     view_formats: &[],
                 })
             }
-            nvg::TextureType::Alpha => {
+            nvgx::TextureType::Alpha => {
                 device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("NVG Alpha Texture"),
                     size,
@@ -187,10 +187,10 @@ impl Texture {
     }
 
     #[inline]
-    pub fn texture_type(&self) -> nvg::TextureType {
+    pub fn texture_type(&self) -> nvgx::TextureType {
         match self.texture.format() {
-            wgpu::TextureFormat::Rgba8Unorm => nvg::TextureType::RGBA,
-            wgpu::TextureFormat::R8Unorm => nvg::TextureType::Alpha,
+            wgpu::TextureFormat::Rgba8Unorm => nvgx::TextureType::RGBA,
+            wgpu::TextureFormat::R8Unorm => nvgx::TextureType::Alpha,
             _ => {
                 panic!("unsupport texture format: {:?}", self.texture.format())
             }

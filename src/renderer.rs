@@ -134,3 +134,4 @@ pub trait RenderFrameBufferDevice: RendererDevice {
     fn bind(&mut self, fb: &Self::FB) -> anyhow::Result<()>;
     fn unbind(&mut self) -> anyhow::Result<()>;
 }
+

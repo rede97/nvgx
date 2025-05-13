@@ -1,7 +1,7 @@
 use super::Demo;
 use anyhow::anyhow;
-use nvg::{Align, Color};
-use nvg_gl;
+use nvgx::{Align, Color};
+use nvgx_ogl;
 
 use std::time::Instant;
 
@@ -25,7 +25,7 @@ use glutin::surface::{Surface, WindowSurface};
 
 use glutin_winit::{DisplayBuilder, GlWindow};
 
-pub fn run<D: Demo<nvg_gl::Renderer>>(demo: D, title: &str) {
+pub fn run<D: Demo<nvgx_ogl::Renderer>>(demo: D, title: &str) {
     let event_loop = EventLoop::new().unwrap();
     let template = ConfigTemplateBuilder::new()
         .with_alpha_size(8)
@@ -53,10 +53,10 @@ struct AppState {
     // NOTE: Window should be dropped after all resources created using its
     // raw-window-handle.
     window: Window,
-    context: nvg::Context<nvg_gl::Renderer>,
+    context: nvgx::Context<nvgx_ogl::Renderer>,
 }
 
-struct App<D: Demo<nvg_gl::Renderer>> {
+struct App<D: Demo<nvgx_ogl::Renderer>> {
     template: ConfigTemplateBuilder,
     demo: D,
     start_time: Instant,
@@ -69,7 +69,7 @@ struct App<D: Demo<nvg_gl::Renderer>> {
     exit_state: anyhow::Result<()>,
 }
 
-impl<D: Demo<nvg_gl::Renderer>> App<D> {
+impl<D: Demo<nvgx_ogl::Renderer>> App<D> {
     fn new(template: ConfigTemplateBuilder, display_builder: DisplayBuilder, demo: D) -> Self {
         Self {
             template,
@@ -85,7 +85,7 @@ impl<D: Demo<nvg_gl::Renderer>> App<D> {
     }
 }
 
-impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
+impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let (window, gl_config) = match &self.gl_display {
             // We just created the event loop, so initialize the display, pick the config, and
@@ -153,8 +153,8 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
 
         let context = {
             // Create the renderer and context.
-            let renderer = nvg_gl::Renderer::create(nvg_gl::RenderConfig::default()).unwrap();
-            let mut context = nvg::Context::create(renderer).unwrap();
+            let renderer = nvgx_ogl::Renderer::create(nvgx_ogl::RenderConfig::default()).unwrap();
+            let mut context = nvgx::Context::create(renderer).unwrap();
             let scale_factor = window.scale_factor() as f32;
             self.demo.init(&mut context, scale_factor).unwrap();
             self.start_time = Instant::now();
@@ -267,7 +267,7 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                     let scale_factor = state.window.scale_factor() as f32;
                     context
                         .begin_frame(
-                            nvg::Extent {
+                            nvgx::Extent {
                                 width: window_size.width as f32,
                                 height: window_size.height as f32,
                             },

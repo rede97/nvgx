@@ -1,14 +1,16 @@
+#[macro_use]
+#[allow(unused)]
+extern crate anyhow;
+
 use std::ops::Deref;
 
 use call::{Call, CallType, GpuPath};
 use mesh::Mesh;
-use nvg::*;
+use nvgx::*;
 use pipeline::{PipelineManager, PipelineUsage};
 use texture::TextureManager;
 use unifroms::{RenderCommand, Unifrom};
-use wgpu::{util::DeviceExt, TextureView};
-
-use crate::RenderConfig;
+use wgpu::{TextureView, util::DeviceExt};
 
 mod call;
 pub mod fb;
@@ -18,6 +20,23 @@ mod pipeline;
 mod renderer;
 mod texture;
 mod unifroms;
+
+pub struct RenderConfig {
+    antialias: bool,
+}
+
+impl RenderConfig {
+    pub fn antialias(mut self, antialias: bool) -> Self {
+        self.antialias = antialias;
+        self
+    }
+}
+
+impl Default for RenderConfig {
+    fn default() -> Self {
+        Self { antialias: true }
+    }
+}
 
 pub struct RenderResource {
     mesh: Mesh,

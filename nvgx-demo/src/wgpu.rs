@@ -1,7 +1,8 @@
 use super::Demo;
-use nvg::{Align, Color};
-use nvg_gl::RenderConfig;
+
 use std::{sync::Arc, time::Instant};
+use nvgx::{Align, Color};
+use nvgx_wgpu::RenderConfig;
 use wgpu::TextureFormat;
 use winit::{
     application::ApplicationHandler,
@@ -11,7 +12,7 @@ use winit::{
     window::{Window, WindowAttributes},
 };
 
-pub fn run<D: Demo<nvg_gl::Renderer>>(demo: D, title: &str) {
+pub fn run<D: Demo<nvgx_wgpu::Renderer>>(demo: D, title: &str) {
     let event_loop = EventLoop::new().unwrap();
     let attributes = Window::default_attributes()
         .with_inner_size(winit::dpi::LogicalSize::new(1024, 768))
@@ -21,7 +22,7 @@ pub fn run<D: Demo<nvg_gl::Renderer>>(demo: D, title: &str) {
     app.exit_state.unwrap();
 }
 
-struct App<D: Demo<nvg_gl::Renderer>> {
+struct App<D: Demo<nvgx_wgpu::Renderer>> {
     demo: D,
     start_time: Instant,
     frame_count: u32,
@@ -32,7 +33,7 @@ struct App<D: Demo<nvg_gl::Renderer>> {
     attributes: WindowAttributes,
 }
 
-impl<D: Demo<nvg_gl::Renderer>> App<D> {
+impl<D: Demo<nvgx_wgpu::Renderer>> App<D> {
     fn new(demo: D, attributes: WindowAttributes) -> Self {
         Self {
             demo,
@@ -46,7 +47,7 @@ impl<D: Demo<nvg_gl::Renderer>> App<D> {
     }
 }
 
-impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
+impl<D: Demo<nvgx_wgpu::Renderer>> ApplicationHandler for App<D> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let window = event_loop.create_window(self.attributes.clone()).unwrap();
 
@@ -119,7 +120,7 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
                     let scale_factor = state.window.scale_factor() as f32;
                     context
                         .begin_frame(
-                            nvg::Extent {
+                            nvgx::Extent {
                                 width: window_size.width as f32,
                                 height: window_size.height as f32,
                             },
@@ -168,7 +169,7 @@ impl<D: Demo<nvg_gl::Renderer>> ApplicationHandler for App<D> {
 
 struct AppState {
     window: Arc<Window>,
-    context: nvg::Context<nvg_gl::Renderer>,
+    context: nvgx::Context<nvgx_wgpu::Renderer>,
 }
 
 impl AppState {
@@ -222,8 +223,8 @@ impl AppState {
         surface.configure(&device, &surface_config);
 
         let config = RenderConfig::default();
-        let renderer = nvg_gl::Renderer::create(config, device, queue, surface, surface_config)?;
-        let context = nvg::Context::create(renderer)?;
+        let renderer = nvgx_wgpu::Renderer::create(config, device, queue, surface, surface_config)?;
+        let context = nvgx::Context::create(renderer)?;
         return Ok(Self { window, context });
     }
 }

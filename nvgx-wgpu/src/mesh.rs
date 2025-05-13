@@ -1,6 +1,6 @@
 use std::iter::FromIterator;
 
-use nvg::Vertex;
+use nvgx::Vertex;
 use wgpu::vertex_attr_array;
 
 const VERTEX_ATTRIBS: [wgpu::VertexAttribute; 2] = vertex_attr_array![

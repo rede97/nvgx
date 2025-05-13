@@ -1,9 +1,8 @@
 use std::num::NonZero;
 
-use nvg::{Color, Extent, ImageFlags, PaintPattern, Scissor, TextureType, Transform};
+use nvgx::{utils::{premul_color, xform_to_3x4}, Color, Extent, ImageFlags, PaintPattern, Scissor, TextureType, Transform};
 use wgpu::Device;
 
-use crate::{premul_color, xform_to_3x4};
 
 pub enum ShaderType {
     FillGradient,

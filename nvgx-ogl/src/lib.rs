@@ -1,14 +1,36 @@
+#[macro_use]
+#[allow(unused)]
+extern crate anyhow;
+
 pub mod fb;
 
-use std::{f32::consts::PI, ops::Range, sync::Arc};
+use std::{ops::Range, sync::Arc};
 
-use nvg::*;
+use nvgx::{
+    utils::{premul_color, xform_to_3x4},
+    *,
+};
 use renderer::GLArrayBuffer;
 use slab::Slab;
 
-use crate::{premul_color, xform_to_3x4, RenderConfig};
-
 mod renderer;
+
+pub struct RenderConfig {
+    antialias: bool,
+}
+
+impl RenderConfig {
+    pub fn antialias(mut self, antialias: bool) -> Self {
+        self.antialias = antialias;
+        self
+    }
+}
+
+impl Default for RenderConfig {
+    fn default() -> Self {
+        Self { antialias: true }
+    }
+}
 
 struct Shader {
     prog: gl::types::GLuint,
@@ -30,67 +52,69 @@ impl Drop for Shader {
 }
 
 impl Shader {
-    unsafe fn load() -> anyhow::Result<Shader> {
-        let mut status: gl::types::GLint = std::mem::zeroed();
-        let prog = gl::CreateProgram();
-        let vert = gl::CreateShader(gl::VERTEX_SHADER);
-        let frag = gl::CreateShader(gl::FRAGMENT_SHADER);
-        let vert_source =
-            std::ffi::CString::from_vec_unchecked(include_bytes!("shader.vert").to_vec());
-        let frag_source =
-            std::ffi::CString::from_vec_unchecked(include_bytes!("shader.frag").to_vec());
+    fn load() -> anyhow::Result<Shader> {
+        unsafe {
+            let mut status: gl::types::GLint = std::mem::zeroed();
+            let prog = gl::CreateProgram();
+            let vert = gl::CreateShader(gl::VERTEX_SHADER);
+            let frag = gl::CreateShader(gl::FRAGMENT_SHADER);
+            let vert_source =
+                std::ffi::CString::from_vec_unchecked(include_bytes!("shader.vert").to_vec());
+            let frag_source =
+                std::ffi::CString::from_vec_unchecked(include_bytes!("shader.frag").to_vec());
 
-        gl::ShaderSource(
-            vert,
-            1,
-            [vert_source.as_ptr()].as_ptr() as *const *const i8,
-            std::ptr::null(),
-        );
-        gl::ShaderSource(
-            frag,
-            1,
-            [frag_source.as_ptr()].as_ptr() as *const *const i8,
-            std::ptr::null(),
-        );
+            gl::ShaderSource(
+                vert,
+                1,
+                [vert_source.as_ptr()].as_ptr() as *const *const i8,
+                std::ptr::null(),
+            );
+            gl::ShaderSource(
+                frag,
+                1,
+                [frag_source.as_ptr()].as_ptr() as *const *const i8,
+                std::ptr::null(),
+            );
 
-        gl::CompileShader(vert);
-        gl::GetShaderiv(vert, gl::COMPILE_STATUS, &mut status);
-        if status != gl::TRUE as i32 {
-            return Err(shader_error(vert, "shader.vert"));
+            gl::CompileShader(vert);
+            gl::GetShaderiv(vert, gl::COMPILE_STATUS, &mut status);
+            if status != gl::TRUE as i32 {
+                return Err(shader_error(vert, "shader.vert"));
+            }
+
+            gl::CompileShader(frag);
+            gl::GetShaderiv(frag, gl::COMPILE_STATUS, &mut status);
+            if status != gl::TRUE as i32 {
+                return Err(shader_error(vert, "shader.frag"));
+            }
+
+            gl::AttachShader(prog, vert);
+            gl::AttachShader(prog, frag);
+
+            let name_vertex = std::ffi::CString::new("vertex").unwrap();
+            let name_tcoord = std::ffi::CString::new("tcoord").unwrap();
+            gl::BindAttribLocation(prog, 0, name_vertex.as_ptr() as *const i8);
+            gl::BindAttribLocation(prog, 1, name_tcoord.as_ptr() as *const i8);
+
+            gl::LinkProgram(prog);
+            gl::GetProgramiv(prog, gl::LINK_STATUS, &mut status);
+            if status != gl::TRUE as i32 {
+                return Err(program_error(prog));
+            }
+
+            let name_viewsize = std::ffi::CString::new("viewSize").unwrap();
+            let name_tex = std::ffi::CString::new("tex").unwrap();
+            let name_frag = std::ffi::CString::new("frag").unwrap();
+
+            Ok(Shader {
+                prog,
+                frag,
+                vert,
+                loc_viewsize: gl::GetUniformLocation(prog, name_viewsize.as_ptr() as *const i8),
+                loc_tex: gl::GetUniformLocation(prog, name_tex.as_ptr() as *const i8),
+                loc_frag: gl::GetUniformBlockIndex(prog, name_frag.as_ptr() as *const i8),
+            })
         }
-
-        gl::CompileShader(frag);
-        gl::GetShaderiv(frag, gl::COMPILE_STATUS, &mut status);
-        if status != gl::TRUE as i32 {
-            return Err(shader_error(vert, "shader.frag"));
-        }
-
-        gl::AttachShader(prog, vert);
-        gl::AttachShader(prog, frag);
-
-        let name_vertex = std::ffi::CString::new("vertex").unwrap();
-        let name_tcoord = std::ffi::CString::new("tcoord").unwrap();
-        gl::BindAttribLocation(prog, 0, name_vertex.as_ptr() as *const i8);
-        gl::BindAttribLocation(prog, 1, name_tcoord.as_ptr() as *const i8);
-
-        gl::LinkProgram(prog);
-        gl::GetProgramiv(prog, gl::LINK_STATUS, &mut status);
-        if status != gl::TRUE as i32 {
-            return Err(program_error(prog));
-        }
-
-        let name_viewsize = std::ffi::CString::new("viewSize").unwrap();
-        let name_tex = std::ffi::CString::new("tex").unwrap();
-        let name_frag = std::ffi::CString::new("frag").unwrap();
-
-        Ok(Shader {
-            prog,
-            frag,
-            vert,
-            loc_viewsize: gl::GetUniformLocation(prog, name_viewsize.as_ptr() as *const i8),
-            loc_tex: gl::GetUniformLocation(prog, name_tex.as_ptr() as *const i8),
-            loc_frag: gl::GetUniformBlockIndex(prog, name_frag.as_ptr() as *const i8),
-        })
     }
 }
 
@@ -277,94 +301,87 @@ impl Renderer {
         }
     }
 
-    unsafe fn set_uniforms(&self, offset: usize, img: Option<usize>) {
-        gl::BindBufferRange(
-            gl::UNIFORM_BUFFER,
-            0,
-            self.frag_buf,
-            (offset * self.frag_size) as isize,
-            std::mem::size_of::<FragUniforms>() as isize,
-        );
+    fn set_uniforms(&self, offset: usize, img: Option<usize>) {
+        unsafe {
+            gl::BindBufferRange(
+                gl::UNIFORM_BUFFER,
+                0,
+                self.frag_buf,
+                (offset * self.frag_size) as isize,
+                std::mem::size_of::<FragUniforms>() as isize,
+            );
 
-        if let Some(img) = img {
-            if let Some(texture) = self.textures.get(img) {
-                gl::BindTexture(gl::TEXTURE_2D, texture.tex);
+            if let Some(img) = img {
+                if let Some(texture) = self.textures.get(img) {
+                    gl::BindTexture(gl::TEXTURE_2D, texture.tex);
+                }
+            } else {
+                gl::BindTexture(gl::TEXTURE_2D, 0);
             }
-        } else {
-            gl::BindTexture(gl::TEXTURE_2D, 0);
         }
     }
 
     #[inline]
-    unsafe fn do_fill(&self, call: &Call, fill_type: PathFillType, inst_slice: &GLSlice) {
+    fn do_fill(&self, call: &Call, fill_type: PathFillType, inst_slice: &GLSlice) {
         let paths = &self.paths[call.path_range.clone()];
+        unsafe {
+            gl::Enable(gl::STENCIL_TEST);
+            gl::StencilMask(0xff);
+            gl::StencilFunc(gl::ALWAYS, 0, 0xff);
+            gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
 
-        gl::Enable(gl::STENCIL_TEST);
-        gl::StencilMask(0xff);
-        gl::StencilFunc(gl::ALWAYS, 0, 0xff);
-        gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
+            self.set_uniforms(call.uniform_offset, call.image);
+            if fill_type == PathFillType::Winding {
+                gl::StencilOpSeparate(gl::FRONT, gl::KEEP, gl::KEEP, gl::INCR_WRAP);
+                gl::StencilOpSeparate(gl::BACK, gl::KEEP, gl::KEEP, gl::DECR_WRAP);
+            } else {
+                gl::StencilOpSeparate(gl::FRONT_AND_BACK, gl::KEEP, gl::KEEP, gl::INVERT);
+            }
+            gl::Disable(gl::CULL_FACE);
+            for path in paths {
+                gl::DrawArraysInstancedBaseInstance(
+                    gl::TRIANGLE_FAN,
+                    path.fill.offset as i32,
+                    path.fill.count as i32,
+                    inst_slice.count as i32,
+                    inst_slice.offset,
+                );
+            }
+            gl::Enable(gl::CULL_FACE);
 
-        self.set_uniforms(call.uniform_offset, call.image);
-        if fill_type == PathFillType::Winding {
-            gl::StencilOpSeparate(gl::FRONT, gl::KEEP, gl::KEEP, gl::INCR_WRAP);
-            gl::StencilOpSeparate(gl::BACK, gl::KEEP, gl::KEEP, gl::DECR_WRAP);
-        } else {
-            gl::StencilOpSeparate(gl::FRONT_AND_BACK, gl::KEEP, gl::KEEP, gl::INVERT);
-        }
-        gl::Disable(gl::CULL_FACE);
-        for path in paths {
-            gl::DrawArrays(
-                gl::TRIANGLE_FAN,
-                path.fill.offset as i32,
-                path.fill.count as i32,
-            );
-            // gl::DrawArraysInstancedBaseInstance(
-            //     gl::TRIANGLE_FAN,
-            //     path.fill.offset as i32,
-            //     path.fill.count as i32,
-            //     inst_slice.count as i32,
-            //     inst_slice.offset,
-            // );
-        }
-        gl::Enable(gl::CULL_FACE);
+            gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
 
-        gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
+            self.set_uniforms(call.uniform_offset + 1, call.image);
 
-        self.set_uniforms(call.uniform_offset + 1, call.image);
+            gl::StencilFunc(gl::EQUAL, 0x00, 0xff);
+            gl::StencilOp(gl::KEEP, gl::KEEP, gl::KEEP);
+            for path in paths {
+                gl::DrawArraysInstancedBaseInstance(
+                    gl::TRIANGLE_STRIP,
+                    path.stroke.offset as i32,
+                    path.stroke.count as i32,
+                    inst_slice.count as i32,
+                    inst_slice.offset,
+                );
+            }
 
-        gl::StencilFunc(gl::EQUAL, 0x00, 0xff);
-        gl::StencilOp(gl::KEEP, gl::KEEP, gl::KEEP);
-        for path in paths {
+            gl::StencilFunc(gl::NOTEQUAL, 0x00, 0xff);
+            gl::StencilOp(gl::ZERO, gl::ZERO, gl::ZERO);
             gl::DrawArrays(
                 gl::TRIANGLE_STRIP,
-                path.stroke.offset as i32,
-                path.stroke.count as i32,
+                call.triangle.offset as i32,
+                call.triangle.count as i32,
             );
             // gl::DrawArraysInstancedBaseInstance(
             //     gl::TRIANGLE_STRIP,
-            //     path.stroke.offset as i32,
-            //     path.stroke.count as i32,
+            //     call.triangle.offset as i32,
+            //     call.triangle.count as i32,
             //     inst_slice.count as i32,
             //     inst_slice.offset,
             // );
+
+            gl::Disable(gl::STENCIL_TEST);
         }
-
-        gl::StencilFunc(gl::NOTEQUAL, 0x00, 0xff);
-        gl::StencilOp(gl::ZERO, gl::ZERO, gl::ZERO);
-        gl::DrawArrays(
-            gl::TRIANGLE_STRIP,
-            call.triangle.offset as i32,
-            call.triangle.count as i32,
-        );
-        // gl::DrawArraysInstancedBaseInstance(
-        //     gl::TRIANGLE_STRIP,
-        //     call.triangle.offset as i32,
-        //     call.triangle.count as i32,
-        //     inst_slice.count as i32,
-        //     inst_slice.offset,
-        // );
-
-        gl::Disable(gl::STENCIL_TEST);
     }
 
     #[inline]
@@ -384,14 +401,33 @@ impl Renderer {
             //         path.stroke.count as i32,
             //     );
             // }
-            gl::DrawArraysInstancedBaseInstance(
-                gl::TRIANGLE_FAN,
-                path.fill.offset as i32,
-                path.fill.count as i32,
-                inst_slice.count as i32,
-                inst_slice.offset,
-            );
-            if path.stroke.count > 0 {
+            unsafe {
+                gl::DrawArraysInstancedBaseInstance(
+                    gl::TRIANGLE_FAN,
+                    path.fill.offset as i32,
+                    path.fill.count as i32,
+                    inst_slice.count as i32,
+                    inst_slice.offset,
+                );
+                if path.stroke.count > 0 {
+                    gl::DrawArraysInstancedBaseInstance(
+                        gl::TRIANGLE_STRIP,
+                        path.stroke.offset as i32,
+                        path.stroke.count as i32,
+                        inst_slice.count as i32,
+                        inst_slice.offset,
+                    );
+                }
+            }
+        }
+    }
+
+    #[inline]
+    unsafe fn do_stroke(&self, call: &Call, inst_slice: &GLSlice) {
+        let paths = &self.paths[call.path_range.clone()];
+        self.set_uniforms(call.uniform_offset, call.image);
+        for path in paths {
+            unsafe {
                 gl::DrawArraysInstancedBaseInstance(
                     gl::TRIANGLE_STRIP,
                     path.stroke.offset as i32,
@@ -404,40 +440,17 @@ impl Renderer {
     }
 
     #[inline]
-    unsafe fn do_stroke(&self, call: &Call, inst_slice: &GLSlice) {
-        let paths = &self.paths[call.path_range.clone()];
+    fn do_triangles(&self, call: &Call, inst_slice: &GLSlice) {
         self.set_uniforms(call.uniform_offset, call.image);
-        for path in paths {
-            // gl::DrawArrays(
-            //     gl::TRIANGLE_STRIP,
-            //     path.stroke.offset as i32,
-            //     path.stroke.count as i32,
-            // );
+        unsafe {
             gl::DrawArraysInstancedBaseInstance(
-                gl::TRIANGLE_STRIP,
-                path.stroke.offset as i32,
-                path.stroke.count as i32,
+                gl::TRIANGLES,
+                call.triangle.offset as i32,
+                call.triangle.count as i32,
                 inst_slice.count as i32,
                 inst_slice.offset,
             );
         }
-    }
-
-    #[inline]
-    unsafe fn do_triangles(&self, call: &Call, inst_slice: &GLSlice) {
-        self.set_uniforms(call.uniform_offset, call.image);
-        // gl::DrawArraysInstancedBaseInstance(
-        //     gl::TRIANGLES,
-        //     call.triangle.offset as i32,
-        //     call.triangle.count as i32,
-        //     inst_slice.count as i32,
-        //     inst_slice.offset,
-        // );
-        gl::DrawArrays(
-            gl::TRIANGLES,
-            call.triangle.offset as i32,
-            call.triangle.count as i32,
-        );
     }
 
     #[cfg(feature = "wirelines")]
@@ -446,18 +459,15 @@ impl Renderer {
         let paths = &self.paths[call.path_range.clone()];
         self.set_uniforms(call.uniform_offset, call.image);
         for path in paths {
-            gl::DrawArrays(
-                gl::LINE_STRIP,
-                path.stroke.offset as i32,
-                path.stroke.count as i32,
-            );
-            // gl::DrawArraysInstancedBaseInstance(
-            //     gl::LINE_STRIP,
-            //     path.stroke.offset as i32,
-            //     path.stroke.count as i32,
-            //     inst_slice.count as i32,
-            //     inst_slice.offset,
-            // );
+            unsafe {
+                gl::DrawArraysInstancedBaseInstance(
+                    gl::LINE_STRIP,
+                    path.stroke.offset as i32,
+                    path.stroke.count as i32,
+                    inst_slice.count as i32,
+                    inst_slice.offset,
+                );
+            }
         }
     }
 

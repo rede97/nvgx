@@ -1,19 +1,26 @@
-use nvg::{Context, RendererDevice};
+use nvgx::{Context, RendererDevice};
 use winit;
 
+#[macro_use]
+#[allow(unused)]
+extern crate anyhow;
+
 cfg_if::cfg_if! {
-    if #[cfg(feature="ogl-impl")] {
+    if #[cfg(feature="ogl")] {
         mod ogl;
         pub use ogl::run;
-    } else if #[cfg(feature="wgpu-impl")] {
+        pub use nvgx_ogl as nvgx_impl;
+    } else if #[cfg(feature="wgpu")] {
         mod wgpu;
         pub use wgpu::run;
+        pub use nvgx_wgpu as nvgx_impl;
     }
 }
 
+
 pub trait Demo<R: RendererDevice> {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> anyhow::Result<()> {
-        ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
+        ctx.create_font_from_file("roboto", "nvgx-demo/Roboto-Bold.ttf")?;
         Ok(())
     }
 

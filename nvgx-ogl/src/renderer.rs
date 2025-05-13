@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use super::{Call, CallType, FragUniforms, GLPath, ShaderType, Texture};
 use super::{GLSlice, Renderer};
-use nvg::*;
+use nvgx::*;
 
 #[derive(Default)]
 pub struct GLArrayBuffer {
@@ -113,7 +113,7 @@ impl Drop for GLArrayBuffer {
     }
 }
 
-impl nvg::RendererDevice for Renderer {
+impl nvgx::RendererDevice for Renderer {
     type VertexBuffer = Arc<GLArrayBuffer>;
 
     fn edge_antialias(&self) -> bool {
@@ -424,13 +424,13 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
         instances: Option<(Self::VertexBuffer, Range<u32>)>,
-        paint: &nvg::PaintPattern,
-        composite_operation: nvg::CompositeOperationState,
-        fill_type: nvg::PathFillType,
-        scissor: &nvg::Scissor,
+        paint: &nvgx::PaintPattern,
+        composite_operation: nvgx::CompositeOperationState,
+        fill_type: nvgx::PathFillType,
+        scissor: &nvgx::Scissor,
         fringe: f32,
         bounds_offset: Option<usize>,
-        paths: &[nvg::PathSlice],
+        paths: &[nvgx::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.paths.len();
 
@@ -488,12 +488,12 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
         instances: Option<(Self::VertexBuffer, Range<u32>)>,
-        paint: &nvg::PaintPattern,
-        composite_operation: nvg::CompositeOperationState,
-        scissor: &nvg::Scissor,
+        paint: &nvgx::PaintPattern,
+        composite_operation: nvgx::CompositeOperationState,
+        scissor: &nvgx::Scissor,
         fringe: f32,
         stroke_width: f32,
-        paths: &[nvg::PathSlice],
+        paths: &[nvgx::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.paths.len();
 
@@ -525,9 +525,9 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
         instances: Option<(Self::VertexBuffer, Range<u32>)>,
-        paint: &nvg::PaintPattern,
-        composite_operation: nvg::CompositeOperationState,
-        scissor: &nvg::Scissor,
+        paint: &nvgx::PaintPattern,
+        composite_operation: nvgx::CompositeOperationState,
+        scissor: &nvgx::Scissor,
         slice: VertexSlice,
     ) -> anyhow::Result<()> {
         let call = Call {
@@ -553,10 +553,10 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
         instances: Option<(Self::VertexBuffer, Range<u32>)>,
-        paint: &nvg::PaintPattern,
-        composite_operation: nvg::CompositeOperationState,
-        scissor: &nvg::Scissor,
-        paths: &[nvg::PathSlice],
+        paint: &nvgx::PaintPattern,
+        composite_operation: nvgx::CompositeOperationState,
+        scissor: &nvgx::Scissor,
+        paths: &[nvgx::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.paths.len();
 

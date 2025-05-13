@@ -1,10 +1,8 @@
 use std::time::Instant;
 
 use anyhow::Error;
-use nvg::*;
-use nvg_gl::{fb::FrameBuffer, Renderer};
-
-mod demo;
+use nvgx_demo::nvgx_impl::{Renderer, fb::FrameBuffer};
+use nvgx::*;
 
 struct DemoCutout {
     scale_factor: f32,
@@ -34,7 +32,7 @@ impl DemoCutout {
                 fb_ctx.clear(Color::gray(0.2))?;
                 fb_ctx.begin_path();
                 fb_ctx.circle((50, 50), 40.0 + 10.0 * f32::sin(dt));
-                fb_ctx.fill_paint(nvg::Color::rgb(0.5, 0.4, 0.8));
+                fb_ctx.fill_paint(nvgx::Color::rgb(0.5, 0.4, 0.8));
                 fb_ctx.fill()?;
                 fb_ctx.end_frame()?;
             }
@@ -43,7 +41,7 @@ impl DemoCutout {
     }
 }
 
-impl demo::Demo<Renderer> for DemoCutout {
+impl nvgx_demo::Demo<Renderer> for DemoCutout {
     fn init(&mut self, ctx: &mut Context<Renderer>, scale_factor: f32) -> Result<(), Error> {
         ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
 
@@ -81,7 +79,7 @@ impl demo::Demo<Renderer> for DemoCutout {
             };
             ctx.begin_path();
             ctx.fill_paint(pattern);
-            ctx.rect(nvg::Rect::new((0.0, 0.0).into(), (_width, _height).into()));
+            ctx.rect(nvgx::Rect::new((0.0, 0.0).into(), (_width, _height).into()));
             ctx.fill()?;
         }
 
@@ -93,13 +91,13 @@ impl demo::Demo<Renderer> for DemoCutout {
         ctx.circle((400.0, 220.0), 150.0);
         ctx.circle((300.0, 350.0), 100.0);
         ctx.path_winding(WindingSolidity::Hole);
-        ctx.fill_paint(nvg::Color::rgb_i(255, 192, 60));
+        ctx.fill_paint(nvgx::Color::rgb_i(255, 192, 60));
         ctx.fill()?;
-        
+
         if true {
             ctx.begin_path();
-            ctx.fill_paint(nvg::Color::rgb(0.9, 0.3, 0.4));
-            ctx.rect(nvg::Rect::new(
+            ctx.fill_paint(nvgx::Color::rgb(0.9, 0.3, 0.4));
+            ctx.rect(nvgx::Rect::new(
                 Point::new(250.0, 300.0),
                 Extent::new(80.0, 80.0),
             ));
@@ -107,7 +105,7 @@ impl demo::Demo<Renderer> for DemoCutout {
 
             ctx.begin_path();
             ctx.shape_antialias(false);
-            ctx.stroke_paint(nvg::Color::rgb(0.0, 1.0, 0.0));
+            ctx.stroke_paint(nvgx::Color::rgb(0.0, 1.0, 0.0));
             ctx.stroke_width(1.0 / self.scale_factor);
             ctx.move_to((100.0, 10.0));
             ctx.line_to((400.0, 500.0));
@@ -123,8 +121,8 @@ impl demo::Demo<Renderer> for DemoCutout {
 
             for i in (0..400).step_by(20) {
                 ctx.begin_path();
-                ctx.fill_paint(nvg::Color::rgb_i(129, 206, 15));
-                ctx.rect(nvg::Rect::new(
+                ctx.fill_paint(nvgx::Color::rgb_i(129, 206, 15));
+                ctx.rect(nvgx::Rect::new(
                     Point {
                         x: 0.0,
                         y: i as f32,
@@ -137,8 +135,8 @@ impl demo::Demo<Renderer> for DemoCutout {
                 ctx.fill()?;
 
                 ctx.begin_path();
-                ctx.fill_paint(nvg::Color::gray_i(255));
-                ctx.rect(nvg::Rect::new(
+                ctx.fill_paint(nvgx::Color::gray_i(255));
+                ctx.rect(nvgx::Rect::new(
                     Point {
                         x: i as f32,
                         y: 0.0,
@@ -161,9 +159,9 @@ impl demo::Demo<Renderer> for DemoCutout {
             ctx.line_to((self.mouse.0, self.mouse.1));
             let dt = Instant::now().duration_since(self.start_time).as_secs_f32();
             ctx.circle((self.mouse.0, self.mouse.1), 150.0 + f32::cos(dt) * 20.0);
-            ctx.fill_paint(nvg::Color::rgba_i(90, 120, 250, 100));
+            ctx.fill_paint(nvgx::Color::rgba_i(90, 120, 250, 100));
             ctx.fill()?;
-            ctx.stroke_paint(nvg::Color::rgb_i(90, 120, 250));
+            ctx.stroke_paint(nvgx::Color::rgb_i(90, 120, 250));
             #[cfg(feature = "wirelines")]
             ctx.wirelines()?;
         }
@@ -176,5 +174,5 @@ impl demo::Demo<Renderer> for DemoCutout {
 }
 
 fn main() {
-    demo::run(DemoCutout::default(), "demo-square");
+    nvgx_demo::run(DemoCutout::default(), "demo-square");
 }

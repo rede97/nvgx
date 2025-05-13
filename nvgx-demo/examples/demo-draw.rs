@@ -1,9 +1,9 @@
 use anyhow::Error;
-use nvg::*;
+use nvgx::*;
 use std::f32::consts::PI;
 use std::time::Instant;
 
-mod demo;
+
 
 enum LinesType {
     Stroke,
@@ -29,7 +29,7 @@ impl DemoDraw {
         _height: f32,
         ctx: &mut Context<R>,
     ) -> Result<(), Error> {
-        ctx.text_align(nvg::Align::LEFT);
+        ctx.text_align(nvgx::Align::LEFT);
         ctx.text((10, 60), "key S: stroke")?;
         ctx.text((10, 70), "key L: wirelines")?;
         ctx.text((10, 80), "key C: close path")?;
@@ -55,7 +55,7 @@ impl DemoDraw {
         ctx.reset_transform();
         ctx.stroke_paint(Color::rgb_i(0xFF, 0xFF, 0xFF));
         if self.lines {
-            ctx.fill_paint(nvg::Color::rgba_i(90, 120, 250, 100));
+            ctx.fill_paint(nvgx::Color::rgba_i(90, 120, 250, 100));
             ctx.fill()?;
             match self.lines_type {
                 LinesType::Stroke => {
@@ -102,12 +102,12 @@ impl DemoDraw {
     }
 }
 
-impl<R: RendererDevice> demo::Demo<R> for DemoDraw {
+impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoDraw {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> Result<(), Error> {
-        ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
+        ctx.create_font_from_file("roboto", "nvgx-demo/Roboto-Bold.ttf")?;
         self.img = Some(ctx.create_image_from_file(
             ImageFlags::REPEATX | ImageFlags::REPEATY,
-            "nvg-gl/examples/lenna.png",
+            "nvgx-demo/lenna.png",
         )?);
         Ok(())
     }
@@ -227,7 +227,7 @@ fn smooth_mouse(
 }
 
 fn main() {
-    demo::run(
+    nvgx_demo::run(
         DemoDraw {
             img: None,
             start_time: Instant::now(),

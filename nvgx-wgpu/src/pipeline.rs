@@ -1,4 +1,4 @@
-use nvg::{CompositeOperationState, PathFillType};
+use nvgx::{CompositeOperationState, PathFillType};
 
 use super::{call::ToBlendState, instance::INSTANCE_DESC, mesh::VERTEX_DESC};
 
@@ -247,7 +247,7 @@ impl PipelineManager {
         device: &wgpu::Device,
     ) -> Self {
         let builder = PipelineBuilder::new(shader, pipeline_layout);
-        let default_blend = nvg::CompositeOperationState::default();
+        let default_blend = nvgx::CompositeOperationState::default();
         let fill_stencil =
             builder.create(&device, PipelineUsage::FillStencil(PathFillType::Winding));
         let fill_stroke = builder.create(&device, PipelineUsage::FillStroke(default_blend.clone()));

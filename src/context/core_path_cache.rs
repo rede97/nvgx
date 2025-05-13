@@ -1,7 +1,7 @@
 use std::cell::RefMut;
 
-use crate::{PathMutInner, RendererDevice};
 use crate::{LineJoin, Paint};
+use crate::{PathMutInner, RendererDevice};
 
 use super::*;
 
@@ -159,7 +159,6 @@ impl DerefMut for PathCommandsWithCache {
     }
 }
 
-
 pub(crate) struct PathRefWithCache<'a, R: RendererDevice> {
     pub path: &'a PathCommands,
     pub path_mut_inner: RefMut<'a, PathMutInner<R>>,
@@ -226,6 +225,7 @@ impl<'a, R: RendererDevice> FlattenExpandPath for PathRefWithCache<'a, R> {
         );
     }
 
+    #[cfg(feature = "wirelines")]
     #[inline]
     fn expand_lines(&mut self) {
         self.cache
@@ -242,6 +242,7 @@ impl<'a, R: RendererDevice> FlattenExpandPath for PathRefWithCache<'a, R> {
         return &self.path_mut_inner.draw_slice.stroke;
     }
 
+    #[cfg(feature = "wirelines")]
     #[inline]
     fn get_lines_slice(&self) -> &[PathSlice] {
         return &self.path_mut_inner.draw_slice.lines;

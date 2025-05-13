@@ -1,17 +1,17 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use nvg::{BufferUsage, VertexSlice};
+use nvgx::{BufferUsage, VertexSlice};
 use wgpu::{Extent3d, Origin2d};
 
-use crate::wgpu::{
+use crate::{
     call::{Call, GpuPath},
     unifroms::{RenderCommand, ShaderType},
 };
 
-use super::{call::CallType, mesh::Mesh, Renderer};
+use super::{Renderer, call::CallType, mesh::Mesh};
 
-impl nvg::RendererDevice for Renderer {
+impl nvgx::RendererDevice for Renderer {
     type VertexBuffer = Arc<wgpu::Buffer>;
 
     fn edge_antialias(&self) -> bool {
@@ -55,12 +55,12 @@ impl nvg::RendererDevice for Renderer {
 
     fn create_texture(
         &mut self,
-        texture_type: nvg::TextureType,
+        texture_type: nvgx::TextureType,
         width: u32,
         height: u32,
-        flags: nvg::ImageFlags,
+        flags: nvgx::ImageFlags,
         data: Option<&[u8]>,
-    ) -> anyhow::Result<nvg::ImageId> {
+    ) -> anyhow::Result<nvgx::ImageId> {
         Ok(self.resources.texture_manager.create(
             &self.device,
             &self.queue,
@@ -72,17 +72,17 @@ impl nvg::RendererDevice for Renderer {
             flags,
             texture_type,
             data,
-        ) as nvg::ImageId)
+        ) as nvgx::ImageId)
     }
 
-    fn delete_texture(&mut self, img: nvg::ImageId) -> anyhow::Result<()> {
+    fn delete_texture(&mut self, img: nvgx::ImageId) -> anyhow::Result<()> {
         self.resources.texture_manager.remove(img as usize);
         Ok(())
     }
 
     fn update_texture(
         &mut self,
-        img: nvg::ImageId,
+        img: nvgx::ImageId,
         x: u32,
         y: u32,
         width: u32,
@@ -107,7 +107,7 @@ impl nvg::RendererDevice for Renderer {
         Ok(())
     }
 
-    fn texture_size(&self, img: nvg::ImageId) -> anyhow::Result<(u32, u32)> {
+    fn texture_size(&self, img: nvgx::ImageId) -> anyhow::Result<(u32, u32)> {
         let texture = self
             .resources
             .texture_manager
@@ -117,7 +117,7 @@ impl nvg::RendererDevice for Renderer {
         Ok((size.width, size.height))
     }
 
-    fn viewport(&mut self, extent: nvg::Extent, _device_pixel_ratio: f32) -> anyhow::Result<()> {
+    fn viewport(&mut self, extent: nvgx::Extent, _device_pixel_ratio: f32) -> anyhow::Result<()> {
         self.resources.viewsize_uniform.value = extent;
         Ok(())
     }
@@ -171,13 +171,13 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
         instances: Option<(Self::VertexBuffer, Range<u32>)>,
-        paint: &nvg::PaintPattern,
-        composite_operation: nvg::CompositeOperationState,
-        fill_type: nvg::PathFillType,
-        scissor: &nvg::Scissor,
+        paint: &nvgx::PaintPattern,
+        composite_operation: nvgx::CompositeOperationState,
+        fill_type: nvgx::PathFillType,
+        scissor: &nvgx::Scissor,
         fringe: f32,
         bounds_offset: Option<usize>,
-        paths: &[nvg::PathSlice],
+        paths: &[nvgx::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.resources.paths.len();
         let mut fill_vertex_count = 0;
@@ -200,9 +200,9 @@ impl nvg::RendererDevice for Renderer {
 
         let call = Call {
             call_type: if bounds_offset.is_some() {
-                crate::wgpu::call::CallType::Fill(fill_type)
+                crate::call::CallType::Fill(fill_type)
             } else {
-                crate::wgpu::call::CallType::ConvexFill
+                crate::call::CallType::ConvexFill
             },
             image: paint.image,
             path_range: path_offset..self.resources.paths.len(),
@@ -239,12 +239,12 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
         instances: Option<(Self::VertexBuffer, Range<u32>)>,
-        paint: &nvg::PaintPattern,
-        composite_operation: nvg::CompositeOperationState,
-        scissor: &nvg::Scissor,
+        paint: &nvgx::PaintPattern,
+        composite_operation: nvgx::CompositeOperationState,
+        scissor: &nvgx::Scissor,
         fringe: f32,
         stroke_width: f32,
-        paths: &[nvg::PathSlice],
+        paths: &[nvgx::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.resources.paths.len();
 
@@ -283,9 +283,9 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
         instances: Option<(Self::VertexBuffer, Range<u32>)>,
-        paint: &nvg::PaintPattern,
-        composite_operation: nvg::CompositeOperationState,
-        scissor: &nvg::Scissor,
+        paint: &nvgx::PaintPattern,
+        composite_operation: nvgx::CompositeOperationState,
+        scissor: &nvgx::Scissor,
         slice: VertexSlice,
     ) -> anyhow::Result<()> {
         let call = Call {
@@ -307,7 +307,7 @@ impl nvg::RendererDevice for Renderer {
         Ok(())
     }
 
-    fn clear(&mut self, color: nvg::Color) -> anyhow::Result<()> {
+    fn clear(&mut self, color: nvgx::Color) -> anyhow::Result<()> {
         self.cancel()?;
         self.clear_cmd = Some(wgpu::Color {
             r: color.r as f64,
@@ -323,10 +323,10 @@ impl nvg::RendererDevice for Renderer {
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
         instances: Option<(Self::VertexBuffer, Range<u32>)>,
-        paint: &nvg::PaintPattern,
-        composite_operation: nvg::CompositeOperationState,
-        scissor: &nvg::Scissor,
-        paths: &[nvg::PathSlice],
+        paint: &nvgx::PaintPattern,
+        composite_operation: nvgx::CompositeOperationState,
+        scissor: &nvgx::Scissor,
+        paths: &[nvgx::PathSlice],
     ) -> anyhow::Result<()> {
         let path_offset = self.resources.paths.len();
 

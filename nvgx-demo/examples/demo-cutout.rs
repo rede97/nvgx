@@ -2,7 +2,7 @@
 extern crate lazy_static;
 
 use anyhow::Error;
-use nvg::*;
+use nvgx::*;
 use rand::prelude::*;
 use std::collections::HashMap;
 use std::f32::consts::PI;
@@ -48,9 +48,9 @@ enum ShapeKind {
 
 impl ShapeKind {
     fn rand<R: Rng>(rng: &mut R) -> Self {
-        match rng.gen_range(0, 2) {
-            0 => ShapeKind::Polygon(rng.gen_range(3, 6)),
-            1 => ShapeKind::Squiggle(rng.gen_range(3, 6)),
+        match rng.random_range(0..2) {
+            0 => ShapeKind::Polygon(rng.random_range(3..6)),
+            1 => ShapeKind::Squiggle(rng.random_range(3..6)),
             _ => unreachable!(),
         }
     }
@@ -59,7 +59,7 @@ impl ShapeKind {
 struct Shape {
     rotation: f32,
     speed: f32,
-    color: nvg::Color,
+    color: nvgx::Color,
     kind: ShapeKind,
 }
 
@@ -69,8 +69,8 @@ impl Shape {
         let direction = [-1.0f32, 1.0f32].choose(rng).unwrap();
 
         Shape {
-            rotation: rng.gen_range(0.0, 2.0 * PI),
-            speed: rng.gen_range(1.0, 4.0) * direction,
+            rotation: rng.random_range(0.0..2.0 * PI),
+            speed: rng.random_range(1.0..4.0) * direction,
             color: *color,
             kind: ShapeKind::rand(rng),
         }
@@ -80,7 +80,7 @@ impl Shape {
         self.rotation = self.rotation + dt * self.speed;
     }
 
-    fn draw<R: RendererDevice>(&self, ctx: &mut nvg::Context<R>, (x, y): (f32, f32), size: f32) {
+    fn draw<R: RendererDevice>(&self, ctx: &mut nvgx::Context<R>, (x, y): (f32, f32), size: f32) {
         let margin = size * 0.2;
         let x = x + margin;
         let y = y + margin;
@@ -102,7 +102,7 @@ impl Shape {
         (cx, cy): (f32, f32),
         diameter: f32,
         rotation: f32,
-        color: nvg::Color,
+        color: nvgx::Color,
         num_sides: u8,
     ) {
         assert!(num_sides >= 3);
@@ -128,7 +128,7 @@ impl Shape {
         (cx, cy): (f32, f32),
         (w, h): (f32, f32),
         rotation: f32,
-        color: nvg::Color,
+        color: nvgx::Color,
         phi: u8,
     ) {
         let phi = phi as f32;
@@ -219,7 +219,7 @@ fn render_rectangle<R: RendererDevice>(
     ctx.fill().unwrap();
 }
 
-mod demo;
+
 
 struct DemoCutout {
     start_time: Instant,
@@ -236,14 +236,14 @@ impl Default for DemoCutout {
             start_time: Instant::now(),
             prev_time: 0.0,
             shapes: ShapeCache::new(),
-            rng: thread_rng(),
+            rng: rand::rng(),
             mouse: (0.0, 0.0),
             smoothed_mouse: (0.0, 0.0),
         }
     }
 }
 
-impl<R: RendererDevice> demo::Demo<R> for DemoCutout {
+impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoCutout {
     fn update(&mut self, width: f32, height: f32, ctx: &mut Context<R>) -> Result<(), Error> {
         let elapsed = get_elapsed(&self.start_time);
         let delta_time = elapsed - self.prev_time;
@@ -296,5 +296,5 @@ fn smooth_mouse(
 }
 
 fn main() {
-    demo::run(DemoCutout::default(), "demo-cutout");
+    nvgx_demo::run(DemoCutout::default(), "demo-cutout");
 }
