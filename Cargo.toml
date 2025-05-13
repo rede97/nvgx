@@ -12,11 +12,11 @@ repository = "https://github.com/sunli829/nvg"
 
 [dependencies]
 bitflags = "1.2.1"
-image = "0.22.3"
+image = "0.25"
 anyhow = "1.0.26"
-rusttype = { version = "0.8.1", features = ["gpu_cache"] }
-slab = "0.4.2"
-num-traits = "0.2.8"
+rusttype = { version = "0.9", features = ["gpu_cache"] }
+slab = "0.4"
+num-traits = "0.2"
 clamped = "1.0.0"
 rawpointer = "0.2.1"
 bytemuck = {version = "1.23.0", features = ["derive"]}

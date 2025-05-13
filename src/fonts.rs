@@ -1,6 +1,7 @@
 use crate::context::{ImageId, TextMetrics};
 use crate::renderer::TextureType;
 use crate::{Align, Bounds, Extent, ImageFlags, RendererDevice};
+use anyhow::anyhow;
 use bitflags::_core::borrow::Borrow;
 use rusttype::gpu_cache::Cache;
 use rusttype::{Font, Glyph, Point, PositionedGlyph, Scale};
@@ -61,7 +62,9 @@ impl Fonts {
         name: N,
         data: D,
     ) -> anyhow::Result<FontId> {
-        let font = Font::<'static>::from_bytes(data.into())?;
+        let name: String = name.into();
+        let font = Font::<'static>::try_from_vec(data.into())
+            .ok_or_else(|| anyhow!("Open font `{}` failed", name))?;
         let fd = FontData {
             font,
             fallback_fonts: Default::default(),
