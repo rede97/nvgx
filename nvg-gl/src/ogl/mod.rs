@@ -1,9 +1,9 @@
 pub mod fb;
 
-use std::{ops::Range, sync::Arc};
+use std::{f32::consts::PI, ops::Range, sync::Arc};
 
 use nvg::*;
-use renderer::GLVertexBuffer;
+use renderer::GLArrayBuffer;
 use slab::Slab;
 
 use crate::{premul_color, xform_to_3x4, RenderConfig};
@@ -131,11 +131,11 @@ impl From<CompositeOperationState> for Blend {
 
 struct Call {
     call_type: CallType,
-    vert_buff: Option<Arc<GLVertexBuffer>>,
+    vert_buff: Option<Arc<GLArrayBuffer>>,
+    instances: Option<(Arc<GLArrayBuffer>, GLSlice)>,
     image: Option<usize>,
     path_range: Range<usize>,
-    triangle_offset: usize,
-    triangle_count: usize,
+    triangle: GLSlice,
     uniform_offset: usize,
     blend_func: Blend,
 }
@@ -154,11 +154,34 @@ impl Drop for Texture {
     }
 }
 
+#[derive(Default, Clone, Copy)]
+struct GLSlice {
+    offset: u32,
+    count: u32,
+}
+
+impl From<VertexSlice> for GLSlice {
+    fn from(value: VertexSlice) -> Self {
+        return Self {
+            offset: value.offset as u32,
+            count: value.count as u32,
+        };
+    }
+}
+
+impl From<Range<u32>> for GLSlice {
+    fn from(value: Range<u32>) -> Self {
+        return Self {
+            offset: value.start as u32,
+            count: value.count() as u32,
+        };
+    }
+}
+
+#[derive(Default)]
 struct GLPath {
-    fill_offset: usize,
-    fill_count: usize,
-    stroke_offset: usize,
-    stroke_count: usize,
+    fill: GLSlice,
+    stroke: GLSlice,
 }
 
 #[derive(Default)]
@@ -189,7 +212,8 @@ pub struct Renderer {
     shader: Shader,
     textures: Slab<Texture>,
     view: Extent,
-    vert_buf: GLVertexBuffer,
+    vert_buf: GLArrayBuffer,
+    inst_buf: GLArrayBuffer,
     frag_buf: gl::types::GLuint,
     frag_size: usize,
     calls: Vec<Call>,
@@ -212,7 +236,9 @@ impl Renderer {
         unsafe {
             let shader = Shader::load()?;
 
-            let vert_buf = GLVertexBuffer::new();
+            let vert_buf = GLArrayBuffer::new(BufferUsage::Vertex);
+            let inst_buf = GLArrayBuffer::new(BufferUsage::Instance);
+            inst_buf.update_data(bytemuck::bytes_of(&Transform::identity()));
 
             gl::UniformBlockBinding(shader.prog, shader.loc_frag, 0);
             let mut frag_buf: gl::types::GLuint = std::mem::zeroed();
@@ -236,6 +262,7 @@ impl Renderer {
                 textures: Default::default(),
                 view: Default::default(),
                 vert_buf,
+                inst_buf,
                 frag_buf,
                 frag_size,
                 calls: Default::default(),
@@ -269,7 +296,7 @@ impl Renderer {
     }
 
     #[inline]
-    unsafe fn do_fill(&self, call: &Call, fill_type: PathFillType) {
+    unsafe fn do_fill(&self, call: &Call, fill_type: PathFillType, inst_slice: &GLSlice) {
         let paths = &self.paths[call.path_range.clone()];
 
         gl::Enable(gl::STENCIL_TEST);
@@ -286,13 +313,18 @@ impl Renderer {
         }
         gl::Disable(gl::CULL_FACE);
         for path in paths {
-            if path.fill_count >= 3 {
-                gl::DrawArrays(
-                    gl::TRIANGLE_FAN,
-                    path.fill_offset as i32,
-                    path.fill_count as i32,
-                );
-            }
+            gl::DrawArrays(
+                gl::TRIANGLE_FAN,
+                path.fill.offset as i32,
+                path.fill.count as i32,
+            );
+            // gl::DrawArraysInstancedBaseInstance(
+            //     gl::TRIANGLE_FAN,
+            //     path.fill.offset as i32,
+            //     path.fill.count as i32,
+            //     inst_slice.count as i32,
+            //     inst_slice.offset,
+            // );
         }
         gl::Enable(gl::CULL_FACE);
 
@@ -303,80 +335,129 @@ impl Renderer {
         gl::StencilFunc(gl::EQUAL, 0x00, 0xff);
         gl::StencilOp(gl::KEEP, gl::KEEP, gl::KEEP);
         for path in paths {
-            if path.stroke_count >= 3 {
-                gl::DrawArrays(
-                    gl::TRIANGLE_STRIP,
-                    path.stroke_offset as i32,
-                    path.stroke_count as i32,
-                );
-            }
+            gl::DrawArrays(
+                gl::TRIANGLE_STRIP,
+                path.stroke.offset as i32,
+                path.stroke.count as i32,
+            );
+            // gl::DrawArraysInstancedBaseInstance(
+            //     gl::TRIANGLE_STRIP,
+            //     path.stroke.offset as i32,
+            //     path.stroke.count as i32,
+            //     inst_slice.count as i32,
+            //     inst_slice.offset,
+            // );
         }
 
         gl::StencilFunc(gl::NOTEQUAL, 0x00, 0xff);
         gl::StencilOp(gl::ZERO, gl::ZERO, gl::ZERO);
         gl::DrawArrays(
             gl::TRIANGLE_STRIP,
-            call.triangle_offset as i32,
-            call.triangle_count as i32,
+            call.triangle.offset as i32,
+            call.triangle.count as i32,
         );
+        // gl::DrawArraysInstancedBaseInstance(
+        //     gl::TRIANGLE_STRIP,
+        //     call.triangle.offset as i32,
+        //     call.triangle.count as i32,
+        //     inst_slice.count as i32,
+        //     inst_slice.offset,
+        // );
 
         gl::Disable(gl::STENCIL_TEST);
     }
 
     #[inline]
-    unsafe fn do_convex_fill(&self, call: &Call) {
+    unsafe fn do_convex_fill(&self, call: &Call, inst_slice: &GLSlice) {
         let paths = &self.paths[call.path_range.clone()];
         self.set_uniforms(call.uniform_offset, call.image);
         for path in paths {
-            gl::DrawArrays(
+            // gl::DrawArrays(
+            //     gl::TRIANGLE_FAN,
+            //     path.fill.offset as i32,
+            //     path.fill.count as i32,
+            // );
+            // if path.stroke.count > 0 {
+            //     gl::DrawArrays(
+            //         gl::TRIANGLE_STRIP,
+            //         path.stroke.offset as i32,
+            //         path.stroke.count as i32,
+            //     );
+            // }
+            gl::DrawArraysInstancedBaseInstance(
                 gl::TRIANGLE_FAN,
-                path.fill_offset as i32,
-                path.fill_count as i32,
+                path.fill.offset as i32,
+                path.fill.count as i32,
+                inst_slice.count as i32,
+                inst_slice.offset,
             );
-            if path.stroke_count > 0 {
-                gl::DrawArrays(
+            if path.stroke.count > 0 {
+                gl::DrawArraysInstancedBaseInstance(
                     gl::TRIANGLE_STRIP,
-                    path.stroke_offset as i32,
-                    path.stroke_count as i32,
+                    path.stroke.offset as i32,
+                    path.stroke.count as i32,
+                    inst_slice.count as i32,
+                    inst_slice.offset,
                 );
             }
         }
     }
 
     #[inline]
-    unsafe fn do_stroke(&self, call: &Call) {
+    unsafe fn do_stroke(&self, call: &Call, inst_slice: &GLSlice) {
         let paths = &self.paths[call.path_range.clone()];
         self.set_uniforms(call.uniform_offset, call.image);
         for path in paths {
-            gl::DrawArrays(
+            // gl::DrawArrays(
+            //     gl::TRIANGLE_STRIP,
+            //     path.stroke.offset as i32,
+            //     path.stroke.count as i32,
+            // );
+            gl::DrawArraysInstancedBaseInstance(
                 gl::TRIANGLE_STRIP,
-                path.stroke_offset as i32,
-                path.stroke_count as i32,
+                path.stroke.offset as i32,
+                path.stroke.count as i32,
+                inst_slice.count as i32,
+                inst_slice.offset,
             );
         }
     }
 
     #[inline]
-    unsafe fn do_triangles(&self, call: &Call) {
+    unsafe fn do_triangles(&self, call: &Call, inst_slice: &GLSlice) {
         self.set_uniforms(call.uniform_offset, call.image);
+        // gl::DrawArraysInstancedBaseInstance(
+        //     gl::TRIANGLES,
+        //     call.triangle.offset as i32,
+        //     call.triangle.count as i32,
+        //     inst_slice.count as i32,
+        //     inst_slice.offset,
+        // );
         gl::DrawArrays(
             gl::TRIANGLES,
-            call.triangle_offset as i32,
-            call.triangle_count as i32,
+            call.triangle.offset as i32,
+            call.triangle.count as i32,
         );
     }
 
     #[cfg(feature = "wirelines")]
     #[inline]
-    unsafe fn do_lines(&self, call: &Call) {
+    unsafe fn do_lines(&self, call: &Call, inst_slice: &GLSlice) {
         let paths = &self.paths[call.path_range.clone()];
         self.set_uniforms(call.uniform_offset, call.image);
         for path in paths {
             gl::DrawArrays(
                 gl::LINE_STRIP,
-                path.stroke_offset as i32,
-                path.stroke_count as i32,
+                path.stroke.offset as i32,
+                path.stroke.count as i32,
             );
+            // gl::DrawArraysInstancedBaseInstance(
+            //     gl::LINE_STRIP,
+            //     path.stroke.offset as i32,
+            //     path.stroke.count as i32,
+            //     inst_slice.count as i32,
+            //     inst_slice.offset,
+            // );
         }
     }
 

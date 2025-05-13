@@ -11,6 +11,13 @@ pub enum TextureType {
     Alpha,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub enum BufferUsage {
+    #[default]
+    Vertex,
+    Instance,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Scissor {
     pub xform: Transform,
@@ -28,6 +35,7 @@ pub trait RendererDevice {
     fn create_vertex_buffer(
         &mut self,
         buffer_size: usize,
+        usage: BufferUsage,
     ) -> anyhow::Result<Self::VertexBuffer>;
 
     fn update_vertex_buffer(

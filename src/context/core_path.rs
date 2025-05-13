@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{DrawPathStyle, RendererDevice};
+use crate::{BufferUsage, DrawPathStyle, RendererDevice};
 use crate::{Instances, Paint};
 
 use super::core_path_cache::PathRefWithCache;
@@ -114,7 +114,7 @@ impl<R: RendererDevice> Context<R> {
                     .ok()
             });
             if try_update.is_none() {
-                let buffer = self.renderer.create_vertex_buffer(instances_data.len())?;
+                let buffer = self.renderer.create_vertex_buffer(instances_data.len(), BufferUsage::Instance)?;
                 self.renderer
                     .update_vertex_buffer(Some(&buffer), instances_data)?;
                 inner.vertex_buffer = Some(buffer);
@@ -213,7 +213,7 @@ impl<R: RendererDevice> Context<R> {
                                 .ok()
                         });
                 if try_update.is_none() {
-                    let buffer = self.renderer.create_vertex_buffer(vertex_data.len())?;
+                    let buffer = self.renderer.create_vertex_buffer(vertex_data.len(), BufferUsage::Vertex)?;
                     self.renderer
                         .update_vertex_buffer(Some(&buffer), vertex_data)?;
                     path_cache.path_mut_inner.vertex_buffer = Some(buffer);

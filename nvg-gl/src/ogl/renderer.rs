@@ -1,27 +1,53 @@
+use std::cell::Cell;
 use std::ffi::c_void;
+use std::ops::Range;
 use std::sync::Arc;
 
-use super::Renderer;
 use super::{Call, CallType, FragUniforms, GLPath, ShaderType, Texture};
+use super::{GLSlice, Renderer};
 use nvg::*;
 
 #[derive(Default)]
-pub struct GLVertexBuffer {
-    vert_buf: gl::types::GLuint,
-    vert_arr: gl::types::GLuint,
+pub struct GLArrayBuffer {
+    vbo: gl::types::GLuint,
+    vao: gl::types::GLuint,
+    attached_vertex: Cell<gl::types::GLuint>,
 }
 
-impl GLVertexBuffer {
-    pub(crate) fn new() -> Self {
+impl GLArrayBuffer {
+    pub(crate) fn new(usage: BufferUsage) -> Self {
         unsafe {
-            let mut vert_arr: gl::types::GLuint = std::mem::zeroed();
-            gl::GenVertexArrays(1, &mut vert_arr);
+            let mut vbo: gl::types::GLuint = std::mem::zeroed();
+            gl::GenBuffers(1, &mut vbo);
+            let mut vao: gl::types::GLuint = std::mem::zeroed();
+            if usage == BufferUsage::Instance {
+                gl::GenVertexArrays(1, &mut vao);
+                Self::set_inst_binding(vao, vbo);
+            }
+            return Self {
+                vbo,
+                vao,
+                attached_vertex: Cell::new(std::mem::zeroed()),
+            };
+        }
+    }
 
-            let mut vert_buf: gl::types::GLuint = std::mem::zeroed();
-            gl::GenBuffers(1, &mut vert_buf);
+    #[allow(unused)]
+    pub(crate) fn is_vertex(&self) -> bool {
+        return self.vao == 0;
+    }
 
-            gl::BindVertexArray(vert_arr);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vert_buf);
+    pub(crate) fn set_vertex_binding(&self, vertex_vbo: gl::types::GLuint) {
+        if self.attached_vertex.get() == vertex_vbo {
+            unsafe {
+                gl::BindVertexArray(self.vao);
+            }
+            return;
+        }
+        unsafe {
+            self.attached_vertex.set(vertex_vbo);
+            gl::BindVertexArray(self.vao);
+            gl::BindBuffer(gl::ARRAY_BUFFER, vertex_vbo);
             gl::VertexAttribPointer(
                 0,
                 2,
@@ -40,35 +66,55 @@ impl GLVertexBuffer {
             );
             gl::EnableVertexAttribArray(0);
             gl::EnableVertexAttribArray(1);
-
-            return Self { vert_buf, vert_arr };
         }
     }
 
-    fn update_data(&self, vertices: &[Vertex]) {
+    fn set_inst_binding(vao: gl::types::GLuint, vbo: gl::types::GLuint) {
         unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.vert_buf);
+            let elem_size = std::mem::size_of::<f32>();
+            let stride = elem_size as i32 * 6;
+            gl::BindVertexArray(vao);
+            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+            gl::VertexAttribPointer(2, 4, gl::FLOAT, gl::FALSE, stride, std::ptr::null());
+            gl::VertexAttribPointer(
+                3,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                stride,
+                (4 * std::mem::size_of::<f32>()) as *const c_void,
+            );
+            gl::EnableVertexAttribArray(2);
+            gl::EnableVertexAttribArray(3);
+            gl::VertexAttribDivisor(2, 1);
+            gl::VertexAttribDivisor(3, 1);
+        }
+    }
+
+    pub fn update_data(&self, dat: &[u8]) {
+        unsafe {
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                (vertices.len() * std::mem::size_of::<Vertex>()) as isize,
-                vertices.as_ptr() as *const c_void,
+                (dat.len()) as isize,
+                dat.as_ptr() as *const c_void,
                 gl::STREAM_DRAW,
             );
         }
     }
 }
 
-impl Drop for GLVertexBuffer {
+impl Drop for GLArrayBuffer {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteBuffers(1, &self.vert_buf);
-            gl::DeleteVertexArrays(1, &self.vert_arr);
+            gl::DeleteBuffers(1, &self.vbo);
+            gl::DeleteVertexArrays(1, &self.vao);
         }
     }
 }
 
 impl nvg::RendererDevice for Renderer {
-    type VertexBuffer = Arc<GLVertexBuffer>;
+    type VertexBuffer = Arc<GLArrayBuffer>;
 
     fn edge_antialias(&self) -> bool {
         self.config.antialias
@@ -80,20 +126,21 @@ impl nvg::RendererDevice for Renderer {
 
     fn create_vertex_buffer(
         &mut self,
-        _init_num_vertex: usize,
+        _buffer_size: usize,
+        usage: BufferUsage,
     ) -> anyhow::Result<Self::VertexBuffer> {
-        return Ok(Arc::new(GLVertexBuffer::new()));
+        return Ok(Arc::new(GLArrayBuffer::new(usage)));
     }
 
     fn update_vertex_buffer(
         &mut self,
-        buffer: Option<Self::VertexBuffer>,
-        vertices: &[Vertex],
+        buffer: Option<&Self::VertexBuffer>,
+        dat: &[u8],
     ) -> anyhow::Result<()> {
         if let Some(buffer) = buffer {
-            buffer.update_data(vertices);
+            buffer.update_data(dat);
         } else {
-            self.vert_buf.update_data(vertices);
+            self.vert_buf.update_data(dat);
         }
         Ok(())
     }
@@ -321,12 +368,24 @@ impl nvg::RendererDevice for Renderer {
                 gl::BindBuffer(gl::UNIFORM_BUFFER, self.frag_buf);
 
                 for call in &self.calls {
-                    let vao = call
+                    let (inst_buffer, inst_slice) = call
+                        .instances
+                        .as_ref()
+                        .map(|v| (v.0.as_ref(), v.1))
+                        .unwrap_or((
+                            &self.inst_buf,
+                            GLSlice {
+                                offset: 0,
+                                count: 1,
+                            },
+                        ));
+
+                    let vertex_vbo = call
                         .vert_buff
                         .as_ref()
-                        .map(|v| v.vert_arr)
-                        .unwrap_or(self.vert_buf.vert_arr);
-                    gl::BindVertexArray(vao);
+                        .map(|v| v.vbo)
+                        .unwrap_or(self.vert_buf.vbo);
+                    inst_buffer.set_vertex_binding(vertex_vbo);
 
                     let blend = &call.blend_func;
 
@@ -338,12 +397,12 @@ impl nvg::RendererDevice for Renderer {
                     );
 
                     match call.call_type {
-                        CallType::Fill(ft) => self.do_fill(&call, ft),
-                        CallType::ConvexFill => self.do_convex_fill(&call),
-                        CallType::Stroke => self.do_stroke(&call),
-                        CallType::Triangles => self.do_triangles(&call),
+                        CallType::Fill(ft) => self.do_fill(&call, ft, &inst_slice),
+                        CallType::ConvexFill => self.do_convex_fill(&call, &inst_slice),
+                        CallType::Stroke => self.do_stroke(&call, &inst_slice),
+                        CallType::Triangles => self.do_triangles(&call, &inst_slice),
                         #[cfg(feature = "wirelines")]
-                        CallType::Lines => self.do_lines(&call),
+                        CallType::Lines => self.do_lines(&call, &inst_slice),
                     }
                 }
 
@@ -364,6 +423,7 @@ impl nvg::RendererDevice for Renderer {
     fn fill(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         fill_type: nvg::PathFillType,
@@ -376,23 +436,16 @@ impl nvg::RendererDevice for Renderer {
 
         for path in paths {
             let fill = path.get_fill();
-            let mut gl_path = GLPath {
-                fill_offset: 0,
-                fill_count: 0,
-                stroke_offset: 0,
-                stroke_count: 0,
-            };
-
-            if fill.count >= 3 {
-                gl_path.fill_offset = fill.offset;
-                gl_path.fill_count = fill.count;
+            if fill.count < 3 {
+                continue;
             }
 
             let stroke = path.get_stroke();
-            if stroke.count >= 4 {
-                gl_path.stroke_offset = stroke.offset;
-                gl_path.stroke_count = stroke.count;
-            }
+
+            let gl_path = GLPath {
+                fill: fill.into(),
+                stroke: stroke.into(),
+            };
 
             self.paths.push(gl_path);
         }
@@ -405,15 +458,18 @@ impl nvg::RendererDevice for Renderer {
             },
             image: paint.image,
             path_range: path_offset..self.paths.len(),
-            triangle_offset: 0,
-            triangle_count: 4,
+            triangle: GLSlice {
+                offset: 0,
+                count: 4,
+            },
             uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
             vert_buff: vertex_buffer,
+            instances: instances.map(|(insts, r)| (insts, r.into())),
         };
 
         if let Some(offset) = bounds_offset {
-            call.triangle_offset = offset;
+            call.triangle.offset = offset as u32;
             self.append_uniforms(FragUniforms {
                 stroke_thr: -1.0,
                 type_: ShaderType::Simple as i32,
@@ -431,6 +487,7 @@ impl nvg::RendererDevice for Renderer {
     fn stroke(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -443,10 +500,8 @@ impl nvg::RendererDevice for Renderer {
         for path in paths {
             let stroke = path.get_stroke();
             let gl_path = GLPath {
-                fill_offset: 0,
-                fill_count: 0,
-                stroke_offset: stroke.offset,
-                stroke_count: stroke.count,
+                stroke: stroke.into(),
+                ..Default::default()
             };
             self.paths.push(gl_path);
         }
@@ -454,11 +509,11 @@ impl nvg::RendererDevice for Renderer {
             call_type: CallType::Stroke,
             image: paint.image,
             path_range: path_offset..self.paths.len(),
-            triangle_offset: 0,
-            triangle_count: 0,
+            triangle: Default::default(),
             uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
             vert_buff: vertex_buffer,
+            instances: instances.map(|(insts, r)| (insts, r.into())),
         };
 
         self.append_uniforms(self.convert_paint(paint, scissor, stroke_width, fringe, -1.0));
@@ -469,6 +524,7 @@ impl nvg::RendererDevice for Renderer {
     fn triangles(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -478,11 +534,11 @@ impl nvg::RendererDevice for Renderer {
             call_type: CallType::Triangles,
             image: paint.image,
             path_range: 0..0,
-            triangle_offset: slice.offset,
-            triangle_count: slice.count,
+            triangle: slice.into(),
             uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
             vert_buff: vertex_buffer,
+            instances: instances.map(|(insts, r)| (insts, r.into())),
         };
         self.calls.push(call);
 
@@ -496,6 +552,7 @@ impl nvg::RendererDevice for Renderer {
     fn wirelines(
         &mut self,
         vertex_buffer: Option<Self::VertexBuffer>,
+        instances: Option<(Self::VertexBuffer, Range<u32>)>,
         paint: &nvg::PaintPattern,
         composite_operation: nvg::CompositeOperationState,
         scissor: &nvg::Scissor,
@@ -506,10 +563,8 @@ impl nvg::RendererDevice for Renderer {
         for path in paths {
             let line = path.get_stroke();
             let gl_path = GLPath {
-                fill_offset: 0,
-                fill_count: 0,
-                stroke_offset: line.offset,
-                stroke_count: line.count,
+                stroke: line.into(),
+                ..Default::default()
             };
             self.paths.push(gl_path);
         }
@@ -517,11 +572,11 @@ impl nvg::RendererDevice for Renderer {
             call_type: CallType::Lines,
             image: paint.image,
             path_range: path_offset..self.paths.len(),
-            triangle_offset: 0,
-            triangle_count: 0,
+            triangle: Default::default(),
             uniform_offset: self.get_uniform_offset(),
             blend_func: composite_operation.into(),
             vert_buff: vertex_buffer,
+            instances: instances.map(|(insts, r)| (insts, r.into())),
         };
 
         self.append_uniforms(self.convert_paint(paint, scissor, 1.0, 1.0, -1.0));
