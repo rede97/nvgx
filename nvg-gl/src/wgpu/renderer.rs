@@ -1,7 +1,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use nvg::VertexSlice;
+use nvg::{BufferUsage, VertexSlice};
 use wgpu::{Extent3d, Origin2d};
 
 use crate::wgpu::{
@@ -21,6 +21,7 @@ impl nvg::RendererDevice for Renderer {
     fn create_vertex_buffer(
         &mut self,
         buffer_size: usize,
+        _usage: BufferUsage,
     ) -> anyhow::Result<Self::VertexBuffer> {
         return Ok(Arc::new(Mesh::create_buffer(&self.device, buffer_size)));
     }
