@@ -329,7 +329,7 @@ impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
 fn window_attributes() -> WindowAttributes {
     Window::default_attributes()
         .with_transparent(true)
-        .with_inner_size(winit::dpi::LogicalSize::new(1024, 768))
+        .with_inner_size(winit::dpi::LogicalSize::new(super::DEFAULT_SIZE.0, super::DEFAULT_SIZE.1))
 }
 
 fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {

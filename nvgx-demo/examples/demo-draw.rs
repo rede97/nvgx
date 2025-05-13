@@ -3,8 +3,6 @@ use nvgx::*;
 use std::f32::consts::PI;
 use std::time::Instant;
 
-
-
 enum LinesType {
     Stroke,
     WireLines,
@@ -104,10 +102,10 @@ impl DemoDraw {
 
 impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoDraw {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> Result<(), Error> {
-        ctx.create_font_from_file("roboto", "nvgx-demo/Roboto-Bold.ttf")?;
+        ctx.create_font_from_file("roboto", nvgx_demo::FONT_PATH)?;
         self.img = Some(ctx.create_image_from_file(
             ImageFlags::REPEATX | ImageFlags::REPEATY,
-            "nvgx-demo/lenna.png",
+            nvgx_demo::IMG_PATH,
         )?);
         Ok(())
     }

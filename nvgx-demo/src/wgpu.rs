@@ -15,7 +15,7 @@ use winit::{
 pub fn run<D: Demo<nvgx_wgpu::Renderer>>(demo: D, title: &str) {
     let event_loop = EventLoop::new().unwrap();
     let attributes = Window::default_attributes()
-        .with_inner_size(winit::dpi::LogicalSize::new(1024, 768))
+        .with_inner_size(winit::dpi::LogicalSize::new(super::DEFAULT_SIZE.0, super::DEFAULT_SIZE.1))
         .with_title(format!("{} (WGPU)", title));
     let mut app = App::new(demo, attributes);
     event_loop.run_app(&mut app).expect("failed to run app");

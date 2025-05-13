@@ -24,13 +24,13 @@
 
 <table>
 
-<tr><td><h3>Simple square</h3>
+<tr><td><h3>Simple square and Framebuffer</h3>
 
 ```
-cargo run -p nvg-gl --example demo-square
+cargo run -p nvgx-demo --example demo-square
 ```
 
-The tiniest way to use nvg+glutin, can help beginner to start with nvg.
+The tiniest way to use nvgx+glutin and framebuffer, can help beginner to start with nvg.
 
 </td><td>
 <img src="screenshots/square.png" width="200" />
@@ -39,7 +39,7 @@ The tiniest way to use nvg+glutin, can help beginner to start with nvg.
 <tr><td><h3>Clock</h3>
 
 ```
-cargo run -p nvg-gl --example demo-clock
+cargo run -p nvgx-demo --example demo-clock
 ```
 
 </td><td>
@@ -49,8 +49,14 @@ cargo run -p nvg-gl --example demo-clock
 <tr><td><h3>Cutout</h3>
 
 ```
-cargo run -p nvg-gl --example demo-cutout
+cargo run -p nvgx-demo --example demo-cutout
 ```
+Use canvas api to draw cutout
+
+```
+cargo run -p nvgx-demo --example demo-inst
+```
+Use Path and instanced api to draw cutout
 
 </td><td>
   <img src="screenshots/cutout.png" width="200" />
@@ -59,10 +65,19 @@ cargo run -p nvg-gl --example demo-cutout
 <tr><td><h3>Draw</h3>
 
 ```
-cargo run -p nvg-gl --example demo-draw
+cargo run -p nvgx-demo --example demo-draw
 ```
 
 </td><td>
   <img src="screenshots/draw.png" width="200" />
+</td></tr>
+<tr><td><h3>Bezier and ArcTo</h3>
+
+```
+cargo run -p nvgx-demo --example demo-bezier
+```
+
+</td><td>
+  <img src="screenshots/bezier.png" width="200" />
 </td></tr>
 </table>

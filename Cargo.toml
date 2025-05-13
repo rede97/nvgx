@@ -20,10 +20,6 @@ num-traits = "0.2"
 clamped = "1.0.0"
 rawpointer = "0.2.1"
 bytemuck = { version = "1.23.0", features = ["derive"] }
-[dev-dependencies]
-chrono = "0.4.10"
-rand = "0.7.2"
-lazy_static = "1.4.0"
 [features]
 default = ["wirelines"]
 wirelines = []

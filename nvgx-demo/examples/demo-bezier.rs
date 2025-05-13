@@ -289,10 +289,10 @@ struct DemoDraw<R: RendererDevice> {
 
 impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoDraw<R> {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> Result<(), Error> {
-        ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
+        ctx.create_font_from_file("roboto", nvgx_demo::FONT_PATH)?;
         self.img = Some(ctx.create_image_from_file(
             ImageFlags::REPEATX | ImageFlags::REPEATY,
-            "nvg-gl/examples/lenna.png",
+            nvgx_demo::IMG_PATH,
         )?);
         Ok(())
     }
@@ -364,6 +364,6 @@ fn main() {
             arc_to: ArcTo::new(),
             wirelines: false,
         },
-        "demo-draw",
+        "demo-bezier",
     );
 }

@@ -43,7 +43,7 @@ impl DemoCutout {
 
 impl nvgx_demo::Demo<Renderer> for DemoCutout {
     fn init(&mut self, ctx: &mut Context<Renderer>, scale_factor: f32) -> Result<(), Error> {
-        ctx.create_font_from_file("roboto", "nvg-gl/examples/Roboto-Bold.ttf")?;
+        ctx.create_font_from_file("roboto", nvgx_demo::FONT_PATH)?;
 
         self.scale_factor = scale_factor;
         self.fb = Some(ctx.create_fb(
@@ -88,30 +88,20 @@ impl nvgx_demo::Demo<Renderer> for DemoCutout {
         ctx.begin_path();
         ctx.fill_type(PathFillType::EvenOdd);
         ctx.circle((250.0, 220.0), 150.0);
-        ctx.circle((400.0, 220.0), 150.0);
-        ctx.circle((300.0, 350.0), 100.0);
+        ctx.circle((400.0, 220.0), 120.0);
+        ctx.circle((300.0, 350.0), 120.0);
         ctx.path_winding(WindingSolidity::Hole);
-        ctx.fill_paint(nvgx::Color::rgb_i(255, 192, 60));
+        ctx.fill_paint(nvgx::Color::rgb_i(255, 192, 90));
         ctx.fill()?;
 
         if true {
             ctx.begin_path();
             ctx.fill_paint(nvgx::Color::rgb(0.9, 0.3, 0.4));
-            ctx.rect(nvgx::Rect::new(
+            ctx.rounded_rect(nvgx::Rect::new(
                 Point::new(250.0, 300.0),
                 Extent::new(80.0, 80.0),
-            ));
+            ), 5.0);
             ctx.fill()?;
-
-            ctx.begin_path();
-            ctx.shape_antialias(false);
-            ctx.stroke_paint(nvgx::Color::rgb(0.0, 1.0, 0.0));
-            ctx.stroke_width(1.0 / self.scale_factor);
-            ctx.move_to((100.0, 10.0));
-            ctx.line_to((400.0, 500.0));
-            ctx.line_to((500.0, 500.0));
-            ctx.line_to((100.0, 200.0));
-            ctx.stroke()?;
         }
 
         {
@@ -143,7 +133,7 @@ impl nvgx_demo::Demo<Renderer> for DemoCutout {
                     },
                     Extent {
                         width: 10.0,
-                        height: _height,
+                        height: _height / 2.0,
                     },
                 ));
                 ctx.fill()?;

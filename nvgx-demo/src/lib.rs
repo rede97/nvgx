@@ -5,6 +5,10 @@ use winit;
 #[allow(unused)]
 extern crate anyhow;
 
+const DEFAULT_SIZE: (i32, i32) = (640, 480);
+pub const FONT_PATH: &str = "nvgx-demo/Roboto-Bold.ttf";
+pub const IMG_PATH: &str = "nvgx-demo/lenna.png";
+
 cfg_if::cfg_if! {
     if #[cfg(feature="ogl")] {
         mod ogl;
@@ -17,10 +21,9 @@ cfg_if::cfg_if! {
     }
 }
 
-
 pub trait Demo<R: RendererDevice> {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> anyhow::Result<()> {
-        ctx.create_font_from_file("roboto", "nvgx-demo/Roboto-Bold.ttf")?;
+        ctx.create_font_from_file("roboto", FONT_PATH)?;
         Ok(())
     }
 
