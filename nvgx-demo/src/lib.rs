@@ -57,6 +57,9 @@ struct SaveFPS {
 #[cfg(feature = "save-fps")]
 impl SaveFPS {
     fn push(&mut self, fps: f32) {
+        if self.idx == 1024 {
+            println!("fps ok!");
+        }
         if self.idx < 1024 {
             self.data.push(fps);
         } else {
@@ -70,6 +73,9 @@ impl SaveFPS {
 impl Drop for SaveFPS {
     fn drop(&mut self) {
         use std::io::Write;
+        if self.idx < 1024 {
+            return;
+        }
         let mut f = std::fs::File::create(format!("{}.csv", self.name)).unwrap();
         for fps in self.data.iter() {
             writeln!(f, "{}", fps).unwrap();

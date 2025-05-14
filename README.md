@@ -79,6 +79,9 @@ pub fn draw(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
 }
 ```
 
+## Bench OpenGL with WGPU backend
+![bench](screenshots\fps.svg)
+
 ## Demos
 
 The following command allows you to quickly run a demo, provided that you have cloned the entire project's code — fortunately, the total amount of code is not large.
