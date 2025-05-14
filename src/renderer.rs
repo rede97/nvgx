@@ -8,6 +8,7 @@ pub use crate::*;
 #[derive(Debug, Copy, Clone)]
 pub enum TextureType {
     RGBA,
+    BGRA,
     Alpha,
 }
 

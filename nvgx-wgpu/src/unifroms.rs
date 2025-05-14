@@ -83,7 +83,7 @@ impl RenderCommand {
 
                 frag.render_type = ShaderType::FillImage as u32;
                 frag.texture_type = match texture.texture_type() {
-                    TextureType::RGBA => {
+                    TextureType::RGBA | TextureType::BGRA => {
                         if texture.image_flags.contains(ImageFlags::PREMULTIPLIED) {
                             0
                         } else {

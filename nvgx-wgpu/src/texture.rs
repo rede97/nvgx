@@ -80,6 +80,20 @@ impl Texture {
                     view_formats: &[],
                 })
             }
+            nvgx::TextureType::BGRA => {
+                 device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("NVG RGBA Texture"),
+                    size,
+                    mip_level_count: 1, // mipmap not supported yet
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Bgra8Unorm,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING
+                        | wgpu::TextureUsages::COPY_DST
+                        | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                })
+            }
             nvgx::TextureType::Alpha => {
                 device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("NVG Alpha Texture"),
@@ -160,6 +174,7 @@ impl Texture {
     ) {
         let bytes_per_row = match self.texture.format() {
             wgpu::TextureFormat::Rgba8Unorm => 4,
+            wgpu::TextureFormat::Bgra8Unorm => 4,
             wgpu::TextureFormat::R8Unorm => 1,
             _ => panic!("Unsupported texture format"),
         } * size.width;
