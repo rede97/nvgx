@@ -1,31 +1,28 @@
 [package]
-name = "nvg"
-version = "0.5.11"
-authors = ["Sunli <scott_s829@163.com>"]
+name = "nvgx"
+version = "0.2.0"
+authors = ["rede97 <m454078356@163.com>"]
 edition = "2018"
-keywords = ["nanovg", "opengl"]
+keywords = ["nanovg", "opengl", "wgpu"]
 description = "Pure-rust implementation of NanoVG"
 license = "MIT"
 publish = true
-homepage = "https://github.com/sunli829/nvg"
-repository = "https://github.com/sunli829/nvg"
+homepage = "https://github.com/rede97/nvg"
+repository = "https://github.com/rede97/nvg"
 
 [dependencies]
 bitflags = "1.2.1"
-image = "0.22.3"
+image = "0.25"
 anyhow = "1.0.26"
-rusttype = { version = "0.8.1", features = ["gpu_cache"] }
-slab = "0.4.2"
-num-traits = "0.2.8"
+rusttype = { version = "0.9", features = ["gpu_cache"] }
+slab = "0.4"
+num-traits = "0.2"
 clamped = "1.0.0"
 rawpointer = "0.2.1"
-bytemuck = {version = "1.23.0", features = ["derive"]}
-
+bytemuck = { version = "1.23.0", features = ["derive"] }
 [features]
-default = []
+default = ["wirelines"]
 wirelines = []
 
 [workspace]
-members = [
-    "nvg-gl"
-]
+members = ["nvgx-demo", "nvgx-ogl", "nvgx-wgpu"]

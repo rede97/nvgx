@@ -2,8 +2,8 @@ use super::Point;
 use num_traits::AsPrimitive;
 use std::ops::{Mul, MulAssign};
 
-
-#[derive(Debug, Copy, Clone, Default)]
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Transform(pub [f32; 6]);
 
 impl Transform {
@@ -77,6 +77,12 @@ impl Transform {
     }
 }
 
+impl Default for Transform {
+    fn default() -> Self {
+        return Self::identity();
+    }
+}
+
 impl Mul for Transform {
     type Output = Transform;
 
@@ -117,3 +123,4 @@ impl<T: AsPrimitive<f32>> From<[T; 6]> for Transform {
         Transform(values2)
     }
 }
+

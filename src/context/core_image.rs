@@ -8,7 +8,7 @@ impl<R: RendererDevice> Context<R> {
         data: D,
     ) -> anyhow::Result<ImageId> {
         let img = image::load_from_memory(data.as_ref())?;
-        let img = img.to_rgba();
+        let img = img.to_rgba8();
         let dimensions = img.dimensions();
         let img = self.renderer.create_texture(
             TextureType::RGBA,

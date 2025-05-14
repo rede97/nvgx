@@ -8,15 +8,15 @@
 - [x] 修复Cutout DEMO的错误显示问题(绘制字体时错误的ctx状态切换)
 - [x] 支持常规的winding模式和奇偶模式
 - [x] 支持Framebuffer(OpenGL Mode)
-- [x] 原生单像素方式(OpenGL LINE_STRIP)的`wirelines`features，低开销占用或者CAD场景使用
+- [x] 原生单像素方式(OpenGL LINE_STRIP)的`wirelines`features
 - [x] 支持独立的Path对象，不是每次都重新将绘图命令进行路径细分，降低CPU占用
 - [x] 修复arc_to的bug
 - [x] 支持WGPU
-- [ ] 支持dot dash虚线绘制（Paint PathEffect）
-- [ ] 支持[lyon](https://docs.rs/lyon/latest/lyon/)的接口进行图形绘制，支持跟复杂的细分算法，不支持抗锯齿，与[NanovgXC](https://github.com/styluslabs/nanovgXC)的抗锯齿方式肯能会有很好的兼容？
-- [ ] 支持阴影和模糊效果
+- [ ] 支持dot dash虚线绘制（PathEffect）
+- [ ] 支持阴影和模糊效果 (ImageEffect)
 - [ ] 支持超过2点的渐变
-- [ ] FBO MSAA支持，渲染到屏幕还不支持MSAA
+- [ ] 支持[lyon](https://docs.rs/lyon/latest/lyon/)的接口进行图形绘制，支持跟复杂的细分算法，不支持抗锯齿，与[NanovgXC](https://github.com/styluslabs/nanovgXC)的抗锯齿方式肯能会有很好的兼容？
+- [ ] ~~FBO MSAA支持，渲染到屏幕还不支持MSAA~~
 - [ ] ~~支持NanovgXC方式的渲染算法，支持将文本作为Path渲染，曲线对齐的字体布局~~
 
 
@@ -24,13 +24,13 @@
 
 <table>
 
-<tr><td><h3>Simple square</h3>
+<tr><td><h3>Simple square and Framebuffer</h3>
 
 ```
-cargo run -p nvg-gl --example demo-square
+cargo run -p nvgx-demo --example demo-square
 ```
 
-The tiniest way to use nvg+glutin, can help beginner to start with nvg.
+The tiniest way to use nvgx+glutin and framebuffer, can help beginner to start with nvg.
 
 </td><td>
 <img src="screenshots/square.png" width="200" />
@@ -39,7 +39,7 @@ The tiniest way to use nvg+glutin, can help beginner to start with nvg.
 <tr><td><h3>Clock</h3>
 
 ```
-cargo run -p nvg-gl --example demo-clock
+cargo run -p nvgx-demo --example demo-clock
 ```
 
 </td><td>
@@ -49,8 +49,14 @@ cargo run -p nvg-gl --example demo-clock
 <tr><td><h3>Cutout</h3>
 
 ```
-cargo run -p nvg-gl --example demo-cutout
+cargo run -p nvgx-demo --example demo-cutout
 ```
+Use canvas api to draw cutout
+
+```
+cargo run -p nvgx-demo --example demo-inst
+```
+Use Path and instanced api to draw cutout
 
 </td><td>
   <img src="screenshots/cutout.png" width="200" />
@@ -59,10 +65,19 @@ cargo run -p nvg-gl --example demo-cutout
 <tr><td><h3>Draw</h3>
 
 ```
-cargo run -p nvg-gl --example demo-draw
+cargo run -p nvgx-demo --example demo-draw
 ```
 
 </td><td>
   <img src="screenshots/draw.png" width="200" />
+</td></tr>
+<tr><td><h3>Bezier and ArcTo</h3>
+
+```
+cargo run -p nvgx-demo --example demo-bezier
+```
+
+</td><td>
+  <img src="screenshots/bezier.png" width="200" />
 </td></tr>
 </table>
