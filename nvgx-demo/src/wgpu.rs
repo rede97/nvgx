@@ -6,7 +6,6 @@ use super::Demo;
 use nvgx::{Align, Color};
 use nvgx_wgpu::RenderConfig;
 use std::{sync::Arc, time::Instant};
-use wgpu::TextureFormat;
 use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
@@ -217,12 +216,14 @@ impl AppState {
         .unwrap();
 
         let caps = surface.get_capabilities(adapter);
+        let config = RenderConfig::default();
+
 
         let pos = caps
             .formats
             .iter()
-            .position(|f| f == &TextureFormat::Rgba8Unorm)
-            .expect("Surface texture format: `Rgba8Unorm` not support");
+            .position(|f| f == &config.format)
+            .expect(&format!("Surface texture format: `{:?}` not support", &config.format));
         let surface_config: wgpu::wgt::SurfaceConfiguration<Vec<wgpu::TextureFormat>> =
             wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -236,7 +237,6 @@ impl AppState {
             };
         surface.configure(&device, &surface_config);
 
-        let config = RenderConfig::default();
         let renderer = nvgx_wgpu::Renderer::create(config, device, queue, surface, surface_config)?;
         let context = nvgx::Context::create(renderer)?;
         return Ok(Self { window, context });

@@ -10,7 +10,7 @@ use nvgx::*;
 use pipeline::{PipelineManager, PipelineUsage};
 use texture::TextureManager;
 use unifroms::{RenderCommand, Unifrom};
-use wgpu::{TextureView, util::DeviceExt};
+use wgpu::{util::DeviceExt, TextureView};
 
 mod call;
 pub mod fb;
@@ -22,7 +22,8 @@ mod texture;
 mod unifroms;
 
 pub struct RenderConfig {
-    antialias: bool,
+    pub antialias: bool,
+    pub format: wgpu::TextureFormat,
 }
 
 impl RenderConfig {
@@ -30,15 +31,24 @@ impl RenderConfig {
         self.antialias = antialias;
         self
     }
+
+    pub fn format(mut self, format: wgpu::TextureFormat) -> Self {
+        self.format = format;
+        self
+    }
 }
 
 impl Default for RenderConfig {
     fn default() -> Self {
-        Self { antialias: true }
+        Self {
+            antialias: true,
+            format: wgpu::TextureFormat::Bgra8Unorm,
+        }
     }
 }
 
 pub struct RenderResource {
+    config: RenderConfig,
     mesh: Mesh,
     paths: Vec<GpuPath>,
     calls: Vec<Call>,
@@ -336,38 +346,38 @@ impl RenderResource {
             for call in &self.calls {
                 match call.call_type {
                     CallType::Fill(t) => {
-                        pipeline_manager.update_pipeline(&device, PipelineUsage::FillStencil(t));
+                        pipeline_manager.update_pipeline(&device, PipelineUsage::FillStencil(t), &self.config.format);
                         pipeline_manager.update_pipeline(
                             &device,
-                            PipelineUsage::FillStroke(call.blend_func.clone()),
+                            PipelineUsage::FillStroke(call.blend_func.clone()),&self.config.format
                         );
                         pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::FillInner(call.blend_func));
+                            .update_pipeline(&device, PipelineUsage::FillInner(call.blend_func), &self.config.format);
                         self.do_fill(call, &mut render_pass, &pipeline_manager);
                     }
                     CallType::ConvexFill => {
                         pipeline_manager.update_pipeline(
                             &device,
-                            PipelineUsage::FillConvex(call.blend_func.clone()),
+                            PipelineUsage::FillConvex(call.blend_func.clone()), &self.config.format,
                         );
                         pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::FillStroke(call.blend_func));
+                            .update_pipeline(&device, PipelineUsage::FillStroke(call.blend_func), &self.config.format);
                         self.do_convex_fill(call, &mut render_pass, &pipeline_manager);
                     }
                     CallType::Stroke => {
                         pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::FillStroke(call.blend_func));
+                            .update_pipeline(&device, PipelineUsage::FillStroke(call.blend_func), &self.config.format);
                         self.do_stroke(call, &mut render_pass, &pipeline_manager);
                     }
                     CallType::Triangles => {
                         pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::Triangles(call.blend_func));
+                            .update_pipeline(&device, PipelineUsage::Triangles(call.blend_func), &self.config.format);
                         self.do_triangles(call, &mut render_pass, &pipeline_manager);
                     }
                     #[cfg(feature = "wirelines")]
                     CallType::Lines => {
                         pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::Lines(call.blend_func));
+                            .update_pipeline(&device, PipelineUsage::Lines(call.blend_func), &self.config.format);
                         self.do_lines(call, &mut render_pass, &pipeline_manager);
                     }
                 }
@@ -378,7 +388,6 @@ impl RenderResource {
 }
 
 pub struct Renderer {
-    config: RenderConfig,
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
@@ -419,7 +428,7 @@ impl Renderer {
             push_constant_ranges: &[],
         });
 
-        let pipeline_manager = PipelineManager::new(shader, pipeline_layout, &device);
+        let pipeline_manager = PipelineManager::new(shader, pipeline_layout, &device, &config.format);
 
         let identity_instance = Transform::identity();
         let default_instace = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -429,7 +438,6 @@ impl Renderer {
         });
 
         return Ok(Self {
-            config,
             device,
             queue,
             surface,
@@ -438,6 +446,7 @@ impl Renderer {
             pipeline_manager,
             clear_cmd: None,
             resources: RenderResource {
+                config,
                 mesh,
                 paths: Vec::new(),
                 calls: Vec::new(),

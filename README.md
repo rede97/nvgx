@@ -24,9 +24,9 @@ In the current graphics library, you can select different backend implementation
 [dependencies]
 nvgx = "0.2.0"
 # Use wgpu backend
-nvgx-wgpu = "0.1.0"
+nvgx-wgpu = "0.2.0"
 # Use OpenGL 3.1 backend
-nvgx-ogl = "0.1.0"
+nvgx-ogl = "0.2.0"
 ```
 * Reference example project [nvgx-demo/Cargo.toml](https://github.com/rede97/nvgx/blob/master/nvgx-demo/Cargo.toml) 
 

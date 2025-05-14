@@ -15,7 +15,7 @@ impl nvgx::RendererDevice for Renderer {
     type VertexBuffer = Arc<wgpu::Buffer>;
 
     fn edge_antialias(&self) -> bool {
-        return self.config.antialias;
+        return self.resources.config.antialias;
     }
 
     fn create_vertex_buffer(
