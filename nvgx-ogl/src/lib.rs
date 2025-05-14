@@ -384,18 +384,6 @@ impl Renderer {
         let paths = &self.paths[call.path_range.clone()];
         self.set_uniforms(call.uniform_offset, call.image);
         for path in paths {
-            // gl::DrawArrays(
-            //     gl::TRIANGLE_FAN,
-            //     path.fill.offset as i32,
-            //     path.fill.count as i32,
-            // );
-            // if path.stroke.count > 0 {
-            //     gl::DrawArrays(
-            //         gl::TRIANGLE_STRIP,
-            //         path.stroke.offset as i32,
-            //         path.stroke.count as i32,
-            //     );
-            // }
             unsafe {
                 gl::DrawArraysInstancedBaseInstance(
                     gl::TRIANGLE_FAN,

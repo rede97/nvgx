@@ -11,7 +11,7 @@ use nvgx::*;
 pub struct GLArrayBuffer {
     vbo: gl::types::GLuint,
     vao: gl::types::GLuint,
-    attached_vertex: Cell<gl::types::GLuint>,
+    attached_inst: Cell<gl::types::GLuint>,
 }
 
 impl GLArrayBuffer {
@@ -20,33 +20,21 @@ impl GLArrayBuffer {
             let mut vbo: gl::types::GLuint = std::mem::zeroed();
             gl::GenBuffers(1, &mut vbo);
             let mut vao: gl::types::GLuint = std::mem::zeroed();
-            if usage == BufferUsage::Instance {
+            if usage == BufferUsage::Vertex {
                 gl::GenVertexArrays(1, &mut vao);
-                Self::set_inst_binding(vao, vbo);
+                Self::set_vertex_binding(vao, vbo);
             }
             return Self {
                 vbo,
                 vao,
-                attached_vertex: Cell::new(std::mem::zeroed()),
+                attached_inst: Cell::new(std::mem::zeroed()),
             };
         }
     }
 
-    #[allow(unused)]
-    pub(crate) fn is_vertex(&self) -> bool {
-        return self.vao == 0;
-    }
-
-    pub(crate) fn set_vertex_binding(&self, vertex_vbo: gl::types::GLuint) {
-        if self.attached_vertex.get() == vertex_vbo {
-            unsafe {
-                gl::BindVertexArray(self.vao);
-            }
-            return;
-        }
+    pub(crate) fn set_vertex_binding(vao: gl::types::GLuint, vertex_vbo: gl::types::GLuint) {
         unsafe {
-            self.attached_vertex.set(vertex_vbo);
-            gl::BindVertexArray(self.vao);
+            gl::BindVertexArray(vao);
             gl::BindBuffer(gl::ARRAY_BUFFER, vertex_vbo);
             gl::VertexAttribPointer(
                 0,
@@ -69,12 +57,18 @@ impl GLArrayBuffer {
         }
     }
 
-    fn set_inst_binding(vao: gl::types::GLuint, vbo: gl::types::GLuint) {
+    pub(crate) fn set_inst_binding(&self, inst_vbo: gl::types::GLuint) {
+        if self.attached_inst.get() == inst_vbo {
+            unsafe {
+                gl::BindVertexArray(self.vao);
+            }
+            return;
+        }
         unsafe {
             let elem_size = std::mem::size_of::<f32>();
             let stride = elem_size as i32 * 6;
-            gl::BindVertexArray(vao);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+            gl::BindVertexArray(self.vao);
+            gl::BindBuffer(gl::ARRAY_BUFFER, inst_vbo);
             gl::VertexAttribPointer(2, 4, gl::FLOAT, gl::FALSE, stride, std::ptr::null());
             gl::VertexAttribPointer(
                 3,
@@ -368,24 +362,21 @@ impl nvgx::RendererDevice for Renderer {
                 gl::BindBuffer(gl::UNIFORM_BUFFER, self.frag_buf);
 
                 for call in &self.calls {
-                    let (inst_buffer, inst_slice) = call
-                        .instances
-                        .as_ref()
-                        .map(|v| (v.0.as_ref(), v.1))
-                        .unwrap_or((
-                            &self.inst_buf,
+                    let (inst_vbo, inst_slice) =
+                        call.instances.as_ref().map(|v| (v.0.vbo, v.1)).unwrap_or((
+                            self.inst_buf.vbo,
                             GLSlice {
                                 offset: 0,
                                 count: 1,
                             },
                         ));
 
-                    let vertex_vbo = call
+                    let vertex_buffer = call
                         .vert_buff
                         .as_ref()
-                        .map(|v| v.vbo)
-                        .unwrap_or(self.vert_buf.vbo);
-                    inst_buffer.set_vertex_binding(vertex_vbo);
+                        .map(|v| v.as_ref())
+                        .unwrap_or(&self.vert_buf);
+                    vertex_buffer.set_inst_binding(inst_vbo);
 
                     let blend = &call.blend_func;
 

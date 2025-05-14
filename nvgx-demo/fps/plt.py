@@ -17,7 +17,6 @@ all_data = []
 for file_name in data_file:
     data = np.loadtxt(file_name)
     all_data.append(data)
-print(all_data)
 
 # generate some random test data
 # all_data = [np.random.normal(0, std, 100) for std in range(6, 10)]
