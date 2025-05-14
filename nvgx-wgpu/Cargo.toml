@@ -16,7 +16,7 @@ default = ["wirelines"]
 wirelines = ["nvgx/wirelines"]
 
 [dependencies]
-nvgx = { path = "../" }
+nvgx = { version = "0.2.0" }
 slab = "0.4.2"
 anyhow = "1.0.26"
 wgpu = { version = "25.0.0" }
