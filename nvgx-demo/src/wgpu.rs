@@ -1,8 +1,10 @@
+use crate::SaveFPS;
+
 use super::Demo;
 
-use std::{sync::Arc, time::Instant};
 use nvgx::{Align, Color};
 use nvgx_wgpu::RenderConfig;
+use std::{sync::Arc, time::Instant};
 use wgpu::TextureFormat;
 use winit::{
     application::ApplicationHandler,
@@ -15,7 +17,10 @@ use winit::{
 pub fn run<D: Demo<nvgx_wgpu::Renderer>>(demo: D, title: &str) {
     let event_loop = EventLoop::new().unwrap();
     let attributes = Window::default_attributes()
-        .with_inner_size(winit::dpi::LogicalSize::new(super::DEFAULT_SIZE.0, super::DEFAULT_SIZE.1))
+        .with_inner_size(winit::dpi::LogicalSize::new(
+            super::DEFAULT_SIZE.0,
+            super::DEFAULT_SIZE.1,
+        ))
         .with_title(format!("{} (WGPU)", title));
     let mut app = App::new(demo, attributes);
     event_loop.run_app(&mut app).expect("failed to run app");
@@ -28,6 +33,8 @@ struct App<D: Demo<nvgx_wgpu::Renderer>> {
     frame_count: u32,
     fps: String,
     // NOTE: `AppState` carries the `Window`, thus it should be dropped after everything else.
+    #[cfg(feature = "save-fps")]
+    save_fps: SaveFPS,
     state: Option<AppState>,
     exit_state: anyhow::Result<()>,
     attributes: WindowAttributes,
@@ -40,6 +47,12 @@ impl<D: Demo<nvgx_wgpu::Renderer>> App<D> {
             start_time: Instant::now(),
             frame_count: 0,
             fps: String::new(),
+            #[cfg(feature = "save-fps")]
+            save_fps: SaveFPS {
+                name: attributes.title.clone(),
+                data: Vec::with_capacity(1024),
+                idx: 0,
+            },
             exit_state: Ok(()),
             state: None,
             attributes,
@@ -138,10 +151,9 @@ impl<D: Demo<nvgx_wgpu::Renderer>> ApplicationHandler for App<D> {
                     context.save();
                     let duration = Instant::now() - self.start_time;
                     if duration.as_millis() > 20 {
-                        self.fps = format!(
-                            "FPS: {:.2}",
-                            (self.frame_count as f32) / duration.as_secs_f32()
-                        );
+                        let fps = (self.frame_count as f32) / duration.as_secs_f32();
+                        self.save_fps.push(fps);
+                        self.fps = format!("FPS: {:.2}", fps);
                         self.start_time = Instant::now();
                         self.frame_count = 0;
                     } else {

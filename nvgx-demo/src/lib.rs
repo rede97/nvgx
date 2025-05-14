@@ -44,3 +44,32 @@ pub trait Demo<R: RendererDevice> {
 
     fn mouse_wheel(&mut self, _delta: winit::event::MouseScrollDelta) {}
 }
+
+
+#[derive(Default)]
+struct SaveFPS {
+    pub name: String,
+    pub data: Vec<f32>,
+    pub idx: usize,
+}
+
+impl SaveFPS {
+    fn push(&mut self, fps: f32) {
+        if self.idx < 1024 {
+            self.data.push(fps);
+        } else {
+            self.data[self.idx % 1024] = fps;
+        }
+        self.idx += 1;
+    }
+}
+
+impl Drop for SaveFPS {
+    fn drop(&mut self) {
+        use std::io::Write;
+        let mut f = std::fs::File::create(format!("{}.csv", self.name)).unwrap();
+        for fps in self.data.iter() {
+            writeln!(f, "{}", fps).unwrap();
+        }
+    }
+}

@@ -62,6 +62,8 @@ struct App<D: Demo<nvgx_ogl::Renderer>> {
     start_time: Instant,
     frame_count: u32,
     fps: String,
+    #[cfg(feature = "save-fps")]
+    save_fps: SaveFPS,
     // NOTE: `AppState` carries the `Window`, thus it should be dropped after everything else.
     state: Option<AppState>,
     gl_context: Option<PossiblyCurrentContext>,
@@ -77,6 +79,11 @@ impl<D: Demo<nvgx_ogl::Renderer>> App<D> {
             start_time: Instant::now(),
             frame_count: 0,
             fps: String::new(),
+            #[cfg(feature = "save-fps")]
+            save_fps: SaveFPS {
+                name: String::from("fps"),
+                data: Vec::with_capacity(1024),
+            },
             gl_display: GlDisplayCreationState::Builder(display_builder),
             exit_state: Ok(()),
             gl_context: None,
@@ -161,14 +168,15 @@ impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
             context
         };
 
-        assert!(self
-            .state
-            .replace(AppState {
-                gl_surface,
-                window,
-                context
-            })
-            .is_none());
+        assert!(
+            self.state
+                .replace(AppState {
+                    gl_surface,
+                    window,
+                    context
+                })
+                .is_none()
+        );
     }
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
@@ -329,7 +337,10 @@ impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
 fn window_attributes() -> WindowAttributes {
     Window::default_attributes()
         .with_transparent(true)
-        .with_inner_size(winit::dpi::LogicalSize::new(super::DEFAULT_SIZE.0, super::DEFAULT_SIZE.1))
+        .with_inner_size(winit::dpi::LogicalSize::new(
+            super::DEFAULT_SIZE.0,
+            super::DEFAULT_SIZE.1,
+        ))
 }
 
 fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
