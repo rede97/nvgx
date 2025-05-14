@@ -14,10 +14,10 @@ pub enum PipelineUsage {
 
 impl PipelineUsage {
     #[inline]
-    fn fragment_target(&self, fmt: wgpu::TextureFormat) -> wgpu::ColorTargetState {
+    fn fragment_target(&self, format: wgpu::TextureFormat) -> wgpu::ColorTargetState {
         match self {
             PipelineUsage::FillStencil(_) => wgpu::ColorTargetState {
-                format: fmt,
+                format,
                 blend: None,
                 write_mask: wgpu::ColorWrites::empty(),
             },
@@ -26,7 +26,7 @@ impl PipelineUsage {
             | PipelineUsage::FillConvex(blend)
             | PipelineUsage::Triangles(blend)
             | PipelineUsage::Lines(blend) => wgpu::ColorTargetState {
-                format: fmt,
+                format,
                 blend: Some(blend.to_wgpu_blend_state()),
                 write_mask: wgpu::ColorWrites::ALL,
             },

@@ -1,6 +1,6 @@
 [package]
 name = "nvgx"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["rede97 <m454078356@163.com>"]
 edition = "2018"
 keywords = ["nanovg", "opengl", "wgpu"]
