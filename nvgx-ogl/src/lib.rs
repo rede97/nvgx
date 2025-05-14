@@ -367,18 +367,13 @@ impl Renderer {
 
             gl::StencilFunc(gl::NOTEQUAL, 0x00, 0xff);
             gl::StencilOp(gl::ZERO, gl::ZERO, gl::ZERO);
-            gl::DrawArrays(
+            gl::DrawArraysInstancedBaseInstance(
                 gl::TRIANGLE_STRIP,
                 call.triangle.offset as i32,
                 call.triangle.count as i32,
+                inst_slice.count as i32,
+                inst_slice.offset,
             );
-            // gl::DrawArraysInstancedBaseInstance(
-            //     gl::TRIANGLE_STRIP,
-            //     call.triangle.offset as i32,
-            //     call.triangle.count as i32,
-            //     inst_slice.count as i32,
-            //     inst_slice.offset,
-            // );
 
             gl::Disable(gl::STENCIL_TEST);
         }

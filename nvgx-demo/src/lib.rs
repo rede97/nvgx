@@ -46,6 +46,7 @@ pub trait Demo<R: RendererDevice> {
 }
 
 
+#[cfg(feature = "save-fps")]
 #[derive(Default)]
 struct SaveFPS {
     pub name: String,
@@ -53,6 +54,7 @@ struct SaveFPS {
     pub idx: usize,
 }
 
+#[cfg(feature = "save-fps")]
 impl SaveFPS {
     fn push(&mut self, fps: f32) {
         if self.idx < 1024 {
@@ -64,6 +66,7 @@ impl SaveFPS {
     }
 }
 
+#[cfg(feature = "save-fps")]
 impl Drop for SaveFPS {
     fn drop(&mut self) {
         use std::io::Write;

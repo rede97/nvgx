@@ -7,8 +7,8 @@ keywords = ["nanovg", "opengl", "wgpu"]
 description = "Pure-rust implementation of NanoVG"
 license = "MIT"
 publish = true
-homepage = "https://github.com/rede97/nvg"
-repository = "https://github.com/rede97/nvg"
+homepage = "https://github.com/rede97/nvgx"
+repository = "https://github.com/rede97/nvgx"
 
 [dependencies]
 bitflags = "1.2.1"

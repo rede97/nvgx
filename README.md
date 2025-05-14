@@ -1,4 +1,13 @@
-# Pure-rust implementation of NanoVG
+# NVGX: Pure-rust NanoVG
+
+nvgx是[NanoVG](https://github.com/memononen/nanovg)的纯Rust实现和升级版本，而不是进行单纯的C API封装。相比于[nvg](https://github.com/sunli829/nvg)，提供了更完善的API功能支持和性能优化，例如`FrameBuffer`和`Instanced Path`绘制模式。并且为`WGPU Backend`提供了支持 
+* `Framebuffer` Support
+* `Path` and `Instanced API` Support
+* `WGPU backend` Support
+
+> NanoVG is small antialiased vector graphics rendering library for OpenGL. It has lean API modeled after HTML5 canvas API. It is aimed to be a practical and fun toolset for building scalable user interfaces and visualizations.
+### Note
+> OpenGL Backend API目前不再是OpenGL3而是OpenGL4，OpenGL4 已经发布15年市面上绝大多数的GPU都已经支持，并且OpenGL开始逐渐被Vulkan被替代。
 
 ## TODO List
 
@@ -20,17 +29,38 @@
 - [ ] ~~支持NanovgXC方式的渲染算法，支持将文本作为Path渲染，曲线对齐的字体布局~~
 
 
+## Usage
+
+* Reference example [nvgx/nvgx-demo/Cargo.toml](https://github.com/rede97/nvgx/blob/master/nvgx-demo/Cargo.toml) 
+
+```toml
+[dependencies]
+nvgx = "0.2.0"
+# Use wgpu backend
+nvgx-wgpu = "0.1.0"
+# Use OpenGL 4.2 backend
+nvgx-ogl = "0.1.0"
+```
+
 ## Demos
+```
+git clone https://github.com/rede97/nvgx
+cd nvgx
+```
 
 <table>
 
-<tr><td><h3>Simple square and Framebuffer</h3>
+<tr><td><h3>Simple and Framebuffer</h3>
+The tiniest way to use nvgx and framebuffer, can help beginner to start with nvgx.
 
 ```
 cargo run -p nvgx-demo --example demo-square
 ```
-
-The tiniest way to use nvgx+glutin and framebuffer, can help beginner to start with nvg.
+Use WGPU backend by default
+```
+cargo run -p nvgx-demo --example demo-square --features "nvgx-demo/ogl"
+```
+Use OpenGL backend
 
 </td><td>
 <img src="screenshots/square.png" width="200" />
@@ -56,7 +86,7 @@ Use canvas api to draw cutout
 ```
 cargo run -p nvgx-demo --example demo-inst
 ```
-Use Path and instanced api to draw cutout
+Use Path and instanced API to draw cutout
 
 </td><td>
   <img src="screenshots/cutout.png" width="200" />

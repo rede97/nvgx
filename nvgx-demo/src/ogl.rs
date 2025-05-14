@@ -1,3 +1,4 @@
+#[cfg(feature = "save-fps")]
 use crate::SaveFPS;
 
 use super::Demo;
@@ -297,6 +298,7 @@ impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
                     let duration = Instant::now() - self.start_time;
                     if duration.as_millis() > 20 {
                         let fps = (self.frame_count as f32) / duration.as_secs_f32();
+                        #[cfg(feature = "save-fps")]
                         self.save_fps.push(fps);
                         self.fps = format!("FPS: {:.2}", fps);
                         self.start_time = Instant::now();

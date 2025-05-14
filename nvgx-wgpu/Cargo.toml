@@ -1,7 +1,15 @@
 [package]
 name = "nvgx-wgpu"
 version = "0.1.0"
-edition = "2024"
+edition = "2018"
+authors = ["rede97 <m454078356@163.com>"]
+keywords = ["nanovg", "opengl", "wgpu"]
+description = "WGPU backend for Pure-rust implementation of NanoVG"
+license = "MIT"
+publish = true
+homepage = "https://github.com/rede97/nvgx"
+repository = "https://github.com/rede97/nvgx"
+
 
 [features]
 default = ["wirelines"]
