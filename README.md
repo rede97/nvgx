@@ -80,7 +80,7 @@ pub fn draw(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
 ```
 
 ## Bench OpenGL with WGPU backend
-![bench](screenshots\fps.svg)
+<img src="screenshots\fps.svg"/>
 
 ## Demos
 
