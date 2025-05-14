@@ -84,8 +84,6 @@ impl nvgx_demo::Demo<Renderer> for DemoCutout {
         }
 
         ctx.begin_path();
-        ctx.shape_antialias(true);
-        ctx.begin_path();
         ctx.fill_type(PathFillType::EvenOdd);
         ctx.circle((250.0, 220.0), 150.0);
         ctx.circle((400.0, 220.0), 120.0);

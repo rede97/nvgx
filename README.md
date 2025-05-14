@@ -1,48 +1,88 @@
 # NVGX: Pure-rust NanoVG
+nvgx is a pure Rust implementation and enhanced version of [NanoVG](https://github.com/memononen/nanovg), not merely a direct C API wrapper. Compared to [nvg](https://github.com/sunli829/nvg), it provides more comprehensive API functionality support, extensive performance optimizations, and improvements in certain visual effects.
 
-nvgx是[NanoVG](https://github.com/memononen/nanovg)的纯Rust实现和升级版本，而不是进行单纯的C API封装。相比于[nvg](https://github.com/sunli829/nvg)，提供了更完善的API功能支持和性能优化，例如`FrameBuffer`和`Instanced Path`绘制模式。并且为`WGPU Backend`提供了支持 
-* `Framebuffer` Support
-* `Path` and `Instanced API` Support
-* `WGPU backend` Support
+* Support `Framebuffer` 
+* Support `Path` and `Instanced API`
+* Support `WGPU` backend
 
-> NanoVG is small antialiased vector graphics rendering library for OpenGL. It has lean API modeled after HTML5 canvas API. It is aimed to be a practical and fun toolset for building scalable user interfaces and visualizations.
+> [NanoVG](https://github.com/memononen/nanovg) is small antialiased vector graphics rendering library for OpenGL. It has lean API modeled after HTML5 canvas API. It is aimed to be a practical and fun toolset for building scalable user interfaces and visualizations.
+
 ### Note
-> OpenGL Backend API目前不再是OpenGL3而是OpenGL4，OpenGL4 已经发布15年市面上绝大多数的GPU都已经支持，并且OpenGL开始逐渐被Vulkan被替代。
+> The current OpenGL backend API is based on OpenGL 3.1, while WebGL 2.0 (GLES 3.0) compatibility has been considered but not yet tested. The fragmentation and problematic nature of GPU driver implementations across different vendors remain significant issues, as discussed in the [Glium post-mortem](https://users.rust-lang.org/t/glium-post-mortem/7063 ). With OpenGL 4.0+ APIs being gradually replaced by the more standardized Vulkan, the OpenGL backend should prioritize the relatively stable and unified OpenGL 3.0 standard. Although OpenGL 4.0 has been in existence for 15 years and is supported by the vast majority of modern GPUs, backward compatibility concerns for OpenGL 3.0 are largely obsolete for contemporary hardware. Earlier versions like OpenGL 2.0 are no longer supported due to their lack of instanced rendering APIs and the excessive complexity of cross-version API and shader compatibility, which introduces unnecessary technical debt.
 
-## TODO List
-
-- [x] 修复抗锯齿BUG(PathCache抗锯齿边缘区域被错误的重复绘制多次)
-- [x] fringe_widthg固定位1像素，才能在在4K屏幕上拥有更好的显示效果
-- [x] 修复Clock DEMO的锯齿显示问题(错误的Blend Mode)
-- [x] 修复Cutout DEMO的错误显示问题(绘制字体时错误的ctx状态切换)
-- [x] 支持常规的winding模式和奇偶模式
-- [x] 支持Framebuffer(OpenGL Mode)
-- [x] 原生单像素方式(OpenGL LINE_STRIP)的`wirelines`features
-- [x] 支持独立的Path对象，不是每次都重新将绘图命令进行路径细分，降低CPU占用
-- [x] 修复arc_to的bug
-- [x] 支持WGPU
-- [ ] 支持dot dash虚线绘制（PathEffect）
-- [ ] 支持阴影和模糊效果 (ImageEffect)
-- [ ] 支持超过2点的渐变
-- [ ] 支持[lyon](https://docs.rs/lyon/latest/lyon/)的接口进行图形绘制，支持跟复杂的细分算法，不支持抗锯齿，与[NanovgXC](https://github.com/styluslabs/nanovgXC)的抗锯齿方式肯能会有很好的兼容？
-- [ ] ~~FBO MSAA支持，渲染到屏幕还不支持MSAA~~
-- [ ] ~~支持NanovgXC方式的渲染算法，支持将文本作为Path渲染，曲线对齐的字体布局~~
-
+### Goal
+This is a goal that the project hopes to achieve in the future, and everyone is welcome to participate actively. see: [TODO List](./TODO.md) 
 
 ## Usage
 
-* Reference example [nvgx/nvgx-demo/Cargo.toml](https://github.com/rede97/nvgx/blob/master/nvgx-demo/Cargo.toml) 
+In the current graphics library, you can select different backend implementations according to your needs, such as WGPU and OpenGL. This flexibility allows developers to optimize their applications based on specific scenarios:
 
 ```toml
 [dependencies]
 nvgx = "0.2.0"
 # Use wgpu backend
 nvgx-wgpu = "0.1.0"
-# Use OpenGL 4.2 backend
+# Use OpenGL 3.1 backend
 nvgx-ogl = "0.1.0"
+```
+* Reference example project [nvgx-demo/Cargo.toml](https://github.com/rede97/nvgx/blob/master/nvgx-demo/Cargo.toml) 
+
+### Example Code 
+
+* draw a round rect
+```rust
+fn update(
+        &mut self,
+        width: f32,
+        height: f32,
+        ctx: &mut Context<Renderer>,
+    ) -> Result<(), Error> {
+    ctx.begin_path();
+    ctx.fill_paint(nvgx::Color::rgb(0.9, 0.3, 0.4));
+    ctx.rounded_rect(nvgx::Rect::new(
+      Point::new(250.0, 300.0),
+        Extent::new(80.0, 80.0),
+    ), 5.0);
+    ctx.fill()?;
+}
+```
+
+* draw path instance
+```rust
+pub fn draw(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
+    if self.update {
+        let path = self.line_path.reset();
+        path.move_to(self.control_points[0].p);
+        path.line_to(self.control_points[1].p);
+        path.line_to(self.control_points[2].p);
+        let path = self.path.reset();
+        path.move_to(self.control_points[0].p);
+        path.arc_to(
+            self.control_points[1].p,
+            self.control_points[2].p,
+            self.radius,
+        );
+        self.update = false;
+    }
+    ctx.draw_path(
+        &self.line_path,
+        &self.line_paint,
+        DrawPathStyle::WIRELINES,
+        None,
+    )?;
+    ctx.draw_path(&self.path, &self.paint, DrawPathStyle::STROKE, None)?;
+    for cp in self.control_points.iter() {
+        cp.draw(ctx)?;
+    }
+
+    Ok(())
+}
 ```
 
 ## Demos
+
+The following command allows you to quickly run a demo, provided that you have cloned the entire project's code — fortunately, the total amount of code is not large.
+
 ```
 git clone https://github.com/rede97/nvgx
 cd nvgx
