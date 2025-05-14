@@ -11,7 +11,7 @@ use nvgx::*;
 pub struct GLArrayBuffer {
     vbo: gl::types::GLuint,
     vao: gl::types::GLuint,
-    attached_inst: Cell<gl::types::GLuint>,
+    attached_inst: Cell<(gl::types::GLuint, i32)>,
 }
 
 impl GLArrayBuffer {
@@ -57,26 +57,35 @@ impl GLArrayBuffer {
         }
     }
 
-    pub(crate) fn set_inst_binding(&self, inst_vbo: gl::types::GLuint) {
-        if self.attached_inst.get() == inst_vbo {
+    pub(crate) fn set_inst_binding(&self, inst_vbo: gl::types::GLuint, offset: i32) {
+        if self.attached_inst.get() == (inst_vbo, offset) {
             unsafe {
                 gl::BindVertexArray(self.vao);
             }
             return;
         }
         unsafe {
+            self.attached_inst.set((inst_vbo, offset));
             let elem_size = std::mem::size_of::<f32>();
             let stride = elem_size as i32 * 6;
+            let offset_ptr = offset * stride;
             gl::BindVertexArray(self.vao);
             gl::BindBuffer(gl::ARRAY_BUFFER, inst_vbo);
-            gl::VertexAttribPointer(2, 4, gl::FLOAT, gl::FALSE, stride, std::ptr::null());
+            gl::VertexAttribPointer(
+                2,
+                4,
+                gl::FLOAT,
+                gl::FALSE,
+                stride,
+                offset_ptr as *const c_void,
+            );
             gl::VertexAttribPointer(
                 3,
                 2,
                 gl::FLOAT,
                 gl::FALSE,
                 stride,
-                (4 * std::mem::size_of::<f32>()) as *const c_void,
+                (4 * elem_size + offset_ptr as usize) as *const c_void,
             );
             gl::EnableVertexAttribArray(2);
             gl::EnableVertexAttribArray(3);
@@ -376,7 +385,7 @@ impl nvgx::RendererDevice for Renderer {
                         .as_ref()
                         .map(|v| v.as_ref())
                         .unwrap_or(&self.vert_buf);
-                    vertex_buffer.set_inst_binding(inst_vbo);
+                    vertex_buffer.set_inst_binding(inst_vbo, inst_slice.offset as i32);
 
                     let blend = &call.blend_func;
 
@@ -387,13 +396,14 @@ impl nvgx::RendererDevice for Renderer {
                         blend.dst_alpha,
                     );
 
+                    let inst_count = inst_slice.count as i32;
                     match call.call_type {
-                        CallType::Fill(ft) => self.do_fill(&call, ft, &inst_slice),
-                        CallType::ConvexFill => self.do_convex_fill(&call, &inst_slice),
-                        CallType::Stroke => self.do_stroke(&call, &inst_slice),
-                        CallType::Triangles => self.do_triangles(&call, &inst_slice),
+                        CallType::Fill(ft) => self.do_fill(&call, ft, inst_count),
+                        CallType::ConvexFill => self.do_convex_fill(&call, inst_count),
+                        CallType::Stroke => self.do_stroke(&call, inst_count),
+                        CallType::Triangles => self.do_triangles(&call, inst_count),
                         #[cfg(feature = "wirelines")]
-                        CallType::Lines => self.do_lines(&call, &inst_slice),
+                        CallType::Lines => self.do_lines(&call, inst_count),
                     }
                 }
 
