@@ -15,7 +15,10 @@ This is a goal that the project hopes to achieve in the future, and everyone is 
 
 ## Usage
 
-In the current graphics library, you can select different backend implementations according to your needs, such as WGPU and OpenGL. This flexibility allows developers to optimize their applications based on specific scenarios:
+In the current graphics library, you can select different backend implementations according to your needs, such as WGPU and OpenGL.
+
+* crates.io: [nvgx-ogl](https://crates.io/crates/nvgx-ogl)
+* crates.io: [nvgx-wgpu](https://crates.io/crates/nvgx-wgpu)
 
 ```toml
 [dependencies]
