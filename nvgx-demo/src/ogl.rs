@@ -1,3 +1,5 @@
+use crate::SaveFPS;
+
 use super::Demo;
 use anyhow::anyhow;
 use nvgx::{Align, Color};
@@ -31,11 +33,9 @@ pub fn run<D: Demo<nvgx_ogl::Renderer>>(demo: D, title: &str) {
         .with_alpha_size(8)
         .with_transparency(true);
 
-    let display_builder = DisplayBuilder::new().with_window_attributes(Some(
-        window_attributes().with_title(format!("{} (OpenGL)", title)),
-    ));
+    let attributes = window_attributes().with_title(format!("{} (OpenGL)", title));
 
-    let mut app = App::new(template, display_builder, demo);
+    let mut app = App::new(template, attributes, demo);
     event_loop.run_app(&mut app).unwrap();
 
     app.exit_state.unwrap();
@@ -72,7 +72,7 @@ struct App<D: Demo<nvgx_ogl::Renderer>> {
 }
 
 impl<D: Demo<nvgx_ogl::Renderer>> App<D> {
-    fn new(template: ConfigTemplateBuilder, display_builder: DisplayBuilder, demo: D) -> Self {
+    fn new(template: ConfigTemplateBuilder, attributes: WindowAttributes, demo: D) -> Self {
         Self {
             template,
             demo,
@@ -81,10 +81,13 @@ impl<D: Demo<nvgx_ogl::Renderer>> App<D> {
             fps: String::new(),
             #[cfg(feature = "save-fps")]
             save_fps: SaveFPS {
-                name: String::from("fps"),
+                name: attributes.title.clone(),
                 data: Vec::with_capacity(1024),
+                idx: 0,
             },
-            gl_display: GlDisplayCreationState::Builder(display_builder),
+            gl_display: GlDisplayCreationState::Builder(
+                DisplayBuilder::new().with_window_attributes(Some(attributes)),
+            ),
             exit_state: Ok(()),
             gl_context: None,
             state: None,
@@ -293,10 +296,9 @@ impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
                     context.save();
                     let duration = Instant::now() - self.start_time;
                     if duration.as_millis() > 20 {
-                        self.fps = format!(
-                            "FPS: {:.2}",
-                            (self.frame_count as f32) / duration.as_secs_f32()
-                        );
+                        let fps = (self.frame_count as f32) / duration.as_secs_f32();
+                        self.save_fps.push(fps);
+                        self.fps = format!("FPS: {:.2}", fps);
                         self.start_time = Instant::now();
                         self.frame_count = 0;
                     } else {
