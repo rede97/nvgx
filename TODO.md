@@ -1,0 +1,17 @@
+## TODO List
+- [x] Fix anti-aliasing bug (PathCache edge regions were incorrectly redrawn multiple times)
+- [x] Set `fringe_width` to 1 pixel for better visual quality on 4K displays
+- [x] Fix jagged rendering issue in the Clock DEMO (incorrect blend mode)
+- [x] Fix incorrect rendering in the Cutout DEMO (wrong `ctx` state switching during font drawing)
+- [x] Support common winding fill modes and even-odd fill rules
+- [x] Support Framebuffer (OpenGL/WGPU Mode)
+- [x] Native single-pixel wireframe rendering using `LINE_STRIP` (OpenGL mode only) via the `wirelines` feature
+- [x] Support standalone `Path` objects to avoid resubmitting and re-tessellating drawing commands every frame, reducing CPU usage
+- [x] Fix `arc_to` bug
+- [x] Support WGPU backend
+- [ ] Support dot/dash line patterns via `PathEffect`
+- [ ] Support shadows and blur effects (`ImageEffect`)
+- [ ] Support gradients with more than two color stops
+- [ ] Support integration with [lyon](https://docs.rs/lyon/latest/lyon/) for path rendering, enabling more complex tessellation algorithms; no anti-aliasing support — could this be compatible with NanovgXC's anti-aliasing approach?
+- [ ] ~~Support FBO MSAA (MSAA when rendering to screen is still not supported)~~
+- [ ] ~~Support NanovgXC-style rendering algorithms, including rendering text as paths and curve-aligned text layout~~
