@@ -85,6 +85,14 @@ pub fn draw(&mut self, ctx: &mut Context<R>) -> anyhow::Result<()> {
 ## Bench OpenGL with WGPU backend
 <img src="screenshots\fps.svg"/>
 
+### Bench commands
+```
+cargo run -p nvgx-demo --example demo-cutout --features "nvgx-demo/ogl","nvgx-demo/save-fps"
+cargo run -p nvgx-demo --example demo-cutout --features "nvgx-demo/wgpu","nvgx-demo/save-fps"
+cargo run -p nvgx-demo --example demo-inst --features "nvgx-demo/ogl","nvgx-demo/save-fps"
+cargo run -p nvgx-demo --example demo-inst --features "nvgx-demo/wgpu","nvgx-demo/save-fps"
+```
+
 ## Demos
 
 The following command allows you to quickly run a demo, provided that you have cloned the entire project's code — fortunately, the total amount of code is not large.
