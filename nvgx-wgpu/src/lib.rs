@@ -7,8 +7,8 @@ use std::ops::Deref;
 use call::{Call, CallType, GpuPath};
 use mesh::Mesh;
 use nvgx::*;
-use pipeline::{PipelineManager, PipelineUsage};
-use texture::TextureManager;
+use pipeline::{PipelineConfig, PipelineManager, PipelineUsage};
+use texture::{texture_type_map, TextureManager};
 use unifroms::{RenderCommand, Unifrom};
 use wgpu::{util::DeviceExt, TextureView};
 
@@ -23,7 +23,7 @@ mod unifroms;
 
 pub struct RenderConfig {
     pub antialias: bool,
-    pub format: wgpu::TextureFormat,
+    pub format: nvgx::TextureType,
 }
 
 impl RenderConfig {
@@ -32,9 +32,13 @@ impl RenderConfig {
         self
     }
 
-    pub fn format(mut self, format: wgpu::TextureFormat) -> Self {
+    pub fn format(mut self, format: nvgx::TextureType) -> Self {
         self.format = format;
         self
+    }
+
+    pub fn format_match(&self, format: &wgpu::TextureFormat) -> bool {
+        format == &texture_type_map(self.format)
     }
 }
 
@@ -42,7 +46,7 @@ impl Default for RenderConfig {
     fn default() -> Self {
         Self {
             antialias: true,
-            format: wgpu::TextureFormat::Bgra8Unorm,
+            format: nvgx::TextureType::BGRA,
         }
     }
 }
@@ -306,6 +310,7 @@ impl RenderResource {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         color_view: &TextureView,
+        format: TextureType,
         stencil_view: &TextureView,
         pipeline_manager: &mut PipelineManager,
         clear_cmd: Option<wgpu::Color>,
@@ -346,38 +351,75 @@ impl RenderResource {
             for call in &self.calls {
                 match call.call_type {
                     CallType::Fill(t) => {
-                        pipeline_manager.update_pipeline(&device, PipelineUsage::FillStencil(t), &self.config.format);
                         pipeline_manager.update_pipeline(
                             &device,
-                            PipelineUsage::FillStroke(call.blend_func.clone()),&self.config.format
+                            PipelineConfig {
+                                format,
+                                usage: PipelineUsage::FillStencil(t),
+                            },
                         );
-                        pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::FillInner(call.blend_func), &self.config.format);
+                        pipeline_manager.update_pipeline(
+                            &device,
+                            PipelineConfig {
+                                format,
+                                usage: PipelineUsage::FillStroke(call.blend_func.clone()),
+                            },
+                        );
+                        pipeline_manager.update_pipeline(
+                            &device,
+                            PipelineConfig {
+                                format,
+                                usage: PipelineUsage::FillInner(call.blend_func),
+                            },
+                        );
                         self.do_fill(call, &mut render_pass, &pipeline_manager);
                     }
                     CallType::ConvexFill => {
                         pipeline_manager.update_pipeline(
                             &device,
-                            PipelineUsage::FillConvex(call.blend_func.clone()), &self.config.format,
+                            PipelineConfig {
+                                format,
+                                usage: PipelineUsage::FillConvex(call.blend_func.clone()),
+                            },
                         );
-                        pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::FillStroke(call.blend_func), &self.config.format);
+                        pipeline_manager.update_pipeline(
+                            &device,
+                            PipelineConfig {
+                                format,
+                                usage: PipelineUsage::FillStroke(call.blend_func),
+                            },
+                        );
                         self.do_convex_fill(call, &mut render_pass, &pipeline_manager);
                     }
                     CallType::Stroke => {
-                        pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::FillStroke(call.blend_func), &self.config.format);
+                        pipeline_manager.update_pipeline(
+                            &device,
+                            PipelineConfig {
+                                format,
+                                usage: PipelineUsage::FillStroke(call.blend_func),
+                            },
+                        );
                         self.do_stroke(call, &mut render_pass, &pipeline_manager);
                     }
                     CallType::Triangles => {
-                        pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::Triangles(call.blend_func), &self.config.format);
+                        pipeline_manager.update_pipeline(
+                            &device,
+                            PipelineConfig {
+                                format,
+                                usage: PipelineUsage::Triangles(call.blend_func),
+                            },
+                        );
                         self.do_triangles(call, &mut render_pass, &pipeline_manager);
                     }
                     #[cfg(feature = "wirelines")]
                     CallType::Lines => {
-                        pipeline_manager
-                            .update_pipeline(&device, PipelineUsage::Lines(call.blend_func), &self.config.format);
+                        pipeline_manager.update_pipeline(
+                            &device,
+                            PipelineConfig {
+                                format,
+                                usage: PipelineUsage::Lines(call.blend_func),
+                            },
+                        );
                         self.do_lines(call, &mut render_pass, &pipeline_manager);
                     }
                 }
@@ -428,7 +470,8 @@ impl Renderer {
             push_constant_ranges: &[],
         });
 
-        let pipeline_manager = PipelineManager::new(shader, pipeline_layout, &device, &config.format);
+        let pipeline_manager =
+            PipelineManager::new(shader, pipeline_layout, &device, config.format);
 
         let identity_instance = Transform::identity();
         let default_instace = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

@@ -218,12 +218,14 @@ impl AppState {
         let caps = surface.get_capabilities(adapter);
         let config = RenderConfig::default();
 
-
         let pos = caps
             .formats
             .iter()
-            .position(|f| f == &config.format)
-            .expect(&format!("Surface texture format: `{:?}` not support", &config.format));
+            .position(|f| config.format_match(f))
+            .expect(&format!(
+                "Surface texture format: `{:?}` not support",
+                &config.format
+            ));
         let surface_config: wgpu::wgt::SurfaceConfiguration<Vec<wgpu::TextureFormat>> =
             wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,

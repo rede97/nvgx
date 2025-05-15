@@ -5,8 +5,9 @@ pub use crate::paint::PaintPattern;
 pub use crate::path::cache::{PathSlice, Vertex, VertexSlice};
 pub use crate::*;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
 pub enum TextureType {
+    #[default]
     RGBA,
     BGRA,
     Alpha,

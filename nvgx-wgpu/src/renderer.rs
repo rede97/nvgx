@@ -9,7 +9,7 @@ use crate::{
     unifroms::{RenderCommand, ShaderType},
 };
 
-use super::{Renderer, call::CallType, mesh::Mesh};
+use super::{call::CallType, mesh::Mesh, Renderer};
 
 impl nvgx::RendererDevice for Renderer {
     type VertexBuffer = Arc<wgpu::Buffer>;
@@ -144,6 +144,7 @@ impl nvgx::RendererDevice for Renderer {
                 &self.device,
                 &self.queue,
                 &texture.view,
+                texture.texture_type,
                 &stencil_view,
                 &mut self.pipeline_manager,
                 self.clear_cmd.take(),
@@ -158,6 +159,7 @@ impl nvgx::RendererDevice for Renderer {
                 &self.device,
                 &self.queue,
                 &view,
+                self.resources.config.format,
                 self.resources.texture_manager.stencil_view(),
                 &mut self.pipeline_manager,
                 self.clear_cmd.take(),

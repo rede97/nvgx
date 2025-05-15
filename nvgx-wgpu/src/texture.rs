@@ -33,11 +33,12 @@ impl StencilTexture {
 
 #[allow(unused)]
 pub struct Texture {
-    pub texture: wgpu::Texture,
-    pub view: wgpu::TextureView,
-    pub sampler: wgpu::Sampler,
-    pub bind_group: wgpu::BindGroup,
-    pub image_flags: nvgx::ImageFlags,
+    pub(crate) texture: wgpu::Texture,
+    pub(crate) view: wgpu::TextureView,
+    pub(crate) sampler: wgpu::Sampler,
+    pub(crate) bind_group: wgpu::BindGroup,
+    pub(crate) image_flags: nvgx::ImageFlags,
+    pub(crate) texture_type: nvgx::TextureType,
 }
 
 impl Texture {
@@ -81,7 +82,7 @@ impl Texture {
                 })
             }
             nvgx::TextureType::BGRA => {
-                 device.create_texture(&wgpu::TextureDescriptor {
+                device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("NVG RGBA Texture"),
                     size,
                     mip_level_count: 1, // mipmap not supported yet
@@ -162,6 +163,7 @@ impl Texture {
             sampler,
             bind_group,
             image_flags,
+            texture_type,
         }
     }
 
@@ -201,16 +203,6 @@ impl Texture {
         self.texture.size()
     }
 
-    #[inline]
-    pub fn texture_type(&self) -> nvgx::TextureType {
-        match self.texture.format() {
-            wgpu::TextureFormat::Rgba8Unorm => nvgx::TextureType::RGBA,
-            wgpu::TextureFormat::R8Unorm => nvgx::TextureType::Alpha,
-            _ => {
-                panic!("unsupport texture format: {:?}", self.texture.format())
-            }
-        }
-    }
 }
 
 pub struct TextureManager {
@@ -315,5 +307,14 @@ impl TextureManager {
         } else {
             return &self.place_holder_texture.bind_group;
         }
+    }
+}
+
+#[inline]
+pub fn texture_type_map(texture_type: nvgx::TextureType) -> wgpu::TextureFormat {
+    match texture_type {
+        nvgx::TextureType::RGBA => wgpu::TextureFormat::Rgba8Unorm,
+        nvgx::TextureType::BGRA => wgpu::TextureFormat::Bgra8Unorm,
+        nvgx::TextureType::Alpha => wgpu::TextureFormat::R8Unorm,
     }
 }

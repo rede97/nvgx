@@ -5,7 +5,7 @@ use winit;
 #[allow(unused)]
 extern crate anyhow;
 
-const DEFAULT_SIZE: (i32, i32) = (640, 480);
+const DEFAULT_SIZE: (i32, i32) = (1280, 720);
 pub const FONT_PATH: &str = "nvgx-demo/Roboto-Bold.ttf";
 pub const IMG_PATH: &str = "nvgx-demo/lenna.png";
 

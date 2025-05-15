@@ -1,6 +1,6 @@
 use std::{ops::Range, sync::Arc};
 
-use nvgx::{BlendFactor, CompositeOperationState, PathFillType, VertexSlice};
+use nvgx::{CompositeOperationState, PathFillType, VertexSlice};
 
 use super::unifroms::RenderCommand;
 
@@ -38,42 +38,6 @@ impl Call {
         ((self.uniform_offset + offset) * size_of::<RenderCommand>()) as u32
     }
 }
-
-pub(crate) trait ToBlendState: AsRef<CompositeOperationState> {
-    fn to_wgpu_blend_state(&self) -> wgpu::BlendState {
-        let value = self.as_ref();
-        return wgpu::BlendState {
-            color: wgpu::BlendComponent {
-                src_factor: convert_blend_factor(value.src_rgb),
-                dst_factor: convert_blend_factor(value.dst_rgb),
-                operation: wgpu::BlendOperation::Add,
-            },
-            alpha: wgpu::BlendComponent {
-                src_factor: convert_blend_factor(value.src_alpha),
-                dst_factor: convert_blend_factor(value.dst_alpha),
-                operation: wgpu::BlendOperation::Add,
-            },
-        };
-    }
-}
-
-fn convert_blend_factor(factor: BlendFactor) -> wgpu::BlendFactor {
-    match factor {
-        BlendFactor::Zero => wgpu::BlendFactor::Zero,
-        BlendFactor::One => wgpu::BlendFactor::One,
-        BlendFactor::SrcColor => wgpu::BlendFactor::Src,
-        BlendFactor::OneMinusSrcColor => wgpu::BlendFactor::OneMinusSrc,
-        BlendFactor::DstColor => wgpu::BlendFactor::Dst,
-        BlendFactor::OneMinusDstColor => wgpu::BlendFactor::OneMinusDst,
-        BlendFactor::SrcAlpha => wgpu::BlendFactor::SrcAlpha,
-        BlendFactor::OneMinusSrcAlpha => wgpu::BlendFactor::OneMinusSrcAlpha,
-        BlendFactor::DstAlpha => wgpu::BlendFactor::DstAlpha,
-        BlendFactor::OneMinusDstAlpha => wgpu::BlendFactor::OneMinusDstAlpha,
-        BlendFactor::SrcAlphaSaturate => wgpu::BlendFactor::SrcAlphaSaturated,
-    }
-}
-
-impl ToBlendState for &CompositeOperationState {}
 
 #[derive(Default)]
 pub(crate) struct GpuPath {

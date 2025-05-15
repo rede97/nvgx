@@ -1,6 +1,8 @@
-use nvgx::{CompositeOperationState, PathFillType};
+use nvgx::{BlendFactor, CompositeOperationState, PathFillType};
 
-use super::{call::ToBlendState, instance::INSTANCE_DESC, mesh::VERTEX_DESC};
+use crate::texture::texture_type_map;
+
+use super::{instance::INSTANCE_DESC, mesh::VERTEX_DESC};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PipelineUsage {
@@ -12,12 +14,55 @@ pub enum PipelineUsage {
     Lines(CompositeOperationState),
 }
 
-impl PipelineUsage {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct PipelineConfig {
+    pub format: nvgx::TextureType,
+    pub usage: PipelineUsage,
+}
+
+impl PipelineConfig {
+    fn convert_blend_factor(factor: BlendFactor) -> wgpu::BlendFactor {
+        match factor {
+            BlendFactor::Zero => wgpu::BlendFactor::Zero,
+            BlendFactor::One => wgpu::BlendFactor::One,
+            BlendFactor::SrcColor => wgpu::BlendFactor::Src,
+            BlendFactor::OneMinusSrcColor => wgpu::BlendFactor::OneMinusSrc,
+            BlendFactor::DstColor => wgpu::BlendFactor::Dst,
+            BlendFactor::OneMinusDstColor => wgpu::BlendFactor::OneMinusDst,
+            BlendFactor::SrcAlpha => wgpu::BlendFactor::SrcAlpha,
+            BlendFactor::OneMinusSrcAlpha => wgpu::BlendFactor::OneMinusSrcAlpha,
+            BlendFactor::DstAlpha => wgpu::BlendFactor::DstAlpha,
+            BlendFactor::OneMinusDstAlpha => wgpu::BlendFactor::OneMinusDstAlpha,
+            BlendFactor::SrcAlphaSaturate => wgpu::BlendFactor::SrcAlphaSaturated,
+        }
+    }
+
+    fn to_wgpu_blend_state(composite: &CompositeOperationState) -> wgpu::BlendState {
+        return wgpu::BlendState {
+            color: wgpu::BlendComponent {
+                src_factor: Self::convert_blend_factor(composite.src_rgb),
+                dst_factor: Self::convert_blend_factor(composite.dst_rgb),
+                operation: wgpu::BlendOperation::Add,
+            },
+            alpha: wgpu::BlendComponent {
+                src_factor: Self::convert_blend_factor(composite.src_alpha),
+                dst_factor: Self::convert_blend_factor(composite.dst_alpha),
+                operation: wgpu::BlendOperation::Add,
+            },
+        };
+    }
+
     #[inline]
-    fn fragment_target(&self, format: wgpu::TextureFormat) -> wgpu::ColorTargetState {
-        match self {
+    fn get_color_format(&self) -> wgpu::TextureFormat {
+        assert_ne!(self.format, nvgx::TextureType::Alpha);
+        texture_type_map(self.format)
+    }
+
+    #[inline]
+    fn fragment_target(&self) -> wgpu::ColorTargetState {
+        match &self.usage {
             PipelineUsage::FillStencil(_) => wgpu::ColorTargetState {
-                format,
+                format: self.get_color_format(),
                 blend: None,
                 write_mask: wgpu::ColorWrites::empty(),
             },
@@ -26,8 +71,8 @@ impl PipelineUsage {
             | PipelineUsage::FillConvex(blend)
             | PipelineUsage::Triangles(blend)
             | PipelineUsage::Lines(blend) => wgpu::ColorTargetState {
-                format,
-                blend: Some(blend.to_wgpu_blend_state()),
+                format: self.get_color_format(),
+                blend: Some(Self::to_wgpu_blend_state(blend)),
                 write_mask: wgpu::ColorWrites::ALL,
             },
         }
@@ -35,7 +80,7 @@ impl PipelineUsage {
 
     #[inline]
     fn primitive(&self) -> wgpu::PrimitiveState {
-        match self {
+        match &self.usage {
             PipelineUsage::FillStencil(_)
             | PipelineUsage::FillConvex(_)
             | PipelineUsage::Triangles(_) => wgpu::PrimitiveState {
@@ -70,7 +115,7 @@ impl PipelineUsage {
 
     #[inline]
     fn stencil_state(&self) -> wgpu::StencilState {
-        match self {
+        match &self.usage {
             PipelineUsage::FillStencil(path_fill_type) => match path_fill_type {
                 PathFillType::Winding => wgpu::StencilState {
                     front: wgpu::StencilFaceState {
@@ -135,16 +180,13 @@ impl PipelineUsage {
             },
         }
     }
-}
 
-impl PipelineUsage {
     #[inline]
     fn make_pipeline(
         &self,
         device: &wgpu::Device,
         shader: &wgpu::ShaderModule,
         pipeline_layout: &wgpu::PipelineLayout,
-        fmt: &wgpu::TextureFormat,
     ) -> wgpu::RenderPipeline {
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("NVG Render Pipeline"),
@@ -159,7 +201,7 @@ impl PipelineUsage {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 compilation_options: Default::default(),
-                targets: &[Some(self.fragment_target(*fmt))],
+                targets: &[Some(self.fragment_target())],
             }),
             primitive: self.primitive(),
             depth_stencil: Some(wgpu::DepthStencilState {
@@ -184,7 +226,7 @@ impl PipelineUsage {
 
 pub struct Pipeline {
     pipeline: wgpu::RenderPipeline,
-    usage: PipelineUsage,
+    config: PipelineConfig,
 }
 
 impl Pipeline {
@@ -196,7 +238,7 @@ impl Pipeline {
 struct PipelineBuilder {
     shader: wgpu::ShaderModule,
     layout: wgpu::PipelineLayout,
-    cache: indexmap::IndexMap<PipelineUsage, wgpu::RenderPipeline>,
+    cache: indexmap::IndexMap<PipelineConfig, wgpu::RenderPipeline>,
 }
 
 impl PipelineBuilder {
@@ -208,15 +250,10 @@ impl PipelineBuilder {
         };
     }
 
-    fn create(
-        &self,
-        device: &wgpu::Device,
-        usage: PipelineUsage,
-        fmt: &wgpu::TextureFormat,
-    ) -> Pipeline {
+    fn create(&self, device: &wgpu::Device, config: PipelineConfig) -> Pipeline {
         return Pipeline {
-            pipeline: usage.make_pipeline(device, &self.shader, &self.layout, fmt),
-            usage,
+            pipeline: config.make_pipeline(device, &self.shader, &self.layout),
+            config,
         };
     }
 
@@ -224,21 +261,18 @@ impl PipelineBuilder {
     #[inline]
     fn update_pipeline(
         &mut self,
-        new_usage: PipelineUsage,
+        config: PipelineConfig,
         device: &wgpu::Device,
         pipeline: &mut Pipeline,
-        fmt: &wgpu::TextureFormat,
     ) {
-        let new_pipeline = if let Some(pipeline) = self.cache.shift_remove(&new_usage) {
-            Pipeline {
-                pipeline,
-                usage: new_usage,
-            }
+        let new_pipeline = if let Some(pipeline) = self.cache.shift_remove(&config) {
+            Pipeline { pipeline, config }
         } else {
-            self.create(device, new_usage, fmt)
+            self.create(device, config)
         };
         let old_pipeline = std::mem::replace(pipeline, new_pipeline);
-        self.cache.insert(old_pipeline.usage, old_pipeline.pipeline);
+        self.cache
+            .insert(old_pipeline.config, old_pipeline.pipeline);
     }
 }
 
@@ -257,24 +291,52 @@ impl PipelineManager {
         shader: wgpu::ShaderModule,
         pipeline_layout: wgpu::PipelineLayout,
         device: &wgpu::Device,
-        fmt: &wgpu::TextureFormat,
+        format: nvgx::TextureType,
     ) -> Self {
         let builder = PipelineBuilder::new(shader, pipeline_layout);
         let default_blend = nvgx::CompositeOperationState::default();
         let fill_stencil = builder.create(
             &device,
-            PipelineUsage::FillStencil(PathFillType::Winding),
-            fmt,
+            PipelineConfig {
+                format,
+                usage: PipelineUsage::FillStencil(PathFillType::Winding),
+            },
         );
         let fill_stroke = builder.create(
             &device,
-            PipelineUsage::FillStroke(default_blend.clone()),
-            fmt,
+            PipelineConfig {
+                format,
+                usage: PipelineUsage::FillStroke(default_blend.clone()),
+            },
         );
-        let fill_inner = builder.create(&device, PipelineUsage::FillInner(default_blend), fmt);
-        let fill_convex = builder.create(&device, PipelineUsage::FillConvex(default_blend), fmt);
-        let triangles = builder.create(&device, PipelineUsage::Triangles(default_blend), fmt);
-        let wirelines = builder.create(&device, PipelineUsage::Lines(default_blend), fmt);
+        let fill_inner = builder.create(
+            &device,
+            PipelineConfig {
+                format,
+                usage: PipelineUsage::FillInner(default_blend),
+            },
+        );
+        let fill_convex = builder.create(
+            &device,
+            PipelineConfig {
+                format,
+                usage: PipelineUsage::FillConvex(default_blend),
+            },
+        );
+        let triangles = builder.create(
+            &device,
+            PipelineConfig {
+                format,
+                usage: PipelineUsage::Triangles(default_blend),
+            },
+        );
+        let wirelines = builder.create(
+            &device,
+            PipelineConfig {
+                format,
+                usage: PipelineUsage::Lines(default_blend),
+            },
+        );
         return Self {
             builder,
             fill_stencil,
@@ -287,47 +349,42 @@ impl PipelineManager {
     }
 
     #[inline]
-    pub fn update_pipeline(
-        &mut self,
-        device: &wgpu::Device,
-        usage: PipelineUsage,
-        fmt: &wgpu::TextureFormat,
-    ) {
-        match &usage {
+    pub fn update_pipeline(&mut self, device: &wgpu::Device, config: PipelineConfig) {
+        match &config.usage {
             PipelineUsage::FillStencil(_) => {
-                if self.fill_stencil.usage != usage {
+                if self.fill_stencil.config != config {
                     self.builder
-                        .update_pipeline(usage, device, &mut self.fill_stencil, fmt);
+                        .update_pipeline(config, device, &mut self.fill_stencil);
                 }
             }
             PipelineUsage::FillStroke(_) => {
-                if self.fill_stroke.usage != usage {
+                if self.fill_stroke.config != config {
                     self.builder
-                        .update_pipeline(usage, device, &mut self.fill_stroke, fmt);
+                        .update_pipeline(config, device, &mut self.fill_stroke);
                 }
             }
             PipelineUsage::FillInner(_) => {
-                if self.fill_inner.usage != usage {
+                if self.fill_inner.config != config {
                     self.builder
-                        .update_pipeline(usage, device, &mut self.fill_inner, fmt);
+                        .update_pipeline(config, device, &mut self.fill_inner);
                 }
             }
             PipelineUsage::FillConvex(_) => {
-                if self.fill_convex.usage != usage {
+                if self.fill_convex.config != config {
                     self.builder
-                        .update_pipeline(usage, device, &mut self.fill_convex, fmt);
+                        .update_pipeline(config, device, &mut self.fill_convex);
                 }
             }
             PipelineUsage::Triangles(_) => {
-                if self.triangles.usage != usage {
+                if self.triangles.config != config {
                     self.builder
-                        .update_pipeline(usage, device, &mut self.triangles, fmt);
+                        .update_pipeline(config, device, &mut self.triangles);
                 }
             }
             PipelineUsage::Lines(_) => {
-                if self.wirelines.usage != usage {
+                if self.wirelines.config != config {
                     self.builder
-                        .update_pipeline(usage, device, &mut self.wirelines, fmt);
+                        .update_pipeline(config, device, &mut self.wirelines);
                 }
             }
         }
