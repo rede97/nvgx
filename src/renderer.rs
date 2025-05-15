@@ -131,6 +131,7 @@ pub trait FrameBufferDevice {
 
 pub trait RenderFrameBufferDevice: RendererDevice {
     type FB: FrameBufferDevice;
+    fn fb_format(&self) -> TextureType;
     fn create_fb(&mut self, width: u32, height: u32, image: ImageId) -> anyhow::Result<Self::FB>;
     fn delete_fb(&mut self, fb: Self::FB) -> anyhow::Result<()>;
     fn bind(&mut self, fb: &Self::FB) -> anyhow::Result<()>;

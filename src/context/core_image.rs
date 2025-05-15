@@ -2,7 +2,7 @@ use super::{Context, ImageFlags, ImageId, TextureType};
 use crate::RendererDevice;
 
 impl<R: RendererDevice> Context<R> {
-    pub fn create_image<D: AsRef<[u8]>>(
+    pub fn create_image_init<D: AsRef<[u8]>>(
         &mut self,
         flags: ImageFlags,
         data: D,
@@ -25,25 +25,37 @@ impl<R: RendererDevice> Context<R> {
         flags: ImageFlags,
         path: P,
     ) -> anyhow::Result<ImageId> {
-        self.create_image(flags, std::fs::read(path)?)
+        self.create_image_init(flags, std::fs::read(path)?)
     }
 
-    pub fn create_image_rgba(
+    pub fn create_image(
         &mut self,
         width: u32,
         height: u32,
+        fmt: TextureType,
         flags: ImageFlags,
         data: Option<&[u8]>,
     ) -> anyhow::Result<ImageId> {
         let img = self
             .renderer
-            .create_texture(TextureType::RGBA, width, height, flags, data)?;
+            .create_texture(fmt, width, height, flags, data)?;
         Ok(img)
     }
 
-    pub fn update_image(&mut self, img: ImageId, data: &[u8]) -> anyhow::Result<()> {
-        let (w, h) = self.renderer.texture_size(img.clone())?;
-        self.renderer.update_texture(img, 0, 0, w, h, data)?;
+    /// area: Some(x, y, w, h)
+    pub fn update_image(
+        &mut self,
+        img: ImageId,
+        data: &[u8],
+        area: Option<(u32, u32, u32, u32)>,
+    ) -> anyhow::Result<()> {
+        let (x, y, w, h) = if let Some(area) = area {
+            area
+        } else {
+            let (w, h) = self.image_size(img.clone())?;
+            (0, 0, w, h)
+        };
+        self.renderer.update_texture(img, x, y, w, h, data)?;
         Ok(())
     }
 

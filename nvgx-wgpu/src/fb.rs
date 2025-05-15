@@ -25,6 +25,10 @@ impl FrameBufferDevice for FrameBuffer {
 impl RenderFrameBufferDevice for Renderer {
     type FB = FrameBuffer;
 
+    fn fb_format(&self) -> nvgx::TextureType {
+        return self.resources.config.format;
+    }
+
     fn create_fb(&mut self, width: u32, height: u32, image: ImageId) -> anyhow::Result<Self::FB> {
         let stencil = StencilTexture::new(&self.device, width, height);
         Ok(FrameBuffer {

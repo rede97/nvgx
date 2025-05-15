@@ -507,7 +507,7 @@ impl Renderer {
 
                 frag.type_ = ShaderType::FillImage as i32;
                 match texture.texture_type {
-                    TextureType::RGBA => {
+                    TextureType::RGBA | TextureType::BGRA => {
                         frag.tex_type = if texture.flags.contains(ImageFlags::PREMULTIPLIED) {
                             0
                         } else {

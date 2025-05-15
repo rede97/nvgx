@@ -179,6 +179,22 @@ impl nvgx::RendererDevice for Renderer {
                         },
                     );
                 }
+                TextureType::BGRA => {
+                    gl::TexImage2D(
+                        gl::TEXTURE_2D,
+                        0,
+                        gl::BGRA as i32,
+                        width as i32,
+                        height as i32,
+                        0,
+                        gl::BGRA,
+                        gl::UNSIGNED_BYTE,
+                        match data {
+                            Some(data) => data.as_ptr() as *const c_void,
+                            None => std::ptr::null(),
+                        },
+                    );
+                }
                 TextureType::Alpha => {
                     gl::TexImage2D(
                         gl::TEXTURE_2D,
@@ -290,6 +306,17 @@ impl nvgx::RendererDevice for Renderer {
                         width as i32,
                         height as i32,
                         gl::RGBA,
+                        gl::UNSIGNED_BYTE,
+                        data.as_ptr() as *const c_void,
+                    ),
+                    TextureType::BGRA => gl::TexSubImage2D(
+                        gl::TEXTURE_2D,
+                        0,
+                        x as i32,
+                        y as i32,
+                        width as i32,
+                        height as i32,
+                        gl::BGRA,
                         gl::UNSIGNED_BYTE,
                         data.as_ptr() as *const c_void,
                     ),

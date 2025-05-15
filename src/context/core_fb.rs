@@ -50,9 +50,10 @@ impl<R: RenderFrameBufferDevice> Context<R> {
         flags: ImageFlags,
         data: Option<&[u8]>,
     ) -> anyhow::Result<R::FB> {
-        let image = self.create_image_rgba(
+        let image = self.create_image(
             width,
             height,
+            self.renderer.fb_format(),
             flags | ImageFlags::FLIPY | ImageFlags::PREMULTIPLIED,
             data,
         )?;

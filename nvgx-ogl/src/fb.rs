@@ -1,7 +1,6 @@
 use super::Renderer;
 use nvgx::{Extent, FrameBufferDevice, ImageId, RenderFrameBufferDevice};
 
-
 #[allow(unused)]
 #[derive(Debug, Copy, Clone)]
 pub struct FrameBuffer {
@@ -27,6 +26,10 @@ impl FrameBufferDevice for FrameBuffer {
 
 impl RenderFrameBufferDevice for Renderer {
     type FB = FrameBuffer;
+
+    fn fb_format(&self) -> nvgx::TextureType {
+        return nvgx::TextureType::RGBA;
+    }
 
     fn create_fb(&mut self, width: u32, height: u32, image: ImageId) -> anyhow::Result<Self::FB> {
         let mut fbo = 0;
