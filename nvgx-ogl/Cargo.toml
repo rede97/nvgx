@@ -1,6 +1,6 @@
 [package]
 name = "nvgx-ogl"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2018"
 authors = ["rede97 <m454078356@163.com>"]
 keywords = ["nanovg", "opengl", "wgpu"]
@@ -17,7 +17,7 @@ wirelines = ["nvgx/wirelines"]
 
 
 [dependencies]
-nvgx = { path = "../"}
+nvgx = { version = "0.3.0" }
 slab = "0.4.2"
 anyhow = "1.0.26"
 gl = { version = "0.14.0" }

@@ -12,7 +12,7 @@ example-single-inst = []
 save-fps = []
 
 [dependencies]
-nvgx = { path = "../" }
+nvgx = { version = "*" }
 nvgx-wgpu = { path = "../nvgx-wgpu", optional = true }
 nvgx-ogl = { path = "../nvgx-ogl", optional = true }
 cfg-if = "1.0.0"
