@@ -9,6 +9,7 @@
 - [x] Support standalone `Path` objects to avoid resubmitting and re-tessellating drawing commands every frame, reducing CPU usage
 - [x] Fix `arc_to` bug
 - [x] Support WGPU backend
+- [ ] Support Colorful Emoji
 - [ ] Support dot/dash line patterns via `PathEffect`
 - [ ] Support shadows and blur effects (`ImageEffect`)
 - [ ] Support gradients with more than two color stops

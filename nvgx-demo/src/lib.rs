@@ -24,6 +24,7 @@ cfg_if::cfg_if! {
 pub trait Demo<R: RendererDevice> {
     fn init(&mut self, ctx: &mut Context<R>, _scale_factor: f32) -> anyhow::Result<()> {
         ctx.create_font_from_file("roboto", FONT_PATH)?;
+        ctx.create_font_from_file("notocjk", "nvgx-demo/NotoSansCJK-Regular.otf")?;
         Ok(())
     }
 

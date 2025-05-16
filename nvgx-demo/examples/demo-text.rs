@@ -1,5 +1,5 @@
-use std::f32::consts::PI;
 use nvgx::*;
+use std::f32::consts::PI;
 
 struct DemoText;
 
@@ -13,6 +13,7 @@ impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoText {
 
         ctx.save();
         {
+            ctx.font("roboto");
             ctx.font_size(16.0);
             ctx.fill_paint((1.0, 1.0, 0.0));
 
@@ -50,10 +51,11 @@ impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoText {
         }
         ctx.restore();
 
-        ctx.font_size(60.0);
+        ctx.font("notocjk");
+        ctx.font_size(40.0);
         ctx.rotate(PI / 4.0);
         ctx.fill_paint(Color::rgb_i(0x00, 0xC8, 0xFF));
-        ctx.text((_width / 4.0, 0.0), "Hello World")?;
+        ctx.text((_width / 4.0, 0.0), "Hello 世界，ハローワールド")?;
         Ok(())
     }
 }
