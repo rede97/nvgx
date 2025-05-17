@@ -112,8 +112,8 @@ impl Sub for &Point {
 
     fn sub(self, rhs: Self) -> Self::Output {
         return Self::Output {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
         };
     }
 }
