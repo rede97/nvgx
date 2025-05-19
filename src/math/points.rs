@@ -2,7 +2,7 @@ use std::ops::{Add, Sub};
 
 use num_traits::AsPrimitive;
 
-pub(crate) trait Vector2D {
+pub trait Vector2D {
     fn dot(&self, other: &Self) -> f32;
     fn mul(&self, k: f32) -> Self;
     fn length(&self) -> f32;
@@ -20,7 +20,7 @@ impl Point {
         Point { x, y }
     }
 
-    pub(crate) fn equals(self, pt: Point, tol: f32) -> bool {
+    pub fn equals(self, pt: Point, tol: f32) -> bool {
         let dx = pt.x - self.x;
         let dy = pt.y - self.y;
         dx * dx + dy * dy < tol * tol
@@ -46,7 +46,7 @@ impl Point {
         dx * dx + dy * dy
     }
 
-    pub(crate) fn normalize(&mut self) -> f32 {
+    pub fn normalize(&mut self) -> f32 {
         let d = self.length();
         if d > 1e-6 {
             let id = 1.0 / d;
@@ -56,7 +56,7 @@ impl Point {
         d
     }
 
-    pub(crate) fn cross(pt1: Point, pt2: Point) -> f32 {
+    pub fn cross(pt1: Point, pt2: Point) -> f32 {
         pt2.x * pt1.y - pt1.x * pt2.y
     }
 
@@ -112,8 +112,8 @@ impl Sub for &Point {
 
     fn sub(self, rhs: Self) -> Self::Output {
         return Self::Output {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
         };
     }
 }

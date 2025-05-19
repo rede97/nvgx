@@ -31,6 +31,7 @@ impl Rect {
         Rect { xy, size }
     }
 
+    #[inline]
     pub fn intersect(self, rect: Rect) -> Rect {
         let Rect {
             xy: Point { x: ax, y: ay },
@@ -63,6 +64,11 @@ impl Rect {
             self.xy.offset(-width / 2.0, -height / 2.0),
             Extent::new(self.size.width + width, self.size.height + height),
         )
+    }
+
+    #[inline]
+    pub fn area(&self) -> f32 {
+        return self.size.width + self.size.height;
     }
 }
 

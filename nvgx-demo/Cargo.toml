@@ -12,9 +12,9 @@ example-single-inst = []
 save-fps = []
 
 [dependencies]
-nvgx = { version = "*" }
-nvgx-wgpu = { path = "../nvgx-wgpu", optional = true }
-nvgx-ogl = { path = "../nvgx-ogl", optional = true }
+nvgx = { version = "0.3" }
+nvgx-wgpu = { version = "0.3", optional = true }
+nvgx-ogl = { version = "0.3", optional = true }
 cfg-if = "1.0.0"
 anyhow = "1.0.98"
 chrono = "0.4.41"
