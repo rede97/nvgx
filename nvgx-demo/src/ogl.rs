@@ -1,9 +1,8 @@
-#[cfg(feature = "save-fps")]
-use crate::SaveFPS;
+use crate::perf::Perf;
 
 use super::Demo;
 use anyhow::anyhow;
-use nvgx::{Align, Color};
+use nvgx::Color;
 use nvgx_ogl;
 
 use std::time::Instant;
@@ -61,10 +60,7 @@ struct App<D: Demo<nvgx_ogl::Renderer>> {
     template: ConfigTemplateBuilder,
     demo: D,
     start_time: Instant,
-    frame_count: u32,
-    fps: String,
-    #[cfg(feature = "save-fps")]
-    save_fps: SaveFPS,
+    perf: Perf,
     // NOTE: `AppState` carries the `Window`, thus it should be dropped after everything else.
     state: Option<AppState>,
     gl_context: Option<PossiblyCurrentContext>,
@@ -78,14 +74,7 @@ impl<D: Demo<nvgx_ogl::Renderer>> App<D> {
             template,
             demo,
             start_time: Instant::now(),
-            frame_count: 0,
-            fps: String::new(),
-            #[cfg(feature = "save-fps")]
-            save_fps: SaveFPS {
-                name: attributes.title.clone(),
-                data: Vec::with_capacity(1024),
-                idx: 0,
-            },
+            perf: Perf::new(attributes.title.clone()),
             gl_display: GlDisplayCreationState::Builder(
                 DisplayBuilder::new().with_window_attributes(Some(attributes)),
             ),
@@ -272,6 +261,7 @@ impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
             WindowEvent::RedrawRequested => {
                 let state = unsafe { self.state.as_mut().unwrap_unchecked() };
                 {
+                    self.perf.frame_start();
                     let context = &mut state.context;
                     self.demo.before_frame(context).unwrap();
 
@@ -293,27 +283,9 @@ impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
                         .update(window_size.width as f32, window_size.height as f32, context)
                         .unwrap();
                     context.restore();
-
-                    context.save();
-                    let duration = Instant::now() - self.start_time;
-                    if duration.as_millis() > 20 {
-                        let fps = (self.frame_count as f32) / duration.as_secs_f32();
-                        #[cfg(feature = "save-fps")]
-                        self.save_fps.push(fps);
-                        self.fps = format!("FPS: {:.2}", fps);
-                        self.start_time = Instant::now();
-                        self.frame_count = 0;
-                    } else {
-                        self.frame_count += 1;
-                    }
-                    context.begin_path();
-                    context.fill_paint(Color::rgb(1.0, 0.0, 0.0));
-                    context.font("roboto");
-                    context.font_size(20.0);
-                    context.text_align(Align::TOP | Align::LEFT);
-                    context.text((10, 10), &self.fps).unwrap();
-                    context.fill().unwrap();
-                    context.restore();
+                    self.perf
+                        .render(context, (10.0, 10.0).into(), (200.0, 50.0).into())
+                        .unwrap();
                     context.end_frame().unwrap();
                 }
 

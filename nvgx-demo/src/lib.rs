@@ -1,6 +1,8 @@
 use nvgx::{Context, RendererDevice};
 use winit;
 
+mod perf;
+
 #[macro_use]
 #[allow(unused)]
 extern crate anyhow;
@@ -44,42 +46,4 @@ pub trait Demo<R: RendererDevice> {
     fn key_event(&mut self, _key: winit::keyboard::KeyCode, _state: winit::event::ElementState) {}
 
     fn mouse_wheel(&mut self, _delta: winit::event::MouseScrollDelta) {}
-}
-
-
-#[cfg(feature = "save-fps")]
-#[derive(Default)]
-struct SaveFPS {
-    pub name: String,
-    pub data: Vec<f32>,
-    pub idx: usize,
-}
-
-#[cfg(feature = "save-fps")]
-impl SaveFPS {
-    fn push(&mut self, fps: f32) {
-        if self.idx == 1024 {
-            println!("fps ok!");
-        }
-        if self.idx < 1024 {
-            self.data.push(fps);
-        } else {
-            self.data[self.idx % 1024] = fps;
-        }
-        self.idx += 1;
-    }
-}
-
-#[cfg(feature = "save-fps")]
-impl Drop for SaveFPS {
-    fn drop(&mut self) {
-        use std::io::Write;
-        if self.idx < 1024 {
-            return;
-        }
-        let mut f = std::fs::File::create(format!("{}.csv", self.name)).unwrap();
-        for fps in self.data.iter() {
-            writeln!(f, "{}", fps).unwrap();
-        }
-    }
 }
