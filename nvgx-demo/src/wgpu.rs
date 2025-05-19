@@ -1,4 +1,4 @@
-use crate::perf::Perf;
+use crate::{measure_time, perf::Perf};
 
 use super::Demo;
 
@@ -13,7 +13,7 @@ use winit::{
     window::{Window, WindowAttributes},
 };
 
-pub fn run<D: Demo<nvgx_wgpu::Renderer>>(demo: D, title: &str) {
+pub fn run<D: Demo<nvgx_wgpu::Renderer>>(demo: D, title: &str, fb_perf_en: bool) {
     let event_loop = EventLoop::new().unwrap();
     let attributes = Window::default_attributes()
         .with_inner_size(winit::dpi::LogicalSize::new(
@@ -21,7 +21,7 @@ pub fn run<D: Demo<nvgx_wgpu::Renderer>>(demo: D, title: &str) {
             super::DEFAULT_SIZE.1,
         ))
         .with_title(format!("{} (WGPU)", title));
-    let mut app = App::new(demo, attributes);
+    let mut app = App::new(demo, attributes, fb_perf_en);
     event_loop.run_app(&mut app).expect("failed to run app");
     app.exit_state.unwrap();
 }
@@ -37,11 +37,11 @@ struct App<D: Demo<nvgx_wgpu::Renderer>> {
 }
 
 impl<D: Demo<nvgx_wgpu::Renderer>> App<D> {
-    fn new(demo: D, attributes: WindowAttributes) -> Self {
+    fn new(demo: D, attributes: WindowAttributes, fb_perf_en: bool) -> Self {
         Self {
             demo,
             start_time: Instant::now(),
-            perf: Perf::new(attributes.title.clone()),
+            perf: Perf::new(attributes.title.clone(), fb_perf_en),
             exit_state: Ok(()),
             state: None,
             attributes,
@@ -115,9 +115,13 @@ impl<D: Demo<nvgx_wgpu::Renderer>> ApplicationHandler for App<D> {
             WindowEvent::RedrawRequested => {
                 let state = unsafe { self.state.as_mut().unwrap_unchecked() };
                 {
-                    self.perf.frame_start();
                     let context = &mut state.context;
-                    self.demo.before_frame(context).unwrap();
+                    
+                    let (_, fb_duration) = measure_time!({
+                        self.demo.before_frame(context).unwrap();
+                    });
+                    self.perf.update_fb_time(fb_duration.as_secs_f32());
+                    self.perf.frame_start();
 
                     let window_size = state.window.inner_size();
                     let scale_factor = state.window.scale_factor() as f32;
@@ -142,6 +146,7 @@ impl<D: Demo<nvgx_wgpu::Renderer>> ApplicationHandler for App<D> {
                         .render(context, (10.0, 10.0).into(), (200.0, 50.0).into())
                         .unwrap();
                     context.end_frame().unwrap();
+                    self.perf.frame_end();
                 }
 
                 {

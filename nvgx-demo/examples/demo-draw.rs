@@ -238,5 +238,6 @@ fn main() {
             smoothed_mouse: (0.0, 0.0),
         },
         "demo-draw",
+        false,
     );
 }

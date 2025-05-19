@@ -94,22 +94,28 @@ impl<const N: usize> PerfGraph<N> {
 
 pub struct Perf {
     prev_start_time: Instant,
-    prev_end_time: Instant,
+    render_start_time: Instant,
     frame_time_graph: PerfGraph<64>,
     cpu_time_graph: PerfGraph<64>,
     render_time_graph: PerfGraph<64>,
+    fb_time_graph: Option<PerfGraph<64>>,
     #[cfg(feature = "save-fps")]
     save_fps: SaveFrameTime,
 }
 
 impl Perf {
-    pub fn new(_name: String) -> Self {
+    pub fn new(_name: String, fb: bool) -> Self {
         Self {
             prev_start_time: Instant::now(),
-            prev_end_time: Instant::now(),
+            render_start_time: Instant::now(),
             frame_time_graph: PerfGraph::new("Frame".into()),
             cpu_time_graph: PerfGraph::new("CPU".into()),
             render_time_graph: PerfGraph::new("GPU Draw".into()),
+            fb_time_graph: if fb {
+                Some(PerfGraph::new("Framebuffer".into()))
+            } else {
+                None
+            },
             #[cfg(feature = "save-fps")]
             save_fps: SaveFrameTime::new(_name),
         }
@@ -117,13 +123,23 @@ impl Perf {
 
     pub fn frame_start(&mut self) -> f32 {
         let frame_start = Instant::now();
-        let render_interval = frame_start - self.prev_end_time;
-        let frame_duration =
-            frame_start - std::mem::replace(&mut self.prev_start_time, frame_start);
-        let frame_duration = frame_duration.as_secs_f32();
-        self.frame_time_graph.update(frame_duration);
-        self.render_time_graph.update(render_interval.as_secs_f32());
-        return frame_duration;
+        let frame_time =
+            (frame_start - std::mem::replace(&mut self.prev_start_time, frame_start)).as_secs_f32();
+        self.frame_time_graph.update(frame_time);
+        return frame_time;
+    }
+
+    #[inline]
+    pub fn frame_end(&mut self) {
+        let render_time = Instant::now() - self.render_start_time;
+        self.render_time_graph.update(render_time.as_secs_f32());
+    }
+
+    #[inline]
+    pub fn update_fb_time(&mut self, t: f32) {
+        if let Some(fb_graph) = &mut self.fb_time_graph {
+            fb_graph.update(t);
+        }
     }
 
     pub fn render<R: RendererDevice>(
@@ -132,11 +148,9 @@ impl Perf {
         pos: Point,
         size: Extent,
     ) -> anyhow::Result<()> {
-        let cpu_time = Instant::now() - self.prev_start_time;
-        self.cpu_time_graph.update(cpu_time.as_secs_f32());
         ctx.reset_transform();
         let x_offset = size.width + 10.0;
-        let avg_frame_time = self.frame_time_graph.render(
+        let _avg_frame_time = self.frame_time_graph.render(
             ctx,
             Rect { xy: pos, size },
             Color::rgb_i(0x00, 0xBF, 0xBF),
@@ -145,7 +159,7 @@ impl Perf {
             |v| Some(format!("{:.1} ms", v * 1000.0)),
         )?;
         #[cfg(feature = "save-fps")]
-        self.save_fps.push(avg_frame_time);
+        self.save_fps.push(_avg_frame_time);
 
         self.cpu_time_graph.render(
             ctx,
@@ -169,7 +183,24 @@ impl Perf {
             |v| Some(format!("{:.1} ms", v * 1000.0)),
             |_| None,
         )?;
-        self.prev_end_time = Instant::now();
+        if let Some(fb_time_graph) = &self.fb_time_graph {
+            fb_time_graph.render(
+                ctx,
+                Rect {
+                    xy: pos.offset(x_offset * 3.0, 0.0),
+                    size,
+                },
+                Color::rgb_i(0x00, 0xC8, 0xFF),
+                |v| v * 1000.0 / 10.0,
+                |v| Some(format!("{:.1} ms", v * 1000.0)),
+                |_| None,
+            )?;
+        }
+
+        let now = Instant::now();
+        self.cpu_time_graph
+            .update((now - self.prev_start_time).as_secs_f32());
+        self.render_start_time = now;
         Ok(())
     }
 }
@@ -223,7 +254,7 @@ impl Drop for SaveFrameTime {
         }
         let mut f = std::fs::File::create(format!("{}.csv", self.name)).unwrap();
         for ft in self.data.iter() {
-            writeln!(f, "{}", ft).unwrap();
+            writeln!(f, "{:.3}", ft * 1000.0).unwrap();
         }
     }
 }

@@ -1,3 +1,4 @@
+use crate::measure_time;
 use crate::perf::Perf;
 
 use super::Demo;
@@ -27,7 +28,7 @@ use glutin::surface::{Surface, WindowSurface};
 
 use glutin_winit::{DisplayBuilder, GlWindow};
 
-pub fn run<D: Demo<nvgx_ogl::Renderer>>(demo: D, title: &str) {
+pub fn run<D: Demo<nvgx_ogl::Renderer>>(demo: D, title: &str, fb_perf_en: bool) {
     let event_loop = EventLoop::new().unwrap();
     let template = ConfigTemplateBuilder::new()
         .with_alpha_size(8)
@@ -35,7 +36,7 @@ pub fn run<D: Demo<nvgx_ogl::Renderer>>(demo: D, title: &str) {
 
     let attributes = window_attributes().with_title(format!("{} (OpenGL)", title));
 
-    let mut app = App::new(template, attributes, demo);
+    let mut app = App::new(template, attributes, demo, fb_perf_en);
     event_loop.run_app(&mut app).unwrap();
 
     app.exit_state.unwrap();
@@ -69,12 +70,17 @@ struct App<D: Demo<nvgx_ogl::Renderer>> {
 }
 
 impl<D: Demo<nvgx_ogl::Renderer>> App<D> {
-    fn new(template: ConfigTemplateBuilder, attributes: WindowAttributes, demo: D) -> Self {
+    fn new(
+        template: ConfigTemplateBuilder,
+        attributes: WindowAttributes,
+        demo: D,
+        fb_perf_en: bool,
+    ) -> Self {
         Self {
             template,
             demo,
             start_time: Instant::now(),
-            perf: Perf::new(attributes.title.clone()),
+            perf: Perf::new(attributes.title.clone(), fb_perf_en),
             gl_display: GlDisplayCreationState::Builder(
                 DisplayBuilder::new().with_window_attributes(Some(attributes)),
             ),
@@ -261,9 +267,13 @@ impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
             WindowEvent::RedrawRequested => {
                 let state = unsafe { self.state.as_mut().unwrap_unchecked() };
                 {
-                    self.perf.frame_start();
                     let context = &mut state.context;
-                    self.demo.before_frame(context).unwrap();
+                    
+                    let (_, fb_duration) = measure_time!({
+                        self.demo.before_frame(context).unwrap();
+                    });
+                    self.perf.update_fb_time(fb_duration.as_secs_f32());
+                    self.perf.frame_start();
 
                     let window_size = state.window.inner_size();
                     let scale_factor = state.window.scale_factor() as f32;
@@ -287,6 +297,7 @@ impl<D: Demo<nvgx_ogl::Renderer>> ApplicationHandler for App<D> {
                         .render(context, (10.0, 10.0).into(), (200.0, 50.0).into())
                         .unwrap();
                     context.end_frame().unwrap();
+                    self.perf.frame_end();
                 }
 
                 {

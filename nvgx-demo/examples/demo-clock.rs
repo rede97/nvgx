@@ -146,5 +146,5 @@ impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoClock {
 }
 
 fn main() {
-    nvgx_demo::run(DemoClock, "demo-clock");
+    nvgx_demo::run(DemoClock, "demo-clock", false);
 }

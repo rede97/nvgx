@@ -61,5 +61,5 @@ impl<R: RendererDevice> nvgx_demo::Demo<R> for DemoText {
 }
 
 fn main() {
-    nvgx_demo::run(DemoText, "text");
+    nvgx_demo::run(DemoText, "text", false);
 }

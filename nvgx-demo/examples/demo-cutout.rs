@@ -296,5 +296,5 @@ fn smooth_mouse(
 }
 
 fn main() {
-    nvgx_demo::run(DemoCutout::default(), "demo-cutout");
+    nvgx_demo::run(DemoCutout::default(), "demo-cutout", false);
 }

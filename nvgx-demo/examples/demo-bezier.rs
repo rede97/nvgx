@@ -365,5 +365,6 @@ fn main() {
             wirelines: false,
         },
         "demo-bezier",
+        false
     );
 }

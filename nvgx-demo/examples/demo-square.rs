@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use anyhow::Error;
-use nvgx_demo::nvgx_impl::{Renderer, fb::FrameBuffer};
 use nvgx::*;
+use nvgx_demo::nvgx_impl::{Renderer, fb::FrameBuffer};
 
 struct DemoCutout {
     scale_factor: f32,
@@ -22,8 +22,22 @@ impl Default for DemoCutout {
     }
 }
 
-impl DemoCutout {
-    pub fn render_fb(&mut self, ctx: &mut Context<Renderer>) -> Result<(), Error> {
+impl nvgx_demo::Demo<Renderer> for DemoCutout {
+    fn init(&mut self, ctx: &mut Context<Renderer>, scale_factor: f32) -> Result<(), Error> {
+        ctx.create_font_from_file("roboto", nvgx_demo::FONT_PATH)?;
+
+        self.scale_factor = scale_factor;
+        self.fb = Some(ctx.create_fb(
+            (100.0 * scale_factor) as u32,
+            (100.0 * scale_factor) as u32,
+            ImageFlags::REPEATX | ImageFlags::REPEATY,
+            None,
+        )?);
+
+        Ok(())
+    }
+
+    fn before_frame(&mut self, ctx: &mut Context<Renderer>) -> anyhow::Result<()> {
         if let Some(fb) = &self.fb {
             let dt = Instant::now().duration_since(self.start_time).as_secs_f32();
             let mut fb_ctx = ctx.bind(&fb)?;
@@ -37,28 +51,6 @@ impl DemoCutout {
                 fb_ctx.end_frame()?;
             }
         }
-        Ok(())
-    }
-}
-
-impl nvgx_demo::Demo<Renderer> for DemoCutout {
-    fn init(&mut self, ctx: &mut Context<Renderer>, scale_factor: f32) -> Result<(), Error> {
-        ctx.create_font_from_file("roboto", nvgx_demo::FONT_PATH)?;
-
-        self.scale_factor = scale_factor;
-        self.fb = Some(ctx.create_fb(
-            (100.0 * scale_factor) as u32,
-            (100.0 * scale_factor) as u32,
-            ImageFlags::REPEATX | ImageFlags::REPEATY,
-            None,
-        )?);
-        self.render_fb(ctx)?;
-
-        Ok(())
-    }
-
-    fn before_frame(&mut self, ctx: &mut Context<Renderer>) -> anyhow::Result<()> {
-        self.render_fb(ctx)?;
         Ok(())
     }
 
@@ -95,10 +87,10 @@ impl nvgx_demo::Demo<Renderer> for DemoCutout {
         if true {
             ctx.begin_path();
             ctx.fill_paint(nvgx::Color::rgb(0.9, 0.3, 0.4));
-            ctx.rounded_rect(nvgx::Rect::new(
-                Point::new(250.0, 300.0),
-                Extent::new(80.0, 80.0),
-            ), 5.0);
+            ctx.rounded_rect(
+                nvgx::Rect::new(Point::new(250.0, 300.0), Extent::new(80.0, 80.0)),
+                5.0,
+            );
             ctx.fill()?;
         }
 
@@ -162,5 +154,5 @@ impl nvgx_demo::Demo<Renderer> for DemoCutout {
 }
 
 fn main() {
-    nvgx_demo::run(DemoCutout::default(), "demo-square");
+    nvgx_demo::run(DemoCutout::default(), "demo-square", true);
 }
